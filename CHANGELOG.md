@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-17
+
 ### Added
 
 - Station and settings backup export/import, including locally saved station logos.
@@ -15,15 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - GitHub Actions CI for unit tests, Android lint, and debug APK builds.
 - GitHub release workflow for tag-based draft releases with release APK artifacts.
 - Unit tests for Radio Browser station de-duplication.
+- Initial production-readiness baseline for Aerial.
 
 ### Changed
 
 - Search is now launched from the top app bar to preserve home-screen space.
 - The empty home state directs first-time users to station discovery.
 - Settings no longer includes the placeholder About section.
-
-## [0.1.0] - 2026-06-17
-
-### Added
-
-- Initial production-readiness baseline for Aerial.
