@@ -1,0 +1,100 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'com.google.devtools.ksp'
+}
+
+android {
+    namespace 'com.shapeshed.aerial'
+    compileSdk 37
+
+    def releaseKeystoreFile = System.getenv("AERIAL_KEYSTORE_FILE")
+    def releaseKeystorePassword = System.getenv("AERIAL_KEYSTORE_PASSWORD")
+    def releaseKeyAlias = System.getenv("AERIAL_KEY_ALIAS")
+    def releaseKeyPassword = System.getenv("AERIAL_KEY_PASSWORD")
+    def hasReleaseSigning = releaseKeystoreFile &&
+        releaseKeystorePassword &&
+        releaseKeyAlias &&
+        releaseKeyPassword
+
+    defaultConfig {
+        applicationId "com.shapeshed.aerial"
+        minSdk 26
+        targetSdk 37
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseKeystoreFile)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+
+    buildFeatures {
+        compose true
+    }
+}
+
+dependencies {
+    def composeBom = platform('androidx.compose:compose-bom:2026.05.01')
+    implementation composeBom
+
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-text-google-fonts'
+    implementation 'androidx.compose.material3:material3:1.5.0-alpha21'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.1'
+
+    def media3Version = '1.9.2'
+    implementation "androidx.media3:media3-exoplayer:$media3Version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
+    implementation "androidx.media3:media3-session:$media3Version"
+
+    def roomVersion = '2.7.0'
+    implementation "androidx.room:room-runtime:$roomVersion"
+    implementation "androidx.room:room-ktx:$roomVersion"
+    ksp "androidx.room:room-compiler:$roomVersion"
+
+    implementation 'androidx.navigation:navigation-compose:2.8.4'
+    implementation 'io.coil-kt.coil3:coil-compose:3.0.4'
+    implementation 'io.coil-kt.coil3:coil-network-okhttp:3.0.4'
+    implementation 'io.coil-kt.coil3:coil-svg:3.0.4'
+    implementation 'androidx.datastore:datastore-preferences:1.1.4'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}
