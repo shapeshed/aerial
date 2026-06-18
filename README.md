@@ -10,17 +10,21 @@ Aerial is a lightweight Android radio player.
 
 ## Screenshots
 
-## Light mode
+Light mode:
 
-![Find a station in Aerial in light mode][1]
-![Aerial station list while playing in light mode][2]
-![Aerial now playing view in light mode][3]
+<p>
+  <img src="docs/screenshots/find-station-light.png" alt="Find a station in Aerial in light mode" width="220">
+  <img src="docs/screenshots/home-playing-light.png" alt="Aerial station list while playing in light mode" width="220">
+  <img src="docs/screenshots/now-playing-light.png" alt="Aerial now playing view in light mode" width="220">
+</p>
 
-## Dark mode
+Dark mode:
 
-![Find a station in Aerial][4]
-![Aerial station list while playing][5]
-![Aerial now playing view][6]
+<p>
+  <img src="docs/screenshots/find-station.png" alt="Find a station in Aerial" width="220">
+  <img src="docs/screenshots/home-playing.png" alt="Aerial station list while playing" width="220">
+  <img src="docs/screenshots/now-playing.png" alt="Aerial now playing view" width="220">
+</p>
 
 Regenerate README and F-Droid/Fastlane screenshots from a connected Android
 device:
@@ -31,7 +35,7 @@ scripts/capture-screenshots.sh
 
 ## Features
 
-- Search for stations using the [Radio Browser][7] API.
+- Search for stations using the [Radio Browser][1] API.
 - Add stations manually when a stream URL is known.
 - Play live streams with Android media controls.
 - Save favorite stations.
@@ -189,10 +193,4 @@ Aerial is licensed under the Apache License, Version 2.0. See `LICENSE`.
 Bundled Google Sans Flex font files are licensed under the SIL Open Font
 License, Version 1.1. See `third_party/licenses/google_sans_flex/OFL.txt`.
 
-[1]: docs/screenshots/find-station-light.png
-[2]: docs/screenshots/home-playing-light.png
-[3]: docs/screenshots/now-playing-light.png
-[4]: docs/screenshots/find-station.png
-[5]: docs/screenshots/home-playing.png
-[6]: docs/screenshots/now-playing.png
-[7]: https://www.radio-browser.info/
+[1]: https://www.radio-browser.info/
