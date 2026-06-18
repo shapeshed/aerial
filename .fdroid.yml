@@ -9,22 +9,20 @@ IssueTracker: https://github.com/shapeshed/aerial/issues
 Changelog: https://github.com/shapeshed/aerial/blob/HEAD/CHANGELOG.md
 
 AutoName: Aerial
-Description: |-
-  Aerial is a lightweight Android radio player.
-
-  It can search for stations using Radio Browser, play live streams with
-  Android media controls, save favorites, and export or import station data.
 
 RepoType: git
 Repo: https://github.com/shapeshed/aerial.git
+Binaries: https://github.com/shapeshed/aerial/releases/download/v%v/aerial-v%v.apk
 
 Builds:
   - versionName: 0.1.1
     versionCode: 2
-    commit: v0.1.1
+    commit: c3572ca4756ef29b7dfdd103e7a00c66bb087590
     subdir: app
     gradle:
       - yes
+
+AllowedAPKSigningKeys: b84e94d220e39d5d754bb7439de2712fde2005e5be2dab1ddb55480d30443dab
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
