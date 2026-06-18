@@ -72,3 +72,10 @@ kotlin-ide/
 .claude/settings.local.json
 **/xcuserdata
 .test-federation.*
+
+# fdroidserver local build output
+/logs/
+/repo/
+/srclibs/
+/unsigned/
+/extlib/

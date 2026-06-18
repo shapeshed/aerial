@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- README install badge for adding Aerial to Obtainium.
+- Agent guidance covering release, F-Droid, screenshot, UI, and commit conventions.
+- Git ignore rules for local fdroidserver output directories.
+
+### Changed
+
+- F-Droid metadata now relies on localized summary metadata instead of the YAML `Summary` field.
+
 ## [0.1.1] - 2026-06-18
 
 ### Added
