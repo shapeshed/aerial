@@ -22,14 +22,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -58,14 +62,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Scaffold
@@ -74,12 +75,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -127,8 +130,11 @@ fun MainScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var fabMenuExpanded by remember { mutableStateOf(false) }
+    var fabVisible by remember { mutableStateOf(true) }
     var stationPendingDelete by remember { mutableStateOf<Station?>(null) }
     val searchFocusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     val filteredStations = remember(stations, searchQuery) {
         if (searchQuery.isBlank()) stations
@@ -136,10 +142,17 @@ fun MainScreen(
     }
 
     val fabBottomPadding by animateDpAsState(
-        targetValue = if (currentStation != null) 96.dp else 0.dp,
+        targetValue = if (currentStation != null) 112.dp else 16.dp,
         animationSpec = tween(300),
         label = "fabBottom",
     )
+    val fabOffsetY by animateDpAsState(
+        targetValue = if (fabVisible) 0.dp else fabBottomPadding + 128.dp,
+        animationSpec = tween(220),
+        label = "fabOffsetY",
+    )
+    val stationContentBottomPadding =
+        if (currentStation != null) 108.dp else 0.dp
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
@@ -149,6 +162,40 @@ fun MainScreen(
     LaunchedEffect(Unit) { viewModel.connect(context) }
     LaunchedEffect(searching) {
         if (searching) searchFocusRequester.requestFocus()
+    }
+    LaunchedEffect(isGridView) {
+        fabVisible = true
+        if (isGridView) {
+            var previousIndex = gridState.firstVisibleItemIndex
+            var previousOffset = gridState.firstVisibleItemScrollOffset
+
+            snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+                .collect { (index, offset) ->
+                    if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
+                        fabVisible = false
+                        fabMenuExpanded = false
+                    } else if (index < previousIndex || offset < previousOffset) {
+                        fabVisible = true
+                    }
+                    previousIndex = index
+                    previousOffset = offset
+                }
+        } else {
+            var previousIndex = listState.firstVisibleItemIndex
+            var previousOffset = listState.firstVisibleItemScrollOffset
+
+            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                .collect { (index, offset) ->
+                    if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
+                        fabVisible = false
+                        fabMenuExpanded = false
+                    } else if (index < previousIndex || offset < previousOffset) {
+                        fabVisible = true
+                    }
+                    previousIndex = index
+                    previousOffset = offset
+                }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -260,10 +307,11 @@ fun MainScreen(
                     }
                 } else if (isGridView) {
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Fixed(2),
                         contentPadding = PaddingValues(
                             top = 0.dp,
-                            bottom = padding.calculateBottomPadding() + if (currentStation != null) 96.dp else 0.dp,
+                            bottom = padding.calculateBottomPadding() + stationContentBottomPadding,
                             start = 8.dp,
                             end = 8.dp,
                         ),
@@ -286,28 +334,36 @@ fun MainScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         contentPadding = PaddingValues(
                             top = 0.dp,
-                            bottom = padding.calculateBottomPadding() + if (currentStation != null) 96.dp else 0.dp,
+                            bottom = padding.calculateBottomPadding() + stationContentBottomPadding,
                             start = 8.dp,
                             end = 8.dp,
                         ),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(filteredStations, key = { it.id }) { station ->
-                            Column(modifier = Modifier.animateItem()) {
-                                StationItem(
-                                    station = station,
-                                    isActive = currentStation?.id == station.id,
-                                    isPlaying = isPlaying && currentStation?.id == station.id,
-                                    grayscaleLogos = grayscaleLogos,
-                                    onClick = { viewModel.play(station) },
-                                    onEdit = { onEditStation(station.id) },
-                                    onDelete = { stationPendingDelete = station },
-                                    onToggleFavorite = { viewModel.toggleFavorite(station) },
-                                )
-                                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
-                            }
+                            StationItem(
+                                station = station,
+                                isActive = currentStation?.id == station.id,
+                                isPlaying = isPlaying && currentStation?.id == station.id,
+                                isBuffering = isBuffering && currentStation?.id == station.id,
+                                supportingText = if (currentStation?.id == station.id)
+                                    currentTrackTitle ?: when {
+                                        isBuffering -> "Buffering"
+                                        isPlaying -> "Playing"
+                                        else -> "Paused"
+                                    }
+                                else
+                                    null,
+                                grayscaleLogos = grayscaleLogos,
+                                onClick = { viewModel.play(station) },
+                                onEdit = { onEditStation(station.id) },
+                                onDelete = { stationPendingDelete = station },
+                                onToggleFavorite = { viewModel.toggleFavorite(station) },
+                                modifier = Modifier.animateItem(),
+                            )
                         }
                     }
                 }
@@ -320,22 +376,33 @@ fun MainScreen(
                 ToggleFloatingActionButton(
                     checked = fabMenuExpanded,
                     onCheckedChange = { fabMenuExpanded = it },
+                    containerColor = ToggleFloatingActionButtonDefaults.containerColor(
+                        initialColor = MaterialTheme.colorScheme.primary,
+                        finalColor = MaterialTheme.colorScheme.primary,
+                    ),
                 ) {
-                    val rotation by animateFloatAsState(
-                        targetValue = if (fabMenuExpanded) 45f else 0f,
-                        animationSpec = tween(300),
-                        label = "fabRotation",
+                    val iconColor = ToggleFloatingActionButtonDefaults.iconColor(
+                        initialColor = MaterialTheme.colorScheme.onPrimary,
+                        finalColor = MaterialTheme.colorScheme.onPrimary,
                     )
+                    val iconRotation by animateFloatAsState(
+                        targetValue = if (fabMenuExpanded) 45f else 0f,
+                        animationSpec = tween(220),
+                        label = "fabIconRotation",
+                    )
+
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = if (fabMenuExpanded) "Close menu" else "Add station",
-                        modifier = Modifier.graphicsLayer { rotationZ = rotation },
+                        tint = iconColor(checkedProgress),
+                        modifier = Modifier.graphicsLayer { rotationZ = iconRotation },
                     )
                 }
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 16.dp + fabBottomPadding),
+                .offset(y = fabOffsetY)
+                .padding(end = 16.dp, bottom = fabBottomPadding),
         ) {
             FloatingActionButtonMenuItem(
                 onClick = { fabMenuExpanded = false; onAddStation() },
@@ -503,9 +570,10 @@ private fun PlayerBar(
 ) {
     val motionScheme = MotionScheme.expressive()
     val haptic = LocalHapticFeedback.current
+    val isActive = isPlaying || isBuffering
 
     val cornerRadius by animateDpAsState(
-        targetValue = if (isPlaying) 50.dp else 20.dp,
+        targetValue = if (isActive) 50.dp else 20.dp,
         animationSpec = motionScheme.defaultSpatialSpec(),
         label = "cornerRadius",
     )
@@ -518,47 +586,56 @@ private fun PlayerBar(
 
     Surface(
         onClick = onExpand,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(cornerRadius),
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 6.dp,
         shadowElevation = 8.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .padding(start = 14.dp, end = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StationAvatar(station = station, isActive = true, size = 36.dp, grayscale = grayscaleLogos)
-            Spacer(Modifier.width(12.dp))
+            StationAvatar(station = station, isActive = true, size = 52.dp, grayscale = grayscaleLogos)
+            Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = station.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (isBuffering) "Buffering…"
                            else currentTrackTitle ?: if (isPlaying) "Playing" else "Paused",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isActive)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
 
             val playPauseCorner by animateDpAsState(
-                targetValue = if (isPlaying) 50.dp else 14.dp,
+                targetValue = if (isActive) 50.dp else 14.dp,
                 animationSpec = motionScheme.defaultSpatialSpec(),
                 label = "playPauseCorner",
             )
 
             Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(playPauseCorner),
+                shape = RoundedCornerShape(playPauseCorner),
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(52.dp)
                     .graphicsLayer { scaleX = buttonScale; scaleY = buttonScale }
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(playPauseCorner))
+                    .clip(RoundedCornerShape(playPauseCorner))
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onToggle()
@@ -570,17 +647,16 @@ private fun PlayerBar(
                         label = "playPauseIcon",
                     ) { (buffering, playing) ->
                         if (buffering) {
-                            CircularProgressIndicator(
+                            LoadingIndicator(
                                 modifier = Modifier.size(28.dp),
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 3.dp,
                             )
                         } else {
                             Icon(
                                 imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                 contentDescription = if (playing) "Pause" else "Play",
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(30.dp),
                             )
                         }
                     }
@@ -648,12 +724,14 @@ fun StationAvatar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StationItem(
     station: Station,
     isActive: Boolean,
     isPlaying: Boolean,
+    isBuffering: Boolean,
+    supportingText: String?,
     grayscaleLogos: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
@@ -662,46 +740,98 @@ private fun StationItem(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val cornerRadius by animateDpAsState(
+        targetValue = if (isActive) 28.dp else 18.dp,
+        animationSpec = tween(250),
+        label = "stationItemCorner",
+    )
+    val containerColor = if (isActive)
+        MaterialTheme.colorScheme.primaryContainer
+    else
+        MaterialTheme.colorScheme.surfaceContainerLow
+    val contentColor = if (isActive)
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else
+        MaterialTheme.colorScheme.onSurface
+    val supportingColor = if (isActive)
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
 
-    ListItem(
-        modifier = modifier.clickable(onClick = onClick),
-        headlineContent = {
-            Text(station.name, style = MaterialTheme.typography.bodyLarge)
-        },
-        leadingContent = {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(cornerRadius),
+        color = containerColor,
+        tonalElevation = if (isActive) 3.dp else 0.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box {
                 StationAvatar(
                     station = station,
                     isActive = isActive,
-                    size = 40.dp,
+                    size = 50.dp,
                     grayscale = grayscaleLogos,
                 )
-                if (isActive && isPlaying) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)),
-                    ) {
-                        EqualizerBars(
-                            isPlaying = true,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp),
-                            barCount = 3,
-                        )
-                    }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (supportingText != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = supportingText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = supportingColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-        },
-        trailingContent = {
+            if (isActive && (isBuffering || isPlaying)) {
+                if (isBuffering) {
+                    LoadingIndicator(
+                        color = contentColor,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(20.dp),
+                    )
+                } else {
+                    EqualizerBars(
+                        isPlaying = true,
+                        color = contentColor,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(width = 18.dp, height = 16.dp),
+                        barCount = 3,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+            }
             Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "Options")
+                IconButton(onClick = {
+                    showMenu = true
+                }) {
+                    Icon(
+                        Icons.Rounded.MoreVert,
+                        contentDescription = "Options",
+                        tint = contentColor,
+                    )
                 }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
+                    onDismissRequest = {
+                        showMenu = false
+                    },
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     DropdownMenuItem(
@@ -715,12 +845,18 @@ private fun StationItem(
                                 tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                             )
                         },
-                        onClick = { showMenu = false; onToggleFavorite() },
+                        onClick = {
+                            showMenu = false
+                            onToggleFavorite()
+                        },
                     )
                     DropdownMenuItem(
                         text = { Text("Edit") },
                         leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                        onClick = { showMenu = false; onEdit() },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
                     )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
@@ -731,18 +867,15 @@ private fun StationItem(
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         },
-                        onClick = { showMenu = false; onDelete() },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
                     )
                 }
             }
-        },
-        colors = ListItemDefaults.colors(
-            containerColor = if (isActive)
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            else
-                androidx.compose.ui.graphics.Color.Transparent,
-        ),
-    )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -819,12 +952,16 @@ private fun StationCard(
                 )
             }
             Box(modifier = Modifier.align(Alignment.TopEnd)) {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = {
+                    showMenu = true
+                }) {
                     Icon(Icons.Rounded.MoreVert, contentDescription = "Options")
                 }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
+                    onDismissRequest = {
+                        showMenu = false
+                    },
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     DropdownMenuItem(
@@ -838,12 +975,18 @@ private fun StationCard(
                                 tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                             )
                         },
-                        onClick = { showMenu = false; onToggleFavorite() },
+                        onClick = {
+                            showMenu = false
+                            onToggleFavorite()
+                        },
                     )
                     DropdownMenuItem(
                         text = { Text("Edit") },
                         leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                        onClick = { showMenu = false; onEdit() },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
                     )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
@@ -854,7 +997,10 @@ private fun StationCard(
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         },
-                        onClick = { showMenu = false; onDelete() },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
                     )
                 }
             }

@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-18
+
+### Added
+
+- Full-row station discovery actions so tapping a result adds it directly.
+- Material 3 expressive loading states in the mini-player and home buffering row.
+- Swipe-down dismissal and sharing in the expanded radio view.
+- F-Droid/Fastlane metadata, screenshots, and a repeatable screenshot capture script.
+- Locally bundled Google Sans Flex font files under the SIL Open Font License.
+
+### Changed
+
+- Mini-player, home list, and station grid spacing were tightened so row and grid actions stay reachable.
+- The home buffering state now shows explicit loading feedback instead of a paused state.
+- The add-station FAB now uses the Material 3 expressive toggle style and moves off screen while scrolling.
+- README screenshots were refreshed with matching light and dark Mango playback flows.
+
 ## [0.1.0] - 2026-06-17
 
 ### Added

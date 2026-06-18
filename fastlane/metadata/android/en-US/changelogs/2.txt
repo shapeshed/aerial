@@ -1,0 +1,8 @@
+Release 0.1.1
+
+- Full-row station discovery actions.
+- Material 3 expressive loading states in the mini-player and buffering row.
+- Swipe-down dismissal and sharing in the expanded radio view.
+- Tighter list, grid, player, and add button spacing so actions stay reachable.
+- Refreshed light and dark screenshots for the Mango playback flow.
+- Bundled Google Sans Flex locally under the SIL Open Font License.

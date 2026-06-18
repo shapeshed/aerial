@@ -8,7 +8,7 @@ Light mode:
 
 <p>
   <img src="docs/screenshots/find-station-light.png" alt="Find a station in Aerial in light mode" width="220">
-  <img src="docs/screenshots/home-playing-light.png" alt="Aerial station list with Mango Radio in light mode" width="220">
+  <img src="docs/screenshots/home-playing-light.png" alt="Aerial station list while playing in light mode" width="220">
   <img src="docs/screenshots/now-playing-light.png" alt="Aerial now playing view in light mode" width="220">
 </p>
 
@@ -16,9 +16,16 @@ Dark mode:
 
 <p>
   <img src="docs/screenshots/find-station.png" alt="Find a station in Aerial" width="220">
-  <img src="docs/screenshots/home-playing.png" alt="Aerial station list with Mango Radio playing" width="220">
+  <img src="docs/screenshots/home-playing.png" alt="Aerial station list while playing" width="220">
   <img src="docs/screenshots/now-playing.png" alt="Aerial now playing view" width="220">
 </p>
+
+Regenerate README and F-Droid/Fastlane screenshots from a connected Android
+device:
+
+```sh
+scripts/capture-screenshots.sh
+```
 
 ## Features
 
@@ -153,8 +160,29 @@ base64 -w 0 aerial-release.jks
 
 Do not commit keystores, passwords, generated signed APKs, or Play Console credentials.
 
+## F-Droid
+
+Aerial is licensed under Apache-2.0 and does not include advertising, analytics, Google Play Services, Firebase, Crashlytics, or other proprietary tracking SDKs.
+
+Upstream store metadata lives in `fastlane/metadata/android/en-US/`. A draft F-Droid build metadata file is available at `.fdroid.yml`, which can be used with `fdroid build` from the source repository or adapted for F-Droid Data.
+
+F-Droid builds should use the unsigned release path:
+
+```sh
+./gradlew assembleRelease
+```
+
+The release build must not require local signing environment variables.
+
 ## Data And Backup
 
 Aerial stores stations in Room, preferences in DataStore, and downloaded station logos in internal app storage under `logos/`.
 
 The in-app export/import feature is the supported way to move user data between installs. Android system backup excludes the internal logo cache to avoid large or stale auto-backups.
+
+## License
+
+Aerial is licensed under the Apache License, Version 2.0. See `LICENSE`.
+
+Bundled Google Sans Flex font files are licensed under the SIL Open Font
+License, Version 1.1. See `third_party/licenses/google_sans_flex/OFL.txt`.

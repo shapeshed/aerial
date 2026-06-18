@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
@@ -167,6 +168,7 @@ private fun DiscoverContent(
                 ) {
                     items(results, key = { it.stationuuid }) { station ->
                         ListItem(
+                            modifier = Modifier.clickable { onAddStation(station) },
                             headlineContent = { Text(station.name) },
                             supportingContent = {
                                 val parts = listOfNotNull(

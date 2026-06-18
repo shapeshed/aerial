@@ -1,0 +1,33 @@
+Categories:
+  - Multimedia
+  - Radio
+License: Apache-2.0
+AuthorName: George Ornbo
+AuthorEmail: george@shapeshed.com
+SourceCode: https://github.com/shapeshed/aerial
+IssueTracker: https://github.com/shapeshed/aerial/issues
+Changelog: https://github.com/shapeshed/aerial/blob/HEAD/CHANGELOG.md
+
+AutoName: Aerial
+Summary: Lightweight Android radio player
+Description: |-
+  Aerial is a lightweight Android radio player.
+
+  It can search for stations using Radio Browser, play live streams with
+  Android media controls, save favorites, and export or import station data.
+
+RepoType: git
+Repo: https://github.com/shapeshed/aerial.git
+
+Builds:
+  - versionName: 0.1.1
+    versionCode: 2
+    commit: v0.1.1
+    subdir: app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.1.1
+CurrentVersionCode: 2

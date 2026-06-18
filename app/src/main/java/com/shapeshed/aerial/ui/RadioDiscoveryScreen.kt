@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -109,6 +110,7 @@ fun RadioDiscoveryScreen(
                 ) {
                     items(results, key = { it.stationuuid }) { station ->
                         ListItem(
+                            modifier = Modifier.clickable { onAddStation(station) },
                             headlineContent = { Text(station.name) },
                             supportingContent = {
                                 val parts = listOfNotNull(
