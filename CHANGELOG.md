@@ -34,6 +34,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The home buffering state now shows explicit loading feedback instead of a paused state.
 - The add-station FAB now uses the Material 3 expressive toggle style and moves off screen while scrolling.
 - README screenshots were refreshed with matching light and dark Mango playback flows.
+- Release APKs no longer include Android dependency metadata signing blocks, allowing F-Droid binary scanning.
 
 ## [0.1.0] - 2026-06-17
 
