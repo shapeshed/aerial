@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Developer documentation split out from the product README.
+- Privacy policy for app store listings.
 - GitHub community health files and Renovate dependency update configuration.
 - Android media controls now include a favorite button that reflects the current station state.
 - README install badge for adding Aerial to Obtainium.
