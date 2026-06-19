@@ -1,0 +1,5 @@
+# CODEOWNERS
+# Lines starting with # are comments.
+
+# Default owners for everything in the repo.
+* @shapeshed

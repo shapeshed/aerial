@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- GitHub community health files and Renovate dependency update configuration.
 - Android media controls now include a favorite button that reflects the current station state.
 - README install badge for adding Aerial to Obtainium.
 - Agent guidance covering release, F-Droid, screenshot, UI, and commit conventions.
