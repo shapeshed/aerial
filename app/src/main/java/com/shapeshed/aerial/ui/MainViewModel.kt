@@ -78,6 +78,8 @@ class MainViewModel(
         if (favOnly) list.filter { it.isFavorite } else list
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
+
     private var statsServer: String? = null
     private val statsServerMutex = Mutex()
 
@@ -111,20 +113,22 @@ class MainViewModel(
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
-    val grayscaleLogos: StateFlow<Boolean> = dataStore.data
-        .map { it[GRAYSCALE_LOGOS_KEY] ?: false }
+    val monochromeLogos: StateFlow<Boolean> = dataStore.data
+        .map { it[MONOCHROME_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
     fun connect(context: Context) {
-        val token = SessionToken(context, ComponentName(context, PlayerService::class.java))
-        controllerFuture = MediaController.Builder(context, token).buildAsync()
+        if (controllerFuture != null) return
+        val appContext = context.applicationContext
+        val token = SessionToken(appContext, ComponentName(appContext, PlayerService::class.java))
+        controllerFuture = MediaController.Builder(appContext, token).buildAsync()
         controllerFuture?.addListener({
             controller = controllerFuture?.get()
             controller?.addListener(playerListener)
-        }, ContextCompat.getMainExecutor(context))
+        }, ContextCompat.getMainExecutor(appContext))
     }
 
     fun setGridView(gridView: Boolean) {
@@ -208,13 +212,15 @@ class MainViewModel(
                     val localArtworkData = station.logoPath
                         .takeIf { it.isNotEmpty() && !it.startsWith("http") }
                         ?.let { compressedLogoData(File(it)) }
-                    if (localArtworkData != null) {
-                        setArtworkData(
+                    when {
+                        localArtworkData != null -> setArtworkData(
                             localArtworkData,
                             MediaMetadata.PICTURE_TYPE_FRONT_COVER,
                         )
-                    } else {
-                        artworkUri?.let { setArtworkUri(it) }
+                        artworkUri != null -> setArtworkUri(artworkUri)
+                        else -> appIconArtwork?.let {
+                            setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        }
                     }
                 }
                     .setTitle(station.name)

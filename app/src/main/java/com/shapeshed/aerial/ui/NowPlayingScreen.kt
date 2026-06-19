@@ -61,7 +61,7 @@ fun NowPlayingScreen(
     isBuffering: Boolean,
     bitrateKbps: Int?,
     currentTrackTitle: String?,
-    grayscaleLogos: Boolean = false,
+    monochromeLogos: Boolean = false,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
@@ -125,7 +125,7 @@ fun NowPlayingScreen(
                         station = station,
                         isActive = true,
                         size = 260.dp,
-                        grayscale = grayscaleLogos,
+                        monochrome = monochromeLogos,
                     )
                 }
             }

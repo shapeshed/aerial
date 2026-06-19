@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-val GRAYSCALE_LOGOS_KEY = booleanPreferencesKey("grayscale_logos")
+val MONOCHROME_LOGOS_KEY = booleanPreferencesKey("monochrome_logos")
 
 class SettingsViewModel(
     application: Application,
@@ -42,16 +42,16 @@ class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
 ) : AndroidViewModel(application) {
 
-    val grayscaleLogos: StateFlow<Boolean> = dataStore.data
-        .map { it[GRAYSCALE_LOGOS_KEY] ?: false }
+    val monochromeLogos: StateFlow<Boolean> = dataStore.data
+        .map { it[MONOCHROME_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
 
-    fun setGrayscaleLogos(enabled: Boolean) {
+    fun setMonochromeLogos(enabled: Boolean) {
         viewModelScope.launch {
-            dataStore.edit { it[GRAYSCALE_LOGOS_KEY] = enabled }
+            dataStore.edit { it[MONOCHROME_LOGOS_KEY] = enabled }
         }
     }
 
@@ -126,7 +126,7 @@ class SettingsViewModel(
                 .put("version", 1)
                 .put("app", "Aerial")
                 .put("settings", JSONObject()
-                    .put("grayscaleLogos", prefs[GRAYSCALE_LOGOS_KEY] ?: false)
+                    .put("monochromeLogos", prefs[MONOCHROME_LOGOS_KEY] ?: false)
                     .put("gridView", prefs[GRID_VIEW_KEY] ?: false)
                 )
                 .put("stations", stationArray)
@@ -173,8 +173,8 @@ class SettingsViewModel(
 
         manifest.optJSONObject("settings")?.let { settings ->
             dataStore.edit { prefs ->
-                if (settings.has("grayscaleLogos")) {
-                    prefs[GRAYSCALE_LOGOS_KEY] = settings.optBoolean("grayscaleLogos")
+                if (settings.has("monochromeLogos")) {
+                    prefs[MONOCHROME_LOGOS_KEY] = settings.optBoolean("monochromeLogos")
                 }
                 if (settings.has("gridView")) {
                     prefs[GRID_VIEW_KEY] = settings.optBoolean("gridView")

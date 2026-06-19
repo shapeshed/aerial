@@ -2,8 +2,10 @@ package com.shapeshed.aerial.ui
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
+import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
 import coil3.BitmapImage
 import coil3.DrawableImage
@@ -68,6 +70,19 @@ suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
         pngFile
     } catch (_: Exception) {
         file
+    }
+}
+
+fun appIconBitmap(context: Context): ByteArray? {
+    return try {
+        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.aerial_icon_artwork)
+            ?: return null
+        val output = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        bitmap.recycle()
+        output.toByteArray()
+    } catch (_: Exception) {
+        null
     }
 }
 

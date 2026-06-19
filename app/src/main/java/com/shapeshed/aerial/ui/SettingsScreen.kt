@@ -22,12 +22,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -38,7 +41,10 @@ fun SettingsScreen(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val grayscaleLogos by viewModel.grayscaleLogos.collectAsStateWithLifecycle()
+    val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
+    val versionName = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip"),
@@ -81,21 +87,23 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
-            item {
-                ListItem(
-                    modifier = Modifier.clickable {
-                        viewModel.setGrayscaleLogos(!grayscaleLogos)
-                    },
-                    headlineContent = { Text("Grayscale logos") },
-                    supportingContent = { Text("Show station logos in black and white") },
-                    trailingContent = {
-                        Switch(
-                            checked = grayscaleLogos,
-                            onCheckedChange = { viewModel.setGrayscaleLogos(it) },
-                        )
-                    },
-                )
-                HorizontalDivider()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                item {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            viewModel.setMonochromeLogos(!monochromeLogos)
+                        },
+                        headlineContent = { Text("Monochrome logos") },
+                        supportingContent = { Text("Show station logos in monochrome") },
+                        trailingContent = {
+                            Switch(
+                                checked = monochromeLogos,
+                                onCheckedChange = { viewModel.setMonochromeLogos(it) },
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                }
             }
             item {
                 Text(
@@ -135,6 +143,17 @@ fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Radio Browser") },
                     supportingContent = { Text("Station discovery powered by radio-browser.info") },
+                )
+            }
+            item {
+                Text(
+                    text = "Aerial $versionName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
                 )
             }
         }

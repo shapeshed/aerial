@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +61,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
@@ -70,6 +71,9 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -122,13 +126,12 @@ fun MainScreen(
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
-    val grayscaleLogos by viewModel.grayscaleLogos.collectAsStateWithLifecycle()
+    val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
 
     var showNowPlaying by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var showOverflowMenu by remember { mutableStateOf(false) }
     var fabMenuExpanded by remember { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
     var stationPendingDelete by remember { mutableStateOf<Station?>(null) }
@@ -162,6 +165,10 @@ fun MainScreen(
     LaunchedEffect(Unit) { viewModel.connect(context) }
     LaunchedEffect(searching) {
         if (searching) searchFocusRequester.requestFocus()
+    }
+    LaunchedEffect(showFavoritesOnly) {
+        listState.scrollToItem(0)
+        gridState.scrollToItem(0)
     }
     LaunchedEffect(isGridView) {
         fabVisible = true
@@ -241,34 +248,8 @@ fun MainScreen(
                             IconButton(onClick = { searching = true }) {
                                 Icon(Icons.Rounded.Search, contentDescription = "Search")
                             }
-                            IconButton(onClick = { viewModel.toggleFavoritesFilter() }) {
-                                Icon(
-                                    imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = if (showFavoritesOnly) "Show all stations" else "Show favorites",
-                                    tint = if (showFavoritesOnly) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                                )
-                            }
-                            IconButton(onClick = { viewModel.setGridView(!isGridView) }) {
-                                Icon(
-                                    imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView,
-                                    contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
-                                )
-                            }
-                            Box {
-                                IconButton(onClick = { showOverflowMenu = true }) {
-                                    Icon(Icons.Rounded.MoreVert, contentDescription = "More options")
-                                }
-                                DropdownMenu(
-                                    expanded = showOverflowMenu,
-                                    onDismissRequest = { showOverflowMenu = false },
-                                    shape = MaterialTheme.shapes.medium,
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Settings") },
-                                        leadingIcon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
-                                        onClick = { showOverflowMenu = false; onSettings() },
-                                    )
-                                }
+                            IconButton(onClick = onSettings) {
+                                Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                             }
                         },
                     )
@@ -280,6 +261,14 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(top = padding.calculateTopPadding()),
             ) {
+                if (stations.isNotEmpty()) {
+                    StationControlRow(
+                        showFavoritesOnly = showFavoritesOnly,
+                        isGridView = isGridView,
+                        onToggleFavorites = { viewModel.toggleFavoritesFilter() },
+                        onSetGridView = { viewModel.setGridView(it) },
+                    )
+                }
                 if (filteredStations.isEmpty()) {
                     if (stations.isEmpty() && searchQuery.isBlank() && !showFavoritesOnly) {
                         NoStationsEmptyState(onGetStarted = onDiscover)
@@ -315,7 +304,7 @@ fun MainScreen(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
                                 isPlaying = isPlaying && currentStation?.id == station.id,
-                                grayscaleLogos = grayscaleLogos,
+                                monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
                                 onEdit = { onEditStation(station.id) },
                                 onDelete = { stationPendingDelete = station },
@@ -349,7 +338,7 @@ fun MainScreen(
                                     }
                                 else
                                     null,
-                                grayscaleLogos = grayscaleLogos,
+                                monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
                                 onEdit = { onEditStation(station.id) },
                                 onDelete = { stationPendingDelete = station },
@@ -423,7 +412,7 @@ fun MainScreen(
                     isBuffering = isBuffering,
                     currentTrackTitle = currentTrackTitle,
                     playbackError = playbackError,
-                    grayscaleLogos = grayscaleLogos,
+                    monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onExpand = { showNowPlaying = true },
                 )
@@ -443,7 +432,7 @@ fun MainScreen(
                     isBuffering = isBuffering,
                     bitrateKbps = bitrateKbps,
                     currentTrackTitle = currentTrackTitle,
-                    grayscaleLogos = grayscaleLogos,
+                    monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
                     onDismiss = { showNowPlaying = false },
@@ -473,6 +462,63 @@ fun MainScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun StationControlRow(
+    showFavoritesOnly: Boolean,
+    isGridView: Boolean,
+    onToggleFavorites: () -> Unit,
+    onSetGridView: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FilterChip(
+            selected = showFavoritesOnly,
+            onClick = onToggleFavorites,
+            label = { Text("Favourites") },
+            leadingIcon = {
+                Icon(
+                    imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            },
+        )
+        Spacer(Modifier.weight(1f))
+        SingleChoiceSegmentedButtonRow {
+            SegmentedButton(
+                selected = !isGridView,
+                onClick = { onSetGridView(false) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                icon = {},
+                label = {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ViewList,
+                        contentDescription = "List view",
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            SegmentedButton(
+                selected = isGridView,
+                onClick = { onSetGridView(true) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                icon = {},
+                label = {
+                    Icon(
+                        Icons.Rounded.GridView,
+                        contentDescription = "Grid view",
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -558,7 +604,7 @@ private fun PlayerBar(
     isBuffering: Boolean,
     currentTrackTitle: String?,
     playbackError: String?,
-    grayscaleLogos: Boolean,
+    monochromeLogos: Boolean,
     onToggle: () -> Unit,
     onExpand: () -> Unit,
 ) {
@@ -593,7 +639,7 @@ private fun PlayerBar(
                 .padding(start = 14.dp, end = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StationAvatar(station = station, isActive = true, size = 52.dp, grayscale = grayscaleLogos)
+            StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -666,7 +712,7 @@ fun StationAvatar(
     station: Station,
     isActive: Boolean,
     size: Dp,
-    grayscale: Boolean = false,
+    monochrome: Boolean = false,
 ) {
     val context = LocalContext.current
     val logoPath = station.logoPath
@@ -675,9 +721,11 @@ fun StationAvatar(
         logoPath.isNotEmpty() -> File(logoPath)
         else -> null
     }
-    val grayscaleFilter = if (grayscale) androidx.compose.ui.graphics.ColorFilter.colorMatrix(
-        androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }
-    ) else null
+    val primary = MaterialTheme.colorScheme.primary
+    val themeColorFilter = remember(monochrome, primary) {
+        if (!monochrome || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return@remember null
+        androidx.compose.ui.graphics.ColorFilter.tint(primary, androidx.compose.ui.graphics.BlendMode.Color)
+    }
     var logoFailed by remember(logoModel) { mutableStateOf(false) }
 
     val iconTint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
@@ -694,11 +742,12 @@ fun StationAvatar(
             ),
     ) {
         if (logoModel != null && !logoFailed) {
+            val imageRequest = remember(logoModel) { ImageRequest.Builder(context).data(logoModel).build() }
             AsyncImage(
-                model = ImageRequest.Builder(context).data(logoModel).build(),
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                colorFilter = grayscaleFilter,
+                colorFilter = themeColorFilter,
                 onError = { logoFailed = true },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -721,7 +770,7 @@ private fun StationItem(
     isPlaying: Boolean,
     isBuffering: Boolean,
     supportingText: String?,
-    grayscaleLogos: Boolean = false,
+    monochromeLogos: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -763,7 +812,7 @@ private fun StationItem(
                     station = station,
                     isActive = isActive,
                     size = 50.dp,
-                    grayscale = grayscaleLogos,
+                    monochrome = monochromeLogos,
                 )
             }
             Spacer(Modifier.width(14.dp))
@@ -872,7 +921,7 @@ private fun StationCard(
     station: Station,
     isActive: Boolean,
     isPlaying: Boolean,
-    grayscaleLogos: Boolean = false,
+    monochromeLogos: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -883,10 +932,11 @@ private fun StationCard(
 
     Card(
         onClick = onClick,
-        border = if (isActive) BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                 else null,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer
+                             else MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                           else MaterialTheme.colorScheme.onSurface,
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isActive) 3.dp else 0.dp,
@@ -911,7 +961,7 @@ private fun StationCard(
                         station = station,
                         isActive = isActive,
                         size = 72.dp,
-                        grayscale = grayscaleLogos,
+                        monochrome = monochromeLogos,
                     )
                     if (isActive && isPlaying) {
                         Box(
