@@ -1,0 +1,7 @@
+- Monochrome station logos option in Settings (Android 10+).
+- Custom notification icon using the app broadcast symbol.
+- Media controller no longer crashes when switching dark/light mode.
+- Improved station discovery UX with animated transitions and typed error states.
+- Splash screen on launch.
+- Station backup export and import.
+- Audio offload for lower power consumption during playback.

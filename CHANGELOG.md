@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Monochrome station logos option in Settings (Android 10+): applies the theme primary colour while preserving luminance via `BlendMode.Color`.
+- Custom notification small icon using the app broadcast symbol instead of the generic play icon.
 - Developer documentation split out from the product README.
 - Privacy policy for app store listings.
 - GitHub community health files and Renovate dependency update configuration.
@@ -42,6 +44,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Media controller no longer crashes when switching between dark and light mode; the service binding now uses `applicationContext` and is guarded against double-connect on Activity recreation.
+- Station logos with unknown file extensions are now decoded via `BitmapFactory` and re-encoded as JPEG for media artwork, rather than being silently dropped.
 - Station discovery search bar stays expanded and keyboard remains visible while editing or clearing the search term.
 - Station discovery discovery list items use rounded ripple and spacing in place of dividers, aligned with Material 3 Expressive conventions.
 - Removed unused `RadioDiscoveryScreen` which was superseded by `AddStationScreen`.
