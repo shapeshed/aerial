@@ -87,11 +87,22 @@ fun appIconBitmap(context: Context): ByteArray? {
 }
 
 fun compressedLogoData(file: File): ByteArray? {
-    val artworkFile = mediaArtworkFile(file).takeIf { file.extension.lowercase(Locale.US) == "svg" } ?: file
+    val artworkFile = if (file.extension.lowercase(Locale.US) == "svg") {
+        mediaArtworkFile(file).takeIf { it.exists() } ?: return null
+    } else {
+        file
+    }
     if (!artworkFile.exists()) return null
     return when (artworkFile.extension.lowercase(Locale.US)) {
         "png", "jpg", "jpeg", "webp" -> artworkFile.readBytes()
-        else -> null
+        else -> {
+            // Unknown extension (e.g. .img) — try BitmapFactory and re-encode as JPEG
+            val bitmap = BitmapFactory.decodeFile(artworkFile.absolutePath) ?: return null
+            val out = java.io.ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            bitmap.recycle()
+            out.toByteArray()
+        }
     }
 }
 

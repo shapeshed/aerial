@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- dot: centre (12,12) radius 2 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,14a2,2 0,1 0,0 -4a2,2 0,0 0,0 4z" />
+    <!-- inner arcs: derived from launcher foreground paths scaled by 0.82 then /4.5,
+         both arcs centre on y=12 matching the dot -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8,7.3l1.1,1.1a4.2,4.2 0,0 0,0 7.3l-1.1,1.1a5.6,5.6 0,0 1,0 -9.5zM16,7.3a5.6,5.6 0,0 1,0 9.5l-1.1,-1.1a4.2,4.2 0,0 0,0 -7.3z" />
+</vector>
