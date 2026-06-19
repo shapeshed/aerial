@@ -121,6 +121,7 @@ fun MainScreen(
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val bitrateKbps by viewModel.bitrateKbps.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
+    val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val grayscaleLogos by viewModel.grayscaleLogos.collectAsStateWithLifecycle()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
@@ -350,7 +351,7 @@ fun MainScreen(
                                 isPlaying = isPlaying && currentStation?.id == station.id,
                                 isBuffering = isBuffering && currentStation?.id == station.id,
                                 supportingText = if (currentStation?.id == station.id)
-                                    currentTrackTitle ?: when {
+                                    playbackError ?: currentTrackTitle ?: when {
                                         isBuffering -> "Buffering"
                                         isPlaying -> "Playing"
                                         else -> "Paused"
@@ -430,6 +431,7 @@ fun MainScreen(
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
                     currentTrackTitle = currentTrackTitle,
+                    playbackError = playbackError,
                     grayscaleLogos = grayscaleLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onExpand = { showNowPlaying = true },
@@ -564,6 +566,7 @@ private fun PlayerBar(
     isPlaying: Boolean,
     isBuffering: Boolean,
     currentTrackTitle: String?,
+    playbackError: String?,
     grayscaleLogos: Boolean,
     onToggle: () -> Unit,
     onExpand: () -> Unit,
@@ -610,8 +613,9 @@ private fun PlayerBar(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (isBuffering) "Buffering…"
-                           else currentTrackTitle ?: if (isPlaying) "Playing" else "Paused",
+                    text = playbackError
+                        ?: if (isBuffering) "Buffering…"
+                        else currentTrackTitle ?: if (isPlaying) "Playing" else "Paused",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isActive)
                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
@@ -807,7 +811,6 @@ private fun StationItem(
                     )
                 } else {
                     EqualizerBars(
-                        isPlaying = true,
                         color = contentColor,
                         modifier = Modifier
                             .padding(start = 8.dp)
@@ -934,7 +937,6 @@ private fun StationCard(
                                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)),
                         ) {
                             EqualizerBars(
-                                isPlaying = true,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(32.dp),
                                 barCount = 3,

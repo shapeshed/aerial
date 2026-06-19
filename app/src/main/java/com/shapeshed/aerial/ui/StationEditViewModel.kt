@@ -58,12 +58,8 @@ class StationEditViewModel(
         logoCopyJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val dir = File(context.filesDir, "logos").also { it.mkdirs() }
-                val dest = File(dir, "logo_${System.currentTimeMillis()}.jpg")
-                val copied = context.contentResolver.openInputStream(uri)?.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                    true
-                } ?: false
-                if (copied) withContext(Dispatchers.Main) { _logoPath.value = dest.absolutePath }
+                val dest = copyLogoFromUri(context, uri, dir)
+                if (dest != null) withContext(Dispatchers.Main) { _logoPath.value = dest.absolutePath }
             } catch (_: Exception) {}
         }
     }

@@ -160,38 +160,18 @@ The F-Droid MR for the initial submission was:
 https://gitlab.com/fdroid/fdroiddata/-/merge_requests/40759
 ```
 
-## Fonts
-
-Google Sans Flex is bundled locally, not loaded through Google Play Services.
-Do not reintroduce `androidx.compose.ui:ui-text-google-fonts` or
-`com.google.android.gms.fonts`.
-
-Bundled font files live under:
-
-```text
-app/src/main/res/font/
-```
-
-License files live under:
-
-```text
-third_party/licenses/google_sans_flex/
-```
-
-The Compose font mapping intentionally maps weights slightly lighter than the
-nominal names to avoid overly heavy UI text.
-
 ## UI Notes
 
 - Favor a minimal UI. Keep controls direct, avoid decorative complexity, and
   preserve the app's lightweight radio-player feel.
 - Prefer Material 3 and Material 3 Expressive components/patterns already used
   in the app rather than introducing custom interaction styles.
+- Use Material's default typography unless there is a strong reason to add a
+  custom font; avoid bundling fonts for styling alone.
 - The add-station FAB uses Material 3 expressive `ToggleFloatingActionButton`.
 - The FAB moves off the bottom of the screen while scrolling and accounts for
   the mini-player height.
 - List and grid content padding should both clear the mini-player when active.
-- Avoid adding the Google Fonts provider; keep fonts local for F-Droid.
 
 ## Git Hygiene
 

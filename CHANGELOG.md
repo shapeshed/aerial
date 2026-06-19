@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Android media controls now include a favorite button that reflects the current station state.
 - README install badge for adding Aerial to Obtainium.
 - Agent guidance covering release, F-Droid, screenshot, UI, and commit conventions.
 - Git ignore rules for local fdroidserver output directories.
@@ -15,8 +16,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Removed the bundled custom font and restored Material default typography.
 - F-Droid metadata now relies on upstream Fastlane metadata for summary and description.
 - F-Droid metadata now uses a full release commit hash and reproducible build fields.
+- Audio playback now enables Media3 audio offload when the device and stream support it.
+- Playback animations now avoid infinite transitions while idle or buffering.
+- The expanded player now shows numeric bitrate when available, with no playback-status text in that badge.
+
+### Fixed
+
+- Local logo files are no longer passed to Android media controls as private artwork URIs.
+- SVG station logos keep their original file for in-app display and get a PNG media-control copy when imported.
+- Duplicate ICY metadata no longer replaces the active media item repeatedly.
+- Bitrate state now resets when changing stations to avoid stale bitrate labels.
+- Playback failures now clear buffering and show a concise error in the active station UI.
 
 ## [0.1.1] - 2026-06-18
 

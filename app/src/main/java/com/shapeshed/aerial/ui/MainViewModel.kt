@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
@@ -83,6 +84,9 @@ class MainViewModel(
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
 
+    private val _playbackError = MutableStateFlow<String?>(null)
+    val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
     val grayscaleLogos: StateFlow<Boolean> = dataStore.data
         .map { it[GRAYSCALE_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -133,6 +137,11 @@ class MainViewModel(
         override fun onPlaybackStateChanged(state: Int) {
             _isBuffering.value = state == Player.STATE_BUFFERING
         }
+        override fun onPlayerError(error: PlaybackException) {
+            _isBuffering.value = false
+            _isPlaying.value = false
+            _playbackError.value = error.userMessage()
+        }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val artist = mediaMetadata.artist?.toString()?.trim()
             if (!artist.isNullOrEmpty() && artist != "Live Radio") {
@@ -156,6 +165,8 @@ class MainViewModel(
     fun play(station: Station) {
         _currentStationId.value = station.id
         _currentTrackTitle.value = null
+        _bitrateKbps.value = null
+        _playbackError.value = null
         if (station.radioBrowserUuid.isNotEmpty()) {
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching {
@@ -164,20 +175,29 @@ class MainViewModel(
                 }
             }
         }
-        val artworkUri = when {
-            station.logoPath.startsWith("http") -> Uri.parse(station.logoPath)
-            station.logoPath.isNotEmpty() -> Uri.fromFile(File(station.logoPath))
-            else -> null
-        }
+        val artworkUri = station.logoPath
+            .takeIf { it.startsWith("http") }
+            ?.let { Uri.parse(it) }
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
             .setUri(station.streamUrl)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata.Builder().apply {
+                    val localArtworkData = station.logoPath
+                        .takeIf { it.isNotEmpty() && !it.startsWith("http") }
+                        ?.let { compressedLogoData(File(it)) }
+                    if (localArtworkData != null) {
+                        setArtworkData(
+                            localArtworkData,
+                            MediaMetadata.PICTURE_TYPE_FRONT_COVER,
+                        )
+                    } else {
+                        artworkUri?.let { setArtworkUri(it) }
+                    }
+                }
                     .setTitle(station.name)
                     .setArtist("Live Radio")
                     .setSubtitle("Live Radio")
-                    .apply { artworkUri?.let { setArtworkUri(it) } }
                     .build()
             )
             .build()
@@ -189,7 +209,14 @@ class MainViewModel(
     }
 
     fun togglePlayback() {
-        controller?.let { if (it.isPlaying) it.pause() else it.play() }
+        controller?.let {
+            if (it.isPlaying) {
+                it.pause()
+            } else {
+                _playbackError.value = null
+                it.play()
+            }
+        }
     }
 
     fun addStation(name: String, streamUrl: String, logoPath: String = "", radioBrowserUuid: String = "") {
@@ -208,16 +235,17 @@ class MainViewModel(
         }
     }
 
-    private fun downloadLogo(url: String): String? {
+    private suspend fun downloadLogo(url: String): String? {
         return try {
             val dir = File(getApplication<Application>().filesDir, "logos").also { it.mkdirs() }
-            val dest = File(dir, "logo_${System.currentTimeMillis()}.jpg")
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
+            val dest = logoFileForUrl(url, dir, conn.contentType)
             conn.inputStream.use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }
             }
+            ensureMediaArtworkForLogo(getApplication(), dest)
             dest.absolutePath
         } catch (_: Exception) {
             null
@@ -237,6 +265,23 @@ class MainViewModel(
     override fun onCleared() {
         controllerFuture?.let { MediaController.releaseFuture(it) }
         super.onCleared()
+    }
+}
+
+private fun PlaybackException.userMessage(): String {
+    return when (errorCode) {
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+        PlaybackException.ERROR_CODE_TIMEOUT,
+        -> "Connection failed"
+        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+        PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+        PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
+        PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+        -> "Stream format unsupported"
+        else -> "Playback failed"
     }
 }
 

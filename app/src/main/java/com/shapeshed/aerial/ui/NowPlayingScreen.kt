@@ -2,12 +2,6 @@ package com.shapeshed.aerial.ui
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +22,6 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,7 +30,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -74,26 +66,10 @@ fun NowPlayingScreen(
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulse",
-    )
-    val iconScale = if (isPlaying && !isBuffering) pulseScale else 1f
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    val statusText = when {
-        isBuffering -> "Buffering"
-        !isPlaying -> "Paused"
-        bitrateKbps != null -> "$bitrateKbps kbps"
-        else -> null
-    }
+    val bitrateText = bitrateKbps?.let { "$it kbps" }
 
     Scaffold(
         modifier = Modifier
@@ -142,15 +118,13 @@ fun NowPlayingScreen(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 tonalElevation = 8.dp,
-                modifier = Modifier
-                    .size(248.dp)
-                    .graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+                modifier = Modifier.size(288.dp),
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     StationAvatar(
                         station = station,
                         isActive = true,
-                        size = 220.dp,
+                        size = 260.dp,
                         grayscale = grayscaleLogos,
                     )
                 }
@@ -175,7 +149,7 @@ fun NowPlayingScreen(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (statusText != null) {
+            if (bitrateText != null) {
                 Spacer(Modifier.height(20.dp))
                 Surface(
                     shape = RoundedCornerShape(50),
@@ -186,20 +160,8 @@ fun NowPlayingScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                     ) {
-                        if (isBuffering) {
-                            LoadingIndicator(modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                        } else if (!isPlaying) {
-                            Icon(
-                                imageVector = Icons.Rounded.Radio,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
                         Text(
-                            text = statusText,
+                            text = bitrateText,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                         )

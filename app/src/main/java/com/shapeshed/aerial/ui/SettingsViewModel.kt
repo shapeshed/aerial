@@ -157,6 +157,7 @@ class SettingsViewModel(
                             "import_${System.currentTimeMillis()}_${safeFileName(entry.name.substringAfterLast('/'))}",
                         )
                         file.outputStream().use { zip.copyTo(it) }
+                        ensureMediaArtworkForLogo(context, file)
                         restoredLogos[entry.name] = file.absolutePath
                     }
                 }

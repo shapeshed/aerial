@@ -190,7 +190,4 @@ The in-app export/import feature is the supported way to move user data between 
 
 Aerial is licensed under the Apache License, Version 2.0. See `LICENSE`.
 
-Bundled Google Sans Flex font files are licensed under the SIL Open Font
-License, Version 1.1. See `third_party/licenses/google_sans_flex/OFL.txt`.
-
 [1]: https://www.radio-browser.info/
