@@ -100,7 +100,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import com.shapeshed.aerial.data.Station
 import java.io.File
@@ -166,37 +165,29 @@ fun MainScreen(
     }
     LaunchedEffect(isGridView) {
         fabVisible = true
-        if (isGridView) {
-            var previousIndex = gridState.firstVisibleItemIndex
-            var previousOffset = gridState.firstVisibleItemScrollOffset
-
-            snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
-                        fabVisible = false
-                        fabMenuExpanded = false
-                    } else if (index < previousIndex || offset < previousOffset) {
-                        fabVisible = true
-                    }
-                    previousIndex = index
-                    previousOffset = offset
-                }
+        val getIndex: () -> Int = if (isGridView) {
+            { gridState.firstVisibleItemIndex }
         } else {
-            var previousIndex = listState.firstVisibleItemIndex
-            var previousOffset = listState.firstVisibleItemScrollOffset
-
-            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
-                        fabVisible = false
-                        fabMenuExpanded = false
-                    } else if (index < previousIndex || offset < previousOffset) {
-                        fabVisible = true
-                    }
-                    previousIndex = index
-                    previousOffset = offset
-                }
+            { listState.firstVisibleItemIndex }
         }
+        val getOffset: () -> Int = if (isGridView) {
+            { gridState.firstVisibleItemScrollOffset }
+        } else {
+            { listState.firstVisibleItemScrollOffset }
+        }
+        var previousIndex = getIndex()
+        var previousOffset = getOffset()
+        snapshotFlow { getIndex() to getOffset() }
+            .collect { (index, offset) ->
+                if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
+                    fabVisible = false
+                    fabMenuExpanded = false
+                } else if (index < previousIndex || offset < previousOffset) {
+                    fabVisible = true
+                }
+                previousIndex = index
+                previousOffset = offset
+            }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -679,7 +670,6 @@ fun StationAvatar(
 ) {
     val context = LocalContext.current
     val logoPath = station.logoPath
-    val hasLogo = logoPath.isNotEmpty()
     val logoModel = when {
         logoPath.startsWith("http") -> logoPath
         logoPath.isNotEmpty() -> File(logoPath)
@@ -688,6 +678,10 @@ fun StationAvatar(
     val grayscaleFilter = if (grayscale) androidx.compose.ui.graphics.ColorFilter.colorMatrix(
         androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }
     ) else null
+    var logoFailed by remember(logoModel) { mutableStateOf(false) }
+
+    val iconTint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                   else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         contentAlignment = Alignment.Center,
@@ -699,29 +693,20 @@ fun StationAvatar(
                 else MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
     ) {
-        if (hasLogo && logoModel != null) {
-            SubcomposeAsyncImage(
+        if (logoModel != null && !logoFailed) {
+            AsyncImage(
                 model = ImageRequest.Builder(context).data(logoModel).build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 colorFilter = grayscaleFilter,
+                onError = { logoFailed = true },
                 modifier = Modifier.fillMaxSize(),
-                error = {
-                    Icon(
-                        imageVector = Icons.Rounded.Radio,
-                        contentDescription = null,
-                        tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
-                               else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(size * 0.55f),
-                    )
-                },
             )
         } else {
             Icon(
                 imageVector = Icons.Rounded.Radio,
                 contentDescription = null,
-                tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = iconTint,
                 modifier = Modifier.size(size * 0.55f),
             )
         }

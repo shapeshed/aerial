@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -154,7 +155,7 @@ class SettingsViewModel(
                     entry.name.startsWith("logos/") -> {
                         val file = File(
                             logoDir,
-                            "import_${System.currentTimeMillis()}_${safeFileName(entry.name.substringAfterLast('/'))}",
+                            "${UUID.randomUUID()}_${safeFileName(entry.name.substringAfterLast('/'))}",
                         )
                         file.outputStream().use { zip.copyTo(it) }
                         ensureMediaArtworkForLogo(context, file)

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Station::class], version = 5, exportSchema = false)
+@Database(entities = [Station::class], version = 6, exportSchema = true)
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
 
@@ -42,10 +42,16 @@ abstract class StationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_stations_radioBrowserUuid ON stations (radioBrowserUuid)")
+            }
+        }
+
         fun get(context: Context): StationDatabase =
             instance ?: synchronized(this) {
                 Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { instance = it }
             }

@@ -15,6 +15,7 @@ import coil3.svg.SvgDecoder
 import java.io.File
 import java.net.URL
 import java.util.Locale
+import java.util.UUID
 
 suspend fun copyLogoFromUri(context: Context, uri: Uri, directory: File): File? {
     val contentResolver = context.contentResolver
@@ -24,7 +25,7 @@ suspend fun copyLogoFromUri(context: Context, uri: Uri, directory: File): File? 
         ?: "img"
     val source = contentResolver.openInputStream(uri) ?: return null
     return source.use { input ->
-        val dest = File(directory, "logo_${System.currentTimeMillis()}.$extension")
+        val dest = File(directory, "${UUID.randomUUID()}.$extension")
         dest.outputStream().use { output -> input.copyTo(output) }
         ensureMediaArtworkForLogo(context, dest)
         dest
@@ -37,8 +38,16 @@ fun logoFileForUrl(url: String, directory: File, contentType: String?): File {
         ?: URL(url).path.extensionOrNull()
         ?: "img"
 
-    return File(directory, "logo_${System.currentTimeMillis()}.$extension")
+    return File(directory, "${UUID.randomUUID()}.$extension")
 }
+
+@Volatile private var svgLoader: ImageLoader? = null
+
+private fun svgLoader(context: Context): ImageLoader =
+    svgLoader ?: ImageLoader.Builder(context.applicationContext)
+        .components { add(SvgDecoder.Factory()) }
+        .build()
+        .also { svgLoader = it }
 
 suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
     if (file.extension.lowercase(Locale.US) != "svg") return file
@@ -46,15 +55,12 @@ suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
     val pngFile = mediaArtworkFile(file)
     if (pngFile.exists()) return pngFile
 
-    val imageLoader = ImageLoader.Builder(context)
-        .components { add(SvgDecoder.Factory()) }
-        .build()
     return try {
         val request = ImageRequest.Builder(context)
             .data(file)
             .size(512)
             .build()
-        val result = imageLoader.execute(request) as? SuccessResult ?: return file
+        val result = svgLoader(context).execute(request) as? SuccessResult ?: return file
         val bitmap = result.image.toBitmap() ?: return file
         pngFile.outputStream().use { output ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
@@ -62,8 +68,6 @@ suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
         pngFile
     } catch (_: Exception) {
         file
-    } finally {
-        imageLoader.shutdown()
     }
 }
 

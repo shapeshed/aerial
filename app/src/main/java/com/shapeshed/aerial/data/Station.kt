@@ -1,9 +1,10 @@
 package com.shapeshed.aerial.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "stations")
+@Entity(tableName = "stations", indices = [Index(value = ["radioBrowserUuid"])])
 data class Station(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,

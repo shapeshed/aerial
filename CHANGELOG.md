@@ -19,6 +19,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Station list and grid now use `AsyncImage` instead of `SubcomposeAsyncImage`, reducing composition overhead per row.
+- Scroll-hide logic for the FAB is now shared between list and grid views instead of duplicated.
+- Logo filenames now use UUIDs instead of millisecond timestamps, preventing collisions during bulk import.
+- The SVG-to-PNG image loader is now shared across calls rather than recreated per conversion.
+- The Radio Browser server is now discovered at most once per session; concurrent callers share the same in-flight lookup.
+- Room database schema export enabled; schema file is now tracked for migration validation.
+- Database version bumped to 6 with an index on `radioBrowserUuid` for faster import lookups.
 - Removed the bundled custom font and restored Material default typography.
 - F-Droid metadata now relies on upstream Fastlane metadata for summary and description.
 - F-Droid metadata now uses a full release commit hash and reproducible build fields.
@@ -28,6 +35,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Local logo files are now deleted when a station is removed, preventing unbounded storage growth.
+- The HTTP connection used to download station logos is now always disconnected after use.
+- Station list no longer subscribes to the database twice when computing filtered and current-station state.
 - Local logo files are no longer passed to Android media controls as private artwork URIs.
 - SVG station logos keep their original file for in-app display and get a PNG media-control copy when imported.
 - Duplicate ICY metadata no longer replaces the active media item repeatedly.

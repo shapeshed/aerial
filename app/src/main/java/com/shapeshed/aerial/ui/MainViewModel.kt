@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
@@ -55,19 +57,30 @@ class MainViewModel(
     private val _showFavoritesOnly = MutableStateFlow(false)
     val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
+    private val _allStations: StateFlow<List<Station>> = repository.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val stations: StateFlow<List<Station>> = combine(
-        repository.getAll(),
+        _allStations,
         _showFavoritesOnly,
     ) { list, favOnly ->
         if (favOnly) list.filter { it.isFavorite } else list
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var statsServer: String? = null
+    private val statsServerMutex = Mutex()
+
+    private suspend fun statsServer(): String {
+        statsServer?.let { return it }
+        return statsServerMutex.withLock {
+            statsServer ?: RadioBrowserApi.discoverServer().also { statsServer = it }
+        }
+    }
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
 
     val currentStation: StateFlow<Station?> = combine(
-        repository.getAll(),
+        _allStations,
         _currentStationId,
     ) { list, id -> list.firstOrNull { it.id == id } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -122,8 +135,7 @@ class MainViewModel(
             if (nowFavorite && station.radioBrowserUuid.isNotEmpty()) {
                 launch(Dispatchers.IO) {
                     runCatching {
-                        val srv = statsServer ?: RadioBrowserApi.discoverServer().also { statsServer = it }
-                        RadioBrowserApi.vote(srv, station.radioBrowserUuid)
+                        RadioBrowserApi.vote(statsServer(), station.radioBrowserUuid)
                     }
                 }
             }
@@ -170,8 +182,7 @@ class MainViewModel(
         if (station.radioBrowserUuid.isNotEmpty()) {
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching {
-                    val srv = statsServer ?: RadioBrowserApi.discoverServer().also { statsServer = it }
-                    RadioBrowserApi.registerClick(srv, station.radioBrowserUuid)
+                    RadioBrowserApi.registerClick(statsServer(), station.radioBrowserUuid)
                 }
             }
         }
@@ -241,12 +252,16 @@ class MainViewModel(
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
-            val dest = logoFileForUrl(url, dir, conn.contentType)
-            conn.inputStream.use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
+            try {
+                val dest = logoFileForUrl(url, dir, conn.contentType)
+                conn.inputStream.use { input ->
+                    dest.outputStream().use { output -> input.copyTo(output) }
+                }
+                ensureMediaArtworkForLogo(getApplication(), dest)
+                dest.absolutePath
+            } finally {
+                conn.disconnect()
             }
-            ensureMediaArtworkForLogo(getApplication(), dest)
-            dest.absolutePath
         } catch (_: Exception) {
             null
         }
@@ -259,6 +274,7 @@ class MainViewModel(
                 _currentStationId.value = null
             }
             repository.delete(station)
+            withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
         }
     }
 
@@ -266,6 +282,13 @@ class MainViewModel(
         controllerFuture?.let { MediaController.releaseFuture(it) }
         super.onCleared()
     }
+}
+
+private fun deleteLogoFiles(logoPath: String) {
+    if (logoPath.isBlank() || logoPath.startsWith("http")) return
+    val file = java.io.File(logoPath)
+    file.delete()
+    java.io.File(file.parentFile, "${file.nameWithoutExtension}_media.png").delete()
 }
 
 private fun PlaybackException.userMessage(): String {
