@@ -12,8 +12,7 @@
   ],
   "enabledManagers": [
     "gradle",
-    "github-actions",
-    "github-releases"
+    "github-actions"
   ],
   "timezone": "UTC",
   "dependencyDashboard": true
