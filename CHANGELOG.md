@@ -18,9 +18,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Agent guidance covering release, F-Droid, screenshot, UI, and commit conventions.
 - Git ignore rules for local fdroidserver output directories.
 - README link to the Radio Browser project.
-
-### Added
-
 - Splash screen shown on launch using the app icon; content is held until the station database has loaded, preventing a flash of empty state.
 - Station discovery now fires automatically after three characters are typed, with a 300 ms debounce, so explicit search submission is optional.
 - Station discovery results transition between loading, error, results, and empty states with spring-based `AnimatedContent` animations.
