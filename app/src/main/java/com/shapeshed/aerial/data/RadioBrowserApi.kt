@@ -1,12 +1,15 @@
 package com.shapeshed.aerial.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URL
 import java.net.URLEncoder
+
+class RadioBrowserServerException(val code: Int) : Exception("HTTP $code")
 
 object RadioBrowserApi {
 
@@ -39,6 +42,8 @@ object RadioBrowserApi {
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
         try {
+            val code = conn.responseCode
+            if (code !in 200..299) throw RadioBrowserServerException(code)
             val body = conn.inputStream.bufferedReader().readText()
             parseSearchResponse(body)
         } finally {

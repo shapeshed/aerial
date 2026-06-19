@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -49,6 +50,16 @@ class MainViewModel(
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
 ) : AndroidViewModel(application) {
+
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            repository.getAll().first()
+            _isInitialized.value = true
+        }
+    }
 
     val isGridView: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[GRID_VIEW_KEY] ?: false }

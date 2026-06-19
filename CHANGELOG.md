@@ -17,6 +17,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Git ignore rules for local fdroidserver output directories.
 - README link to the Radio Browser project.
 
+### Added
+
+- Splash screen shown on launch using the app icon; content is held until the station database has loaded, preventing a flash of empty state.
+- Station discovery now fires automatically after three characters are typed, with a 300 ms debounce, so explicit search submission is optional.
+- Station discovery results transition between loading, error, results, and empty states with spring-based `AnimatedContent` animations.
+- Typed error states in station discovery: connectivity failures, service outages, and timeouts each show a distinct icon and consumer-friendly message with a retry button.
+
 ### Changed
 
 - Station list and grid now use `AsyncImage` instead of `SubcomposeAsyncImage`, reducing composition overhead per row.
@@ -35,6 +42,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Station discovery search bar stays expanded and keyboard remains visible while editing or clearing the search term.
+- Station discovery discovery list items use rounded ripple and spacing in place of dividers, aligned with Material 3 Expressive conventions.
+- Removed unused `RadioDiscoveryScreen` which was superseded by `AddStationScreen`.
 - Local logo files are now deleted when a station is removed, preventing unbounded storage growth.
 - The HTTP connection used to download station logos is now always disconnected after use.
 - Station list no longer subscribes to the database twice when computing filtered and current-station state.
