@@ -4,13 +4,10 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- dot: centre (12,12) radius 2 -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,14a2,2 0,1 0,0 -4a2,2 0,0 0,0 4z" />
-    <!-- inner arcs: derived from launcher foreground paths scaled by 0.82 then /4.5,
-         both arcs centre on y=12 matching the dot -->
+        android:pathData="M12,14.5a2.5,2.5 0,1 0,0 -5a2.5,2.5 0,0 0,0 5z" />
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M8,7.3l1.1,1.1a4.2,4.2 0,0 0,0 7.3l-1.1,1.1a5.6,5.6 0,0 1,0 -9.5zM16,7.3a5.6,5.6 0,0 1,0 9.5l-1.1,-1.1a4.2,4.2 0,0 0,0 -7.3z" />
+        android:pathData="M6.0,4.9l1.7,1.7a6.3,6.3 0,0 0,0 11.0l-1.7,1.7a8.4,8.4 0,0 1,0 -14.4zM18.0,4.9a8.4,8.4 0,0 1,0 14.4l-1.7,-1.7a6.3,6.3 0,0 0,0 -11.0z" />
 </vector>
