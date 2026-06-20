@@ -42,10 +42,10 @@ object RadioBrowserApi {
         }
 
         // Slow path: discover without holding the mutex so other callers are not blocked
-        // during I/O. Cap total discovery time to 5 s.
+        // during I/O. Cap total discovery time to 2 s so we reach the fallback quickly.
         val startedAt = System.currentTimeMillis()
         val discovered = withContext(Dispatchers.IO) {
-            withTimeoutOrNull(5_000) {
+            withTimeoutOrNull(2_000) {
                 runCatching { fetchServerListFromApi() }.getOrNull()?.takeIf { it.isNotEmpty() }
                     ?: runCatching { discoverViaDns() }.getOrNull()?.takeIf { it.isNotEmpty() }
             }
@@ -71,7 +71,7 @@ object RadioBrowserApi {
 
     // Primary: /json/servers endpoint — avoids reverse DNS which is unreliable on Android.
     private fun fetchServerListFromApi(): List<String> {
-        val json = request("https://$DISCOVERY_HOST/json/servers", timeoutMillis = 5_000)
+        val json = request("https://$DISCOVERY_HOST/json/servers", connectTimeoutMillis = 2_000, readTimeoutMillis = 3_000)
         val array = JSONArray(json)
         return buildList {
             for (i in 0 until array.length()) {
@@ -100,7 +100,7 @@ object RadioBrowserApi {
     suspend fun registerClick(uuid: String) {
         runCatching {
             withServerFailover { server ->
-                request("https://$server/json/url/$uuid", timeoutMillis = 5_000)
+                request("https://$server/json/url/$uuid", connectTimeoutMillis = 2_000, readTimeoutMillis = 5_000)
             }
         }
     }
@@ -108,7 +108,7 @@ object RadioBrowserApi {
     suspend fun vote(uuid: String) {
         runCatching {
             withServerFailover { server ->
-                request("https://$server/json/vote/$uuid", timeoutMillis = 5_000)
+                request("https://$server/json/vote/$uuid", connectTimeoutMillis = 2_000, readTimeoutMillis = 5_000)
             }
         }
     }
@@ -117,7 +117,7 @@ object RadioBrowserApi {
         val encoded = URLEncoder.encode(query, "UTF-8")
         val url = "https://$server/json/stations/search" +
             "?name=$encoded&limit=200&order=votes&reverse=true&hidebroken=true"
-        parseSearchResponse(request(url, timeoutMillis = 10_000))
+        parseSearchResponse(request(url, connectTimeoutMillis = 2_000, readTimeoutMillis = 8_000))
     }
 
     private suspend fun <T> withServerFailover(block: suspend (String) -> T): T {
@@ -127,8 +127,7 @@ object RadioBrowserApi {
         var lastError: Exception? = null
         for (server in servers) {
             // Retry transient 5xx errors on the same server before moving on.
-            // nl1/at1 are currently unreachable so de1 is the only live server;
-            // its 503s are intermittent and succeed on a quick retry.
+            // Keep delays short — the ViewModel races us against a 1 s fallback deadline.
             for (attempt in 1..3) {
                 try {
                     return block(server)
@@ -137,7 +136,7 @@ object RadioBrowserApi {
                 } catch (e: RadioBrowserServerException) {
                     if (e.code in 500..599 && attempt < 3) {
                         Log.w(TAG, "HTTP ${e.code} from $server, retry $attempt/3")
-                        delay(500L * attempt)
+                        delay(200L * attempt)  // 200ms, 400ms — max 600ms overhead
                     } else {
                         Log.w(TAG, "Radio Browser request failed for $server: HTTP ${e.code}")
                         recentlyFailed = recentlyFailed + server
@@ -157,12 +156,12 @@ object RadioBrowserApi {
         throw lastError ?: IOException("No Radio Browser servers available")
     }
 
-    private fun request(url: String, timeoutMillis: Int): String {
+    private fun request(url: String, connectTimeoutMillis: Int = 2_000, readTimeoutMillis: Int = 8_000): String {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
         conn.setRequestProperty("Accept", "application/json")
-        conn.connectTimeout = timeoutMillis
-        conn.readTimeout = timeoutMillis
+        conn.connectTimeout = connectTimeoutMillis
+        conn.readTimeout = readTimeoutMillis
         try {
             val code = conn.responseCode
             if (code !in 200..299) throw RadioBrowserServerException(code)
@@ -243,6 +242,22 @@ object RadioBrowserApi {
             .removePrefix("http://")
             .trimEnd('/')
             .substringBefore('?')
+
+    @Volatile private var fallbackStations: List<RadioBrowserStation>? = null
+
+    fun warmFallback(json: String) {
+        if (fallbackStations == null) {
+            fallbackStations = parseSearchResponse(json)
+        }
+    }
+
+    fun getFallback(query: String): List<RadioBrowserStation> {
+        val q = query.trim().lowercase()
+        return fallbackStations
+            ?.filter { it.name.lowercase().contains(q) || it.tags.lowercase().contains(q) }
+            ?.take(200)
+            ?: emptyList()
+    }
 
     fun deduplicate(stations: List<RadioBrowserStation>): List<RadioBrowserStation> =
         stations

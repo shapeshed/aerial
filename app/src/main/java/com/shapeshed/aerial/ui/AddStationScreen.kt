@@ -82,6 +82,7 @@ fun AddStationScreen(
     val isLoading by discoveryViewModel.isLoading.collectAsStateWithLifecycle()
     val error: DiscoveryError? by discoveryViewModel.error.collectAsStateWithLifecycle()
     val searchedOnce by discoveryViewModel.searchedOnce.collectAsStateWithLifecycle()
+    val isOfflineFallback by discoveryViewModel.isOfflineFallback.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -107,6 +108,7 @@ fun AddStationScreen(
                 isLoading = isLoading,
                 error = error,
                 searchedOnce = searchedOnce,
+                isOfflineFallback = isOfflineFallback,
                 onQueryChange = discoveryViewModel::onQueryChange,
                 onSearch = discoveryViewModel::search,
                 onRetry = discoveryViewModel::retry,
@@ -125,6 +127,7 @@ private fun DiscoverContent(
     isLoading: Boolean,
     error: DiscoveryError?,
     searchedOnce: Boolean,
+    isOfflineFallback: Boolean = false,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onRetry: () -> Unit,
@@ -281,6 +284,29 @@ private fun DiscoverContent(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
+                        if (isOfflineFallback) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CloudOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Radio Browser unavailable — using cached results",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                         items(state.items, key = { it.stationuuid }) { station ->
                             ListItem(
                                 modifier = Modifier
