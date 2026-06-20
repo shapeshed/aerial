@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -132,6 +133,7 @@ fun MainScreen(
     val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 
     var showNowPlaying by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
@@ -278,6 +280,9 @@ fun MainScreen(
                     .fillMaxSize()
                     .padding(top = padding.calculateTopPadding()),
             ) {
+                if (!isOnline) {
+                    NoNetworkState()
+                } else {
                 if (stations.isNotEmpty()) {
                     StationControlRow(
                         showFavoritesOnly = showFavoritesOnly,
@@ -366,6 +371,7 @@ fun MainScreen(
                             )
                         }
                     }
+                }
                 }
             }
         }
@@ -537,6 +543,40 @@ private fun StationControlRow(
                         modifier = Modifier.size(18.dp),
                     )
                 },
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoNetworkState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.WifiOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(56.dp),
+            )
+            Text(
+                text = "No internet connection",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Radio streams require an active internet connection.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
     }

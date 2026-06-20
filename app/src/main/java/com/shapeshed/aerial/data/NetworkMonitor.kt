@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,25 +16,27 @@ class NetworkMonitor(context: Context) {
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     private val callback = object : ConnectivityManager.NetworkCallback() {
+        // A new default network is available — traffic is routed.
         override fun onAvailable(network: Network) {
             _isOnline.value = true
         }
 
+        // The default network is gone with no replacement — truly offline.
+        // With registerDefaultNetworkCallback this is NOT called when one network
+        // is simply replaced by another (e.g. cellular → WiFi); in that case
+        // onAvailable fires for the new default first.
         override fun onLost(network: Network) {
-            // Re-check rather than assuming offline — another network may still be up.
-            _isOnline.value = checkCurrent()
+            _isOnline.value = false
         }
 
+        // Default network capabilities changed (e.g. captive portal resolved).
         override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
             _isOnline.value = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
     }
 
     init {
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        cm.registerNetworkCallback(request, callback)
+        cm.registerDefaultNetworkCallback(callback)
     }
 
     private fun checkCurrent(): Boolean {
@@ -44,5 +45,4 @@ class NetworkMonitor(context: Context) {
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    fun unregister() = runCatching { cm.unregisterNetworkCallback(callback) }
 }

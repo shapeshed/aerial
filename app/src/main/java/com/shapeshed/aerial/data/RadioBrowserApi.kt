@@ -34,7 +34,7 @@ object RadioBrowserApi {
     // Uses copy-on-write semantics; benign races are acceptable here.
     @Volatile private var recentlyFailed: Set<String> = emptySet()
 
-    suspend fun discoverServers(): List<String> {
+    private suspend fun discoverServers(): List<String> {
         // Fast path: return cached list if still fresh.
         cacheMutex.withLock {
             val now = System.currentTimeMillis()

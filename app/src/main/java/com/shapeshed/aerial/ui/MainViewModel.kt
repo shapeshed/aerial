@@ -22,6 +22,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
+import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.Station
@@ -48,6 +49,8 @@ class MainViewModel(
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
 ) : AndroidViewModel(application) {
+
+    val isOnline = (application as AerialApp).networkMonitor.isOnline
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
