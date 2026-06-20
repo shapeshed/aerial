@@ -2,15 +2,18 @@ package com.shapeshed.aerial.data
 
 import android.util.Log
 import com.shapeshed.aerial.BuildConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URL
 import java.net.URLEncoder
-import kotlinx.coroutines.CancellationException
 
 class RadioBrowserServerException(val code: Int) : Exception("HTTP $code")
 
@@ -19,22 +22,55 @@ object RadioBrowserApi {
     private const val TAG = "RadioBrowserApi"
     private const val DISCOVERY_HOST = "all.api.radio-browser.info"
     private const val CACHE_TTL_MS = 30 * 60 * 1000L
+    private const val FALLBACK_TTL_MS = 60 * 1000L  // short TTL when only seed servers are available
+    private const val RESPONSE_SIZE_LIMIT = 1 * 1024 * 1024  // 1 MB
 
-    @Volatile private var cachedServers: List<String> = emptyList()
-    @Volatile private var cacheExpiry: Long = 0L
+    private val SEED_SERVERS = listOf(
+        "de1.api.radio-browser.info",
+        "nl1.api.radio-browser.info",
+        "at1.api.radio-browser.info",
+    )
 
-    suspend fun discoverServers(): List<String> = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        if (cachedServers.isNotEmpty() && now < cacheExpiry) return@withContext cachedServers
+    private val cacheMutex = Mutex()
+    private var cachedServers: List<String> = emptyList()
+    private var cacheExpiry: Long = 0L
 
-        val servers = runCatching { fetchServerListFromApi() }.getOrNull()?.takeIf { it.isNotEmpty() }
-            ?: runCatching { discoverViaDns() }.getOrNull()?.takeIf { it.isNotEmpty() }
-            ?: listOf(DISCOVERY_HOST)
+    // Soft optimisation: deprioritise servers that failed this session.
+    // Uses copy-on-write semantics; benign races are acceptable here.
+    @Volatile private var recentlyFailed: Set<String> = emptySet()
 
-        val result = servers.shuffled()
-        cachedServers = result
-        cacheExpiry = now + CACHE_TTL_MS
-        result
+    suspend fun discoverServers(): List<String> {
+        // Fast path: return cached list if still fresh.
+        cacheMutex.withLock {
+            val now = System.currentTimeMillis()
+            if (cachedServers.isNotEmpty() && now < cacheExpiry) return cachedServers
+        }
+
+        // Slow path: discover without holding the mutex so other callers are not blocked
+        // during I/O. Cap total discovery time to 5 s.
+        val startedAt = System.currentTimeMillis()
+        val discovered = withContext(Dispatchers.IO) {
+            withTimeoutOrNull(5_000) {
+                runCatching { fetchServerListFromApi() }.getOrNull()?.takeIf { it.isNotEmpty() }
+                    ?: runCatching { discoverViaDns() }.getOrNull()?.takeIf { it.isNotEmpty() }
+            }
+        }
+
+        val base = discovered ?: emptyList()
+        if (base.isEmpty()) Log.w(TAG, "Server discovery failed; using seed servers only")
+        // Always merge seeds so a sick discovered server doesn't leave us with no alternatives.
+        val (servers, ttl) = if (base.isNotEmpty()) {
+            (base + SEED_SERVERS).distinct().shuffled() to CACHE_TTL_MS
+        } else {
+            SEED_SERVERS.shuffled() to FALLBACK_TTL_MS
+        }
+
+        return cacheMutex.withLock {
+            recentlyFailed = emptySet()
+            cachedServers = servers
+            cacheExpiry = startedAt + ttl
+            servers
+        }
     }
 
     // Primary: /json/servers endpoint — avoids reverse DNS which is unreliable on Android.
@@ -61,9 +97,8 @@ object RadioBrowserApi {
     }
 
     suspend fun search(query: String): List<RadioBrowserStation> {
-        return withServerFailover { server ->
-            search(server, query)
-        }
+        if (query.isBlank()) return emptyList()
+        return withServerFailover { server -> search(server, query) }
     }
 
     suspend fun registerClick(uuid: String) {
@@ -90,7 +125,9 @@ object RadioBrowserApi {
     }
 
     private suspend fun <T> withServerFailover(block: suspend (String) -> T): T {
-        val servers = discoverServers()
+        // Capture failed set once so the sort is stable for this attempt.
+        val failed = recentlyFailed
+        val servers = discoverServers().sortedBy { if (it in failed) 1 else 0 }
         var lastError: Exception? = null
         for (server in servers) {
             try {
@@ -99,21 +136,37 @@ object RadioBrowserApi {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Radio Browser request failed for $server", e)
+                recentlyFailed = recentlyFailed + server
                 lastError = e
             }
         }
+        // All servers exhausted — expire the cache so the next call re-discovers fresh.
+        cacheMutex.withLock { cacheExpiry = 0L }
         throw lastError ?: IOException("No Radio Browser servers available")
     }
 
     private fun request(url: String, timeoutMillis: Int): String {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
+        conn.setRequestProperty("Accept", "application/json")
         conn.connectTimeout = timeoutMillis
         conn.readTimeout = timeoutMillis
         try {
             val code = conn.responseCode
             if (code !in 200..299) throw RadioBrowserServerException(code)
-            return conn.inputStream.bufferedReader().readText()
+            return conn.inputStream.bufferedReader().use { reader ->
+                val sb = StringBuilder()
+                val buf = CharArray(8192)
+                var total = 0
+                while (true) {
+                    val n = reader.read(buf)
+                    if (n == -1) break
+                    total += n
+                    if (total > RESPONSE_SIZE_LIMIT) throw IOException("Response too large (>1 MB)")
+                    sb.append(buf, 0, n)
+                }
+                sb.toString()
+            }
         } finally {
             conn.disconnect()
         }
