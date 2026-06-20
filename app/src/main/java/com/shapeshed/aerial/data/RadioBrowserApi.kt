@@ -4,6 +4,7 @@ import android.util.Log
 import com.shapeshed.aerial.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -22,14 +23,8 @@ object RadioBrowserApi {
     private const val TAG = "RadioBrowserApi"
     private const val DISCOVERY_HOST = "all.api.radio-browser.info"
     private const val CACHE_TTL_MS = 30 * 60 * 1000L
-    private const val FALLBACK_TTL_MS = 60 * 1000L  // short TTL when only seed servers are available
+    private const val FALLBACK_TTL_MS = 60 * 1000L  // short TTL when falling back to round-robin
     private const val RESPONSE_SIZE_LIMIT = 1 * 1024 * 1024  // 1 MB
-
-    private val SEED_SERVERS = listOf(
-        "de1.api.radio-browser.info",
-        "nl1.api.radio-browser.info",
-        "at1.api.radio-browser.info",
-    )
 
     private val cacheMutex = Mutex()
     private var cachedServers: List<String> = emptyList()
@@ -56,13 +51,14 @@ object RadioBrowserApi {
             }
         }
 
-        val base = discovered ?: emptyList()
-        if (base.isEmpty()) Log.w(TAG, "Server discovery failed; using seed servers only")
-        // Always merge seeds so a sick discovered server doesn't leave us with no alternatives.
-        val (servers, ttl) = if (base.isNotEmpty()) {
-            (base + SEED_SERVERS).distinct().shuffled() to CACHE_TTL_MS
+        // If both discovery methods fail, fall back to the round-robin host itself.
+        // It distributes requests across whatever servers are currently alive,
+        // so combined with retry logic it gives us the best chance of success.
+        val (servers, ttl) = if (!discovered.isNullOrEmpty()) {
+            discovered.shuffled() to CACHE_TTL_MS
         } else {
-            SEED_SERVERS.shuffled() to FALLBACK_TTL_MS
+            Log.w(TAG, "Server discovery failed; falling back to round-robin host")
+            listOf(DISCOVERY_HOST) to FALLBACK_TTL_MS
         }
 
         return cacheMutex.withLock {
@@ -130,14 +126,30 @@ object RadioBrowserApi {
         val servers = discoverServers().sortedBy { if (it in failed) 1 else 0 }
         var lastError: Exception? = null
         for (server in servers) {
-            try {
-                return block(server)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Radio Browser request failed for $server", e)
-                recentlyFailed = recentlyFailed + server
-                lastError = e
+            // Retry transient 5xx errors on the same server before moving on.
+            // nl1/at1 are currently unreachable so de1 is the only live server;
+            // its 503s are intermittent and succeed on a quick retry.
+            for (attempt in 1..3) {
+                try {
+                    return block(server)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: RadioBrowserServerException) {
+                    if (e.code in 500..599 && attempt < 3) {
+                        Log.w(TAG, "HTTP ${e.code} from $server, retry $attempt/3")
+                        delay(500L * attempt)
+                    } else {
+                        Log.w(TAG, "Radio Browser request failed for $server: HTTP ${e.code}")
+                        recentlyFailed = recentlyFailed + server
+                        lastError = e
+                        break
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Radio Browser request failed for $server", e)
+                    recentlyFailed = recentlyFailed + server
+                    lastError = e
+                    break
+                }
             }
         }
         // All servers exhausted — expire the cache so the next call re-discovers fresh.
