@@ -797,48 +797,78 @@ private fun StationItem(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val highlighted = isRecentlyAdded || isActive
     val cornerRadius by animateDpAsState(
-        targetValue = if (isActive) 28.dp else 18.dp,
+        targetValue = if (isRecentlyAdded) 24.dp else 18.dp,
         animationSpec = tween(250),
         label = "stationItemCorner",
     )
     val containerColor by animateColorAsState(
-        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer
+        targetValue = if (isRecentlyAdded) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = tween(350),
         label = "stationItemContainer",
     )
-    val contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer
-        else MaterialTheme.colorScheme.onSurface
-    val supportingColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
-        else MaterialTheme.colorScheme.onSurfaceVariant
+    val titleColor = when {
+        isRecentlyAdded -> MaterialTheme.colorScheme.onPrimaryContainer
+        isActive -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val actionColor = if (isRecentlyAdded)
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+    val supportingColor = if (isRecentlyAdded)
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
 
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
-        tonalElevation = if (isActive) 3.dp else 0.dp,
+        tonalElevation = if (isRecentlyAdded) 2.dp else 0.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box {
+            Box(contentAlignment = Alignment.Center) {
                 StationAvatar(
                     station = station,
                     isActive = isActive,
                     size = 50.dp,
                     monochrome = monochromeLogos,
                 )
+                if (isActive && (isBuffering || isPlaying)) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)),
+                    ) {
+                        if (isBuffering) {
+                            LoadingIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        } else {
+                            EqualizerBars(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(width = 22.dp, height = 18.dp),
+                                barCount = 3,
+                            )
+                        }
+                    }
+                }
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = contentColor,
+                    color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -853,25 +883,6 @@ private fun StationItem(
                     )
                 }
             }
-            if (isActive && (isBuffering || isPlaying)) {
-                if (isBuffering) {
-                    LoadingIndicator(
-                        color = contentColor,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp),
-                    )
-                } else {
-                    EqualizerBars(
-                        color = contentColor,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(width = 18.dp, height = 16.dp),
-                        barCount = 3,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-            }
             Box {
                 IconButton(onClick = {
                     showMenu = true
@@ -879,7 +890,7 @@ private fun StationItem(
                     Icon(
                         Icons.Rounded.MoreVert,
                         contentDescription = "Options",
-                        tint = contentColor,
+                        tint = actionColor,
                     )
                 }
                 DropdownMenu(
@@ -948,14 +959,16 @@ private fun StationCard(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val highlighted = isRecentlyAdded || isActive
     val containerColor by animateColorAsState(
-        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer
+        targetValue = if (isRecentlyAdded) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = tween(350),
         label = "stationCardContainer",
     )
-    val contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer
+    val contentColor = if (isRecentlyAdded) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (isRecentlyAdded) MaterialTheme.colorScheme.onPrimaryContainer
+        else if (isActive) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.onSurface
 
     Card(
@@ -965,9 +978,9 @@ private fun StationCard(
             contentColor = contentColor,
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isActive) 3.dp else 0.dp,
+            defaultElevation = if (isRecentlyAdded) 2.dp else 0.dp,
             pressedElevation = 4.dp,
-            focusedElevation = if (isActive) 3.dp else 0.dp,
+            focusedElevation = if (isRecentlyAdded) 2.dp else 0.dp,
             hoveredElevation = 1.dp,
         ),
         shape = MaterialTheme.shapes.large,
@@ -995,10 +1008,10 @@ private fun StationCard(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)),
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)),
                         ) {
                             EqualizerBars(
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(32.dp),
                                 barCount = 3,
                             )
@@ -1008,6 +1021,7 @@ private fun StationCard(
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = titleColor,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
