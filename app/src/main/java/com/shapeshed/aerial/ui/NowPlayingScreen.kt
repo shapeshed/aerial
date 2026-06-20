@@ -60,6 +60,7 @@ fun NowPlayingScreen(
     isPlaying: Boolean,
     isBuffering: Boolean,
     bitrateKbps: Int?,
+    showBitrate: Boolean = false,
     currentTrackTitle: String?,
     monochromeLogos: Boolean = false,
     onToggle: () -> Unit,
@@ -69,7 +70,12 @@ fun NowPlayingScreen(
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    val bitrateText = bitrateKbps?.let { "$it kbps" }
+    val bitrateText = when {
+        bitrateKbps == null -> null
+        showBitrate -> "$bitrateKbps kbps"
+        bitrateKbps >= 128 -> "HD"
+        else -> null
+    }
 
     Scaffold(
         modifier = Modifier

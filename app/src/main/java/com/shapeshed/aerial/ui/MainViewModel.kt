@@ -108,6 +108,10 @@ class MainViewModel(
         .map { it[MONOCHROME_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val showBitrate: StateFlow<Boolean> = dataStore.data
+        .map { it[SHOW_BITRATE_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 

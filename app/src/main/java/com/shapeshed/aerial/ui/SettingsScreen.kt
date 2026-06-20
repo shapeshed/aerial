@@ -42,6 +42,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
+    val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
     val versionName = remember {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
     }
@@ -104,6 +105,20 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                 }
+            }
+            item {
+                ListItem(
+                    modifier = Modifier.clickable { viewModel.setShowBitrate(!showBitrate) },
+                    headlineContent = { Text("Show bitrate") },
+                    supportingContent = { Text("Show exact bitrate instead of HD/SD quality badge") },
+                    trailingContent = {
+                        Switch(
+                            checked = showBitrate,
+                            onCheckedChange = { viewModel.setShowBitrate(it) },
+                        )
+                    },
+                )
+                HorizontalDivider()
             }
             item {
                 Text(

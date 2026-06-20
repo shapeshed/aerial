@@ -15,7 +15,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -79,7 +81,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("station/new") {
                         val discoverVm: RadioDiscoveryViewModel = viewModel()
+                        val showBitrate by mainViewModel.showBitrate.collectAsStateWithLifecycle()
                         AddStationScreen(
+                            showBitrate = showBitrate,
                             discoveryViewModel = discoverVm,
                             onAddDiscovered = { station ->
                                 mainViewModel.addStation(

@@ -35,7 +35,12 @@ import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -67,6 +72,7 @@ private sealed class ContentState {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddStationScreen(
+    showBitrate: Boolean = false,
     discoveryViewModel: RadioDiscoveryViewModel,
     onAddDiscovered: (RadioBrowserStation) -> Unit,
     onDismiss: () -> Unit,
@@ -95,6 +101,7 @@ fun AddStationScreen(
                 .padding(padding),
         ) {
             DiscoverContent(
+                showBitrate = showBitrate,
                 query = query,
                 results = results,
                 isLoading = isLoading,
@@ -112,6 +119,7 @@ fun AddStationScreen(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DiscoverContent(
+    showBitrate: Boolean = false,
     query: String,
     results: List<RadioBrowserStation>,
     isLoading: Boolean,
@@ -278,14 +286,56 @@ private fun DiscoverContent(
                                 modifier = Modifier
                                     .clip(MaterialTheme.shapes.large)
                                     .clickable { onAddStation(station) },
-                                headlineContent = { Text(station.name) },
-                                supportingContent = {
-                                    val parts = listOfNotNull(
-                                        station.country.takeIf { it.isNotEmpty() },
-                                        station.codec.takeIf { it.isNotEmpty() },
-                                        "${station.bitrate} kbps".takeIf { station.bitrate > 0 },
+                                headlineContent = {
+                                    Text(
+                                        station.name,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     )
-                                    if (parts.isNotEmpty()) Text(parts.joinToString(" · "))
+                                },
+                                supportingContent = {
+                                    val country = station.displayCountry().takeIf { it.isNotEmpty() }
+                                    val qualityLabel = when {
+                                        showBitrate && station.bitrate > 0 -> "${station.bitrate} kbps"
+                                        !showBitrate && station.bitrate >= 128 -> "HD"
+                                        else -> null
+                                    }
+                                    val parts = listOfNotNull(country, qualityLabel)
+                                    if (parts.isNotEmpty()) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = country ?: "",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            if (qualityLabel != null && country != null) {
+                                                Spacer(Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = if (!showBitrate && station.bitrate >= 128)
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                ) {
+                                                    Text(
+                                                        text = qualityLabel,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (!showBitrate && station.bitrate >= 128)
+                                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else
+                                                            MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    )
+                                                }
+                                            } else if (qualityLabel != null) {
+                                                Text(
+                                                    text = qualityLabel,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
+                                    }
                                 },
                                 trailingContent = {
                                     FilledTonalIconButton(

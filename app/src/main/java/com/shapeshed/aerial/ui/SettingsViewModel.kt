@@ -35,6 +35,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 val MONOCHROME_LOGOS_KEY = booleanPreferencesKey("monochrome_logos")
+val SHOW_BITRATE_KEY = booleanPreferencesKey("show_bitrate")
 
 class SettingsViewModel(
     application: Application,
@@ -46,12 +47,22 @@ class SettingsViewModel(
         .map { it[MONOCHROME_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val showBitrate: StateFlow<Boolean> = dataStore.data
+        .map { it[SHOW_BITRATE_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
 
     fun setMonochromeLogos(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[MONOCHROME_LOGOS_KEY] = enabled }
+        }
+    }
+
+    fun setShowBitrate(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SHOW_BITRATE_KEY] = enabled }
         }
     }
 

@@ -129,6 +129,7 @@ fun MainScreen(
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
+    val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
 
@@ -449,6 +450,7 @@ fun MainScreen(
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
                     bitrateKbps = bitrateKbps,
+                    showBitrate = showBitrate,
                     currentTrackTitle = currentTrackTitle,
                     monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },

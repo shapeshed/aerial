@@ -1,6 +1,7 @@
 package com.shapeshed.aerial.data
 
 import android.util.Log
+import com.shapeshed.aerial.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,23 +18,46 @@ object RadioBrowserApi {
 
     private const val TAG = "RadioBrowserApi"
     private const val DISCOVERY_HOST = "all.api.radio-browser.info"
+    private const val CACHE_TTL_MS = 30 * 60 * 1000L
+
+    @Volatile private var cachedServers: List<String> = emptyList()
+    @Volatile private var cacheExpiry: Long = 0L
 
     suspend fun discoverServers(): List<String> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (cachedServers.isNotEmpty() && now < cacheExpiry) return@withContext cachedServers
+
+        val servers = runCatching { fetchServerListFromApi() }.getOrNull()?.takeIf { it.isNotEmpty() }
+            ?: runCatching { discoverViaDns() }.getOrNull()?.takeIf { it.isNotEmpty() }
+            ?: listOf(DISCOVERY_HOST)
+
+        val result = servers.shuffled()
+        cachedServers = result
+        cacheExpiry = now + CACHE_TTL_MS
+        result
+    }
+
+    // Primary: /json/servers endpoint — avoids reverse DNS which is unreliable on Android.
+    private fun fetchServerListFromApi(): List<String> {
+        val json = request("https://$DISCOVERY_HOST/json/servers", timeoutMillis = 5_000)
+        val array = JSONArray(json)
+        return buildList {
+            for (i in 0 until array.length()) {
+                val name = array.getJSONObject(i).optString("name")
+                if (name.isNotEmpty() && name != DISCOVERY_HOST) add(name)
+            }
+        }.distinct()
+    }
+
+    // Fallback: DNS A record + reverse hostname lookup.
+    private fun discoverViaDns(): List<String> {
         val addresses = InetAddress.getAllByName(DISCOVERY_HOST)
-        val servers = addresses.mapNotNull { addr ->
+        return addresses.mapNotNull { addr ->
             val hostname = addr.canonicalHostName
-            // Filter out bare IP addresses because HTTPS requests need a hostname for TLS.
             if (hostname != addr.hostAddress && hostname.contains('.')) hostname else null
         }
             .filter { it != DISCOVERY_HOST }
             .distinct()
-            .shuffled()
-
-        servers.ifEmpty {
-            // Android devices may not return reverse DNS names. The discovery host
-            // is still a live DNS target, unlike a hardcoded regional server.
-            listOf(DISCOVERY_HOST)
-        }
     }
 
     suspend fun search(query: String): List<RadioBrowserStation> {
@@ -83,7 +107,7 @@ object RadioBrowserApi {
 
     private fun request(url: String, timeoutMillis: Int): String {
         val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("User-Agent", "Aerial/0.1.1 (Android)")
+        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
         conn.connectTimeout = timeoutMillis
         conn.readTimeout = timeoutMillis
         try {
@@ -95,6 +119,36 @@ object RadioBrowserApi {
         }
     }
 
+    private val TECH_SUFFIX_PATTERNS = listOf(
+        // [MP3], [AAC], [128k] etc
+        Regex("""\s*\[[^\]]*\]\s*$"""),
+        // (MP3), (AAC), (128k), (HQ), (Medium Bitrate) etc
+        Regex("""\s*\(\s*(mp3|aac\+?|flac|opus|ogg|hq|lq|hd|sd|\d+\s*k(?:bps?)?|high\s+quality|medium\s+bitrate|low\s+bitrate)\s*\)\s*$""", RegexOption.IGNORE_CASE),
+        // Pipe-separated technical suffixes: " | DLF | MP3 128k"
+        Regex("""\s*\|.*(mp3|aac\+?|flac|opus|ogg|\d+\s*k(?:bps?)?).*$""", RegexOption.IGNORE_CASE),
+        // Dash-prefixed format: " - MP3", " - AAC HD 256k"
+        Regex("""\s+-\s+(mp3|aac\+?|flac|opus|ogg).*$""", RegexOption.IGNORE_CASE),
+        // Bare format + optional quality + optional bitrate: "AAC HD 256k", "MP3 128k"
+        Regex("""\s+(mp3|aac\+?|flac|opus|ogg)(?:\s+(?:hd|hq))?(?:\s+\d+\s*k(?:bps?)?)?\s*$""", RegexOption.IGNORE_CASE),
+        // Bare trailing quality word: "90s90s Dance HQ"
+        Regex("""\s+(?:hq|hd)\s*$""", RegexOption.IGNORE_CASE),
+        // Bare trailing bitrate: "128k", "256kbps", "320kb"
+        Regex("""\s+\d+\s*k(?:b(?:ps?)?)?\s*$""", RegexOption.IGNORE_CASE),
+    )
+
+    private fun cleanStationName(name: String): String {
+        var result = name.trim()
+        repeat(3) {
+            val before = result
+            for (pattern in TECH_SUFFIX_PATTERNS) {
+                result = result.replace(pattern, "")
+            }
+            result = result.replace(Regex("""\s{2,}"""), " ").trim()
+            if (result == before) return result
+        }
+        return result
+    }
+
     internal fun parseSearchResponse(json: String): List<RadioBrowserStation> {
         val array = JSONArray(json)
         val raw = buildList {
@@ -102,13 +156,14 @@ object RadioBrowserApi {
                 val o = array.getJSONObject(i)
                 add(RadioBrowserStation(
                     stationuuid = o.optString("stationuuid"),
-                    name        = o.optString("name"),
+                    name        = cleanStationName(o.optString("name")),
                     urlResolved = o.optString("url_resolved").ifEmpty { o.optString("url") },
                     votes       = o.optInt("votes"),
                     clickcount  = o.optInt("clickcount"),
                     codec       = o.optString("codec"),
                     bitrate     = o.optInt("bitrate"),
                     country     = o.optString("country"),
+                    countrycode = o.optString("countrycode"),
                     tags        = o.optString("tags"),
                     favicon     = o.optString("favicon"),
                 ))
