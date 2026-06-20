@@ -22,7 +22,7 @@ interface StationDao {
     suspend fun getByStreamUrl(streamUrl: String): Station?
 
     @Insert
-    suspend fun insert(station: Station)
+    suspend fun insert(station: Station): Long
 
     @Update
     suspend fun update(station: Station)

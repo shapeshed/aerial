@@ -1,74 +1,96 @@
 package com.shapeshed.aerial.data
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URL
 import java.net.URLEncoder
+import kotlinx.coroutines.CancellationException
 
 class RadioBrowserServerException(val code: Int) : Exception("HTTP $code")
 
 object RadioBrowserApi {
 
-    private val fallbackServers = listOf(
-        "de1.api.radio-browser.info",
-        "nl1.api.radio-browser.info",
-        "at1.api.radio-browser.info",
-    )
+    private const val TAG = "RadioBrowserApi"
+    private const val DISCOVERY_HOST = "all.api.radio-browser.info"
 
-    suspend fun discoverServer(): String = withContext(Dispatchers.IO) {
-        try {
-            val addresses = InetAddress.getAllByName("all.api.radio-browser.info")
-            val hosts = addresses.mapNotNull { addr ->
-                val hostname = addr.canonicalHostName
-                // filter out bare IP addresses — we need a resolvable hostname for TLS
-                if (hostname != addr.hostAddress && hostname.contains('.')) hostname else null
-            }.filter { it != "all.api.radio-browser.info" }
-            hosts.randomOrNull() ?: fallbackServers.random()
-        } catch (_: Exception) {
-            fallbackServers.random()
+    suspend fun discoverServers(): List<String> = withContext(Dispatchers.IO) {
+        val addresses = InetAddress.getAllByName(DISCOVERY_HOST)
+        val servers = addresses.mapNotNull { addr ->
+            val hostname = addr.canonicalHostName
+            // Filter out bare IP addresses because HTTPS requests need a hostname for TLS.
+            if (hostname != addr.hostAddress && hostname.contains('.')) hostname else null
+        }
+            .filter { it != DISCOVERY_HOST }
+            .distinct()
+            .shuffled()
+
+        servers.ifEmpty {
+            // Android devices may not return reverse DNS names. The discovery host
+            // is still a live DNS target, unlike a hardcoded regional server.
+            listOf(DISCOVERY_HOST)
         }
     }
 
-    suspend fun search(server: String, query: String): List<RadioBrowserStation> = withContext(Dispatchers.IO) {
+    suspend fun search(query: String): List<RadioBrowserStation> {
+        return withServerFailover { server ->
+            search(server, query)
+        }
+    }
+
+    suspend fun registerClick(uuid: String) {
+        runCatching {
+            withServerFailover { server ->
+                request("https://$server/json/url/$uuid", timeoutMillis = 5_000)
+            }
+        }
+    }
+
+    suspend fun vote(uuid: String) {
+        runCatching {
+            withServerFailover { server ->
+                request("https://$server/json/vote/$uuid", timeoutMillis = 5_000)
+            }
+        }
+    }
+
+    private suspend fun search(server: String, query: String): List<RadioBrowserStation> = withContext(Dispatchers.IO) {
         val encoded = URLEncoder.encode(query, "UTF-8")
         val url = "https://$server/json/stations/search" +
             "?name=$encoded&limit=200&order=votes&reverse=true&hidebroken=true"
+        parseSearchResponse(request(url, timeoutMillis = 10_000))
+    }
+
+    private suspend fun <T> withServerFailover(block: suspend (String) -> T): T {
+        val servers = discoverServers()
+        var lastError: Exception? = null
+        for (server in servers) {
+            try {
+                return block(server)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Radio Browser request failed for $server", e)
+                lastError = e
+            }
+        }
+        throw lastError ?: IOException("No Radio Browser servers available")
+    }
+
+    private fun request(url: String, timeoutMillis: Int): String {
         val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("User-Agent", "Aerial/1.0 (Android)")
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
+        conn.setRequestProperty("User-Agent", "Aerial/0.1.1 (Android)")
+        conn.connectTimeout = timeoutMillis
+        conn.readTimeout = timeoutMillis
         try {
             val code = conn.responseCode
             if (code !in 200..299) throw RadioBrowserServerException(code)
-            val body = conn.inputStream.bufferedReader().readText()
-            parseSearchResponse(body)
+            return conn.inputStream.bufferedReader().readText()
         } finally {
-            conn.disconnect()
-        }
-    }
-
-    suspend fun registerClick(server: String, uuid: String) = withContext(Dispatchers.IO) {
-        runCatching {
-            val conn = URL("https://$server/json/url/$uuid").openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "Aerial/1.0 (Android)")
-            conn.connectTimeout = 5_000
-            conn.readTimeout = 5_000
-            conn.inputStream.use { it.readBytes() }
-            conn.disconnect()
-        }
-    }
-
-    suspend fun vote(server: String, uuid: String) = withContext(Dispatchers.IO) {
-        runCatching {
-            val conn = URL("https://$server/json/vote/$uuid").openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "Aerial/1.0 (Android)")
-            conn.connectTimeout = 5_000
-            conn.readTimeout = 5_000
-            conn.inputStream.use { it.readBytes() }
             conn.disconnect()
         }
     }

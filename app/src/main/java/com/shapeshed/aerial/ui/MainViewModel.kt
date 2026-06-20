@@ -39,8 +39,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
@@ -80,16 +78,6 @@ class MainViewModel(
 
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
-    private var statsServer: String? = null
-    private val statsServerMutex = Mutex()
-
-    private suspend fun statsServer(): String {
-        statsServer?.let { return it }
-        return statsServerMutex.withLock {
-            statsServer ?: RadioBrowserApi.discoverServer().also { statsServer = it }
-        }
-    }
-
     private val _currentStationId = MutableStateFlow<Long?>(null)
 
     val currentStation: StateFlow<Station?> = combine(
@@ -112,6 +100,9 @@ class MainViewModel(
 
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
+    private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
+    val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
     val monochromeLogos: StateFlow<Boolean> = dataStore.data
         .map { it[MONOCHROME_LOGOS_KEY] ?: false }
@@ -150,7 +141,7 @@ class MainViewModel(
             if (nowFavorite && station.radioBrowserUuid.isNotEmpty()) {
                 launch(Dispatchers.IO) {
                     runCatching {
-                        RadioBrowserApi.vote(statsServer(), station.radioBrowserUuid)
+                        RadioBrowserApi.vote(station.radioBrowserUuid)
                     }
                 }
             }
@@ -197,7 +188,7 @@ class MainViewModel(
         if (station.radioBrowserUuid.isNotEmpty()) {
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching {
-                    RadioBrowserApi.registerClick(statsServer(), station.radioBrowserUuid)
+                    RadioBrowserApi.registerClick(station.radioBrowserUuid)
                 }
             }
         }
@@ -248,18 +239,30 @@ class MainViewModel(
     }
 
     fun addStation(name: String, streamUrl: String, logoPath: String = "", radioBrowserUuid: String = "") {
+        val trimmedName = name.trim()
+        val trimmedStreamUrl = streamUrl.trim()
+        val trimmedRadioBrowserUuid = radioBrowserUuid.trim()
         viewModelScope.launch {
             val localLogoPath = if (logoPath.startsWith("http")) {
                 withContext(Dispatchers.IO) { downloadLogo(logoPath) } ?: logoPath
             } else {
                 logoPath
             }
-            repository.insert(Station(
-                name = name.trim(),
-                streamUrl = streamUrl.trim(),
-                logoPath = localLogoPath.trim(),
-                radioBrowserUuid = radioBrowserUuid.trim(),
-            ))
+            val stationId = repository.insertOrGetExisting(
+                Station(
+                    name = trimmedName,
+                    streamUrl = trimmedStreamUrl,
+                    logoPath = localLogoPath.trim(),
+                    radioBrowserUuid = trimmedRadioBrowserUuid,
+                ),
+            )
+            _recentlyAddedStationId.value = stationId
+        }
+    }
+
+    fun clearRecentlyAddedStation(stationId: Long) {
+        if (_recentlyAddedStationId.value == stationId) {
+            _recentlyAddedStationId.value = null
         }
     }
 

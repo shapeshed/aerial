@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 enum class ErrorKind { CONNECTIVITY, SERVICE, GENERIC }
 
@@ -36,8 +34,6 @@ class RadioDiscoveryViewModel : ViewModel() {
     private val _error = MutableStateFlow<DiscoveryError?>(null)
     val error: StateFlow<DiscoveryError?> = _error.asStateFlow()
 
-    private var server: String? = null
-    private val serverMutex = Mutex()
     private var searchJob: Job? = null
 
     private val _searchedOnce = MutableStateFlow(false)
@@ -74,15 +70,11 @@ class RadioDiscoveryViewModel : ViewModel() {
             _isLoading.value = true
             _error.value = null
             try {
-                val srv = server ?: serverMutex.withLock {
-                    server ?: RadioBrowserApi.discoverServer().also { server = it }
-                }
-                _results.value = RadioBrowserApi.search(srv, q)
+                _results.value = RadioBrowserApi.search(q)
                 _searchedOnce.value = true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: RadioBrowserServerException) {
-                server = null
                 _error.value = if (e.code in 500..599) {
                     DiscoveryError("Station search is temporarily unavailable. Try again in a moment.", ErrorKind.SERVICE)
                 } else {
@@ -90,15 +82,12 @@ class RadioDiscoveryViewModel : ViewModel() {
                 }
                 _results.value = emptyList()
             } catch (e: UnknownHostException) {
-                server = null
                 _error.value = DiscoveryError("No internet connection. Check your Wi-Fi or mobile data.", ErrorKind.CONNECTIVITY)
                 _results.value = emptyList()
             } catch (e: SocketTimeoutException) {
-                server = null
                 _error.value = DiscoveryError("Station search is taking too long. Try again.", ErrorKind.SERVICE)
                 _results.value = emptyList()
             } catch (e: Exception) {
-                server = null
                 _error.value = DiscoveryError("Station search isn't available right now. Try again.", ErrorKind.GENERIC)
                 _results.value = emptyList()
             } finally {

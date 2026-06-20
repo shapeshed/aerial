@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Home now scrolls to and briefly highlights a station after it is added from discovery.
 - Monochrome station logos option in Settings (Android 10+): applies the theme primary colour while preserving luminance via `BlendMode.Color`.
 - Custom notification small icon using the app broadcast symbol instead of the generic play icon.
 - Developer documentation split out from the product README.
@@ -29,7 +30,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Scroll-hide logic for the FAB is now shared between list and grid views instead of duplicated.
 - Logo filenames now use UUIDs instead of millisecond timestamps, preventing collisions during bulk import.
 - The SVG-to-PNG image loader is now shared across calls rather than recreated per conversion.
-- The Radio Browser server is now discovered at most once per session; concurrent callers share the same in-flight lookup.
+- Radio Browser requests now use a shuffled DNS-discovered server list and retry the next server when one fails.
 - Room database schema export enabled; schema file is now tracked for migration validation.
 - Database version bumped to 6 with an index on `radioBrowserUuid` for faster import lookups.
 - Removed the bundled custom font and restored Material default typography.
@@ -54,6 +55,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Duplicate ICY metadata no longer replaces the active media item repeatedly.
 - Bitrate state now resets when changing stations to avoid stale bitrate labels.
 - Playback failures now clear buffering and show a concise error in the active station UI.
+- Adding a discovered station now reuses and highlights an existing station instead of creating a duplicate.
 
 ## [0.1.1] - 2026-06-18
 

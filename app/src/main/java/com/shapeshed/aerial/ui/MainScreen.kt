@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -107,6 +108,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.shapeshed.aerial.data.Station
 import java.io.File
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -128,6 +130,7 @@ fun MainScreen(
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
+    val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
 
     var showNowPlaying by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
@@ -169,6 +172,19 @@ fun MainScreen(
     LaunchedEffect(showFavoritesOnly) {
         listState.scrollToItem(0)
         gridState.scrollToItem(0)
+    }
+    LaunchedEffect(recentlyAddedStationId, filteredStations, isGridView) {
+        val stationId = recentlyAddedStationId ?: return@LaunchedEffect
+        val index = filteredStations.indexOfFirst { it.id == stationId }
+        if (index == -1) return@LaunchedEffect
+
+        if (isGridView) {
+            gridState.animateScrollToItem(index)
+        } else {
+            listState.animateScrollToItem(index)
+        }
+        delay(1_500)
+        viewModel.clearRecentlyAddedStation(stationId)
     }
     LaunchedEffect(isGridView) {
         fabVisible = true
@@ -304,6 +320,7 @@ fun MainScreen(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
                                 isPlaying = isPlaying && currentStation?.id == station.id,
+                                isRecentlyAdded = recentlyAddedStationId == station.id,
                                 monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
                                 onEdit = { onEditStation(station.id) },
@@ -338,6 +355,7 @@ fun MainScreen(
                                     }
                                 else
                                     null,
+                                isRecentlyAdded = recentlyAddedStationId == station.id,
                                 monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
                                 onEdit = { onEditStation(station.id) },
@@ -770,6 +788,7 @@ private fun StationItem(
     isPlaying: Boolean,
     isBuffering: Boolean,
     supportingText: String?,
+    isRecentlyAdded: Boolean,
     monochromeLogos: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
@@ -778,23 +797,22 @@ private fun StationItem(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val highlighted = isRecentlyAdded || isActive
     val cornerRadius by animateDpAsState(
         targetValue = if (isActive) 28.dp else 18.dp,
         animationSpec = tween(250),
         label = "stationItemCorner",
     )
-    val containerColor = if (isActive)
-        MaterialTheme.colorScheme.primaryContainer
-    else
-        MaterialTheme.colorScheme.surfaceContainerLow
-    val contentColor = if (isActive)
-        MaterialTheme.colorScheme.onPrimaryContainer
-    else
-        MaterialTheme.colorScheme.onSurface
-    val supportingColor = if (isActive)
-        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
-    else
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val containerColor by animateColorAsState(
+        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = tween(350),
+        label = "stationItemContainer",
+    )
+    val contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
+    val supportingColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+        else MaterialTheme.colorScheme.onSurfaceVariant
 
     Surface(
         onClick = onClick,
@@ -921,6 +939,7 @@ private fun StationCard(
     station: Station,
     isActive: Boolean,
     isPlaying: Boolean,
+    isRecentlyAdded: Boolean,
     monochromeLogos: Boolean = false,
     onClick: () -> Unit,
     onEdit: () -> Unit,
@@ -929,14 +948,21 @@ private fun StationCard(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val highlighted = isRecentlyAdded || isActive
+    val containerColor by animateColorAsState(
+        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = tween(350),
+        label = "stationCardContainer",
+    )
+    val contentColor = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
 
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer
-                             else MaterialTheme.colorScheme.surfaceContainerLow,
-            contentColor = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
-                           else MaterialTheme.colorScheme.onSurface,
+            containerColor = containerColor,
+            contentColor = contentColor,
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isActive) 3.dp else 0.dp,
