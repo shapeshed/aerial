@@ -53,26 +53,40 @@ jobs:
           AERIAL_KEYSTORE_PASSWORD: ${{ secrets.AERIAL_KEYSTORE_PASSWORD }}
           AERIAL_KEY_ALIAS: ${{ secrets.AERIAL_KEY_ALIAS }}
           AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
-        run: ./gradlew test lint assembleRelease
+        run: ./gradlew test lint assembleRelease bundleRelease
 
       - name: Prepare release assets
         run: |
           set -eu
           tag="${GITHUB_REF_NAME:-manual}"
           signed_apk="app/build/outputs/apk/release/app-release.apk"
+          signed_aab="app/build/outputs/bundle/release/app-release.aab"
           if [ ! -f "$signed_apk" ]; then
             echo "Expected signed APK at $signed_apk" >&2
             exit 1
           fi
-          mkdir -p app/build/release-assets
+          if [ ! -f "$signed_aab" ]; then
+            echo "Expected signed AAB at $signed_aab" >&2
+            exit 1
+          fi
+          mkdir -p app/build/release-assets app/build/play-assets
           cp "$signed_apk" "app/build/release-assets/aerial-${tag}.apk"
+          cp "$signed_aab" "app/build/play-assets/aerial-${tag}.aab"
           sha256sum "app/build/release-assets/aerial-${tag}.apk" > "app/build/release-assets/aerial-${tag}.apk.sha256"
+          sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
         with:
           name: aerial-release-apk
           path: app/build/release-assets/*
+          if-no-files-found: error
+
+      - name: Upload Play artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerial-play-aab
+          path: app/build/play-assets/*
           if-no-files-found: error
 
       - name: Create GitHub release

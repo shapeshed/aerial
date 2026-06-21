@@ -1,7 +1,7 @@
-- Monochrome station logos option in Settings (Android 10+).
+- Material 3 Expressive station discovery and playback refinements.
+- Home now scrolls to and highlights a newly added station.
+- Monochrome station logos in Settings on Android 10+.
 - Custom notification icon using the app broadcast symbol.
-- Media controller no longer crashes when switching dark/light mode.
-- Improved station discovery UX with animated transitions and typed error states.
 - Splash screen on launch.
 - Station backup export and import.
 - Audio offload for lower power consumption during playback.

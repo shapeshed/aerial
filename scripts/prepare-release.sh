@@ -91,7 +91,7 @@ if [[ ! -s "$NOTES_FILE" ]]; then
 fi
 
 echo "Running Gradle release gate..."
-"$ROOT_DIR/gradlew" -p "$ROOT_DIR" test lint assembleRelease
+"$ROOT_DIR/gradlew" -p "$ROOT_DIR" test lint assembleRelease bundleRelease
 
 if [[ "$skip_fdroid" == false ]]; then
   if [[ ! -d "$FDROIDDATA_DIR" ]]; then
@@ -131,3 +131,4 @@ echo "  git commit -S -m \"chore(release): v${VERSION_NAME}\""
 echo "  git tag -s v${VERSION_NAME} -m \"v${VERSION_NAME}\""
 echo "  git push origin main"
 echo "  git push origin v${VERSION_NAME}"
+echo "  upload app/build/outputs/bundle/release/app-release.aab to Google Play"

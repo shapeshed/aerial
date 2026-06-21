@@ -24,7 +24,7 @@ Build and install a debug build:
 Run the normal release gate:
 
 ```sh
-./gradlew test lint assembleRelease
+./gradlew test lint assembleRelease bundleRelease
 ```
 
 Build only debug Kotlin when checking a small UI/code change:
@@ -61,7 +61,8 @@ scripts/prepare-release.sh
 
 This refreshes the bundled Radio Browser fallback cache, runs the Gradle release
 gate, validates the Fastlane changelog, and runs F-Droid metadata validation
-against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available.
+against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available. It also
+builds the Play AAB alongside the GitHub release APK.
 
 Then commit and tag. The developer reviews and signs commits/tags locally; do
 not bypass signing unless explicitly asked.

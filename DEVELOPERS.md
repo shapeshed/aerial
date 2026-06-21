@@ -32,7 +32,7 @@ app/build/outputs/apk/debug/app-debug.apk
 For the release build path, run:
 
 ```sh
-./gradlew test lint assembleRelease
+./gradlew test lint assembleRelease bundleRelease
 ```
 
 Without signing environment variables, the release APK produced locally is
@@ -98,8 +98,9 @@ GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs unit
 tests, Android lint, and a debug APK build.
 
 The release workflow runs when a version tag is pushed and can also be started
-manually from GitHub Actions. It builds the release APK, uploads it as a
-workflow artifact, and creates a draft GitHub release for tag pushes.
+manually from GitHub Actions. It builds the release APK for GitHub, the AAB for
+Google Play, uploads both as workflow artifacts, and creates a draft GitHub
+release for tag pushes.
 
 For release changes:
 
@@ -121,7 +122,7 @@ scripts/prepare-release.sh
 ```
 
 The release preparation script refreshes the Radio Browser offline cache, runs
-`test lint assembleRelease`, validates the Fastlane changelog, copies
+`test lint assembleRelease bundleRelease`, validates the Fastlane changelog, copies
 `.fdroid.yml` to the local fdroiddata checkout, and runs:
 
 ```sh
@@ -171,6 +172,13 @@ For local signed builds:
 ```sh
 source local/release-signing.env
 ./gradlew assembleRelease
+```
+
+For a local Play artifact:
+
+```sh
+source local/release-signing.env
+./gradlew bundleRelease
 ```
 
 Manual keystore generation is also possible:
