@@ -47,8 +47,24 @@ For a release, update:
 - `CHANGELOG.md`
 - `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
 
-Then commit and tag. The developer reviews and signs commits/tags locally; do not bypass signing
-unless explicitly asked.
+Use the bump helper when changing versions:
+
+```sh
+scripts/bump-version.sh 0.1.2
+```
+
+Before committing a release, run:
+
+```sh
+scripts/prepare-release.sh
+```
+
+This refreshes the bundled Radio Browser fallback cache, runs the Gradle release
+gate, validates the Fastlane changelog, and runs F-Droid metadata validation
+against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available.
+
+Then commit and tag. The developer reviews and signs commits/tags locally; do
+not bypass signing unless explicitly asked.
 
 ```sh
 git commit -S -m "chore(release): v0.1.1"
@@ -97,6 +113,18 @@ It updates:
 docs/screenshots/
 fastlane/metadata/android/en-US/images/phoneScreenshots/
 ```
+
+## Offline Station Cache
+
+The app bundles `app/src/main/res/raw/fallback_stations.json` for offline
+station discovery fallback. Refresh it before releases:
+
+```sh
+scripts/refresh-radio-browser-cache.sh
+```
+
+Do not move this fetch into Gradle. The checked-in JSON keeps GitHub and
+F-Droid builds offline and reproducible.
 
 ## F-Droid
 

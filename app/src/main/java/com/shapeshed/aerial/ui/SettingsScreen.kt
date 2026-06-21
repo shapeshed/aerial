@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -30,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -85,7 +85,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            item {
+            item(contentType = "section") {
                 Text(
                     text = "Display",
                     style = MaterialTheme.typography.labelLarge,
@@ -94,7 +94,7 @@ fun SettingsScreen(
                 )
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                item {
+                item(contentType = "setting") {
                     ListItem(
                         modifier = Modifier.clickable {
                             viewModel.setMonochromeLogos(!monochromeLogos)
@@ -111,7 +111,7 @@ fun SettingsScreen(
                     HorizontalDivider()
                 }
             }
-            item {
+            item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { viewModel.setShowBitrate(!showBitrate) },
                     headlineContent = { Text("Show bitrate") },
@@ -125,7 +125,7 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
-            item {
+            item(contentType = "section") {
                 Text(
                     text = "Data",
                     style = MaterialTheme.typography.labelLarge,
@@ -133,7 +133,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
-            item {
+            item(contentType = "action") {
                 ListItem(
                     modifier = Modifier.clickable {
                         exportLauncher.launch("aerial-backup.zip")
@@ -146,7 +146,7 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
-            item {
+            item(contentType = "action") {
                 ListItem(
                     modifier = Modifier.clickable {
                         importLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
@@ -159,13 +159,13 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
-            item {
+            item(contentType = "info") {
                 ListItem(
                     headlineContent = { Text("Radio Browser") },
                     supportingContent = { Text("Station discovery powered by radio-browser.info") },
                 )
             }
-            item {
+            item(contentType = "footer") {
                 Text(
                     text = "Aerial $versionName",
                     style = MaterialTheme.typography.bodySmall,

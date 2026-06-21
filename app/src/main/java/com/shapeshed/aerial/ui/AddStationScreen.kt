@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,7 +43,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -57,6 +57,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -138,7 +141,9 @@ private fun DiscoverContent(
 ) {
     val motionScheme = MaterialTheme.motionScheme
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { isTraversalGroup = true },
         contentAlignment = Alignment.TopCenter,
     ) {
         SearchBar(
@@ -170,7 +175,9 @@ private fun DiscoverContent(
             colors = SearchBarDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { traversalIndex = 0f },
             windowInsets = WindowInsets(0),
         ) {
             val contentState: ContentState = when {
@@ -317,72 +324,18 @@ private fun DiscoverContent(
                     }
 
                     is ContentState.Results -> LazyColumn(
-                        contentPadding = PaddingValues(vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(state.items, key = { it.stationuuid }) { station ->
-                            ListItem(
-                                modifier = Modifier
-                                    .clickable { onAddStation(station) },
-                                headlineContent = {
-                                    Text(
-                                        station.name,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    )
-                                },
-                                supportingContent = {
-                                    val country = station.displayCountry().takeIf { it.isNotEmpty() }
-                                    val qualityLabel = when {
-                                        showBitrate && station.bitrate > 0 -> "${station.bitrate} kbps"
-                                        !showBitrate && station.bitrate >= 128 -> "HD"
-                                        else -> null
-                                    }
-                                    val parts = listOfNotNull(country, qualityLabel)
-                                    if (parts.isNotEmpty()) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = country ?: "",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            if (qualityLabel != null && country != null) {
-                                                Spacer(Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = MaterialTheme.shapes.extraSmall,
-                                                    color = if (!showBitrate && station.bitrate >= 128)
-                                                        MaterialTheme.colorScheme.primaryContainer
-                                                    else
-                                                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                ) {
-                                                    Text(
-                                                        text = qualityLabel,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = if (!showBitrate && station.bitrate >= 128)
-                                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                                        else
-                                                            MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    )
-                                                }
-                                            } else if (qualityLabel != null) {
-                                                Text(
-                                                    text = qualityLabel,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                trailingContent = {
-                                    FilledTonalIconButton(
-                                        onClick = { onAddStation(station) },
-                                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                                        modifier = Modifier.size(40.dp).clearAndSetSemantics {},
-                                    ) {
-                                        Icon(Icons.Rounded.Add, contentDescription = null)
-                                    }
-                                },
+                        items(
+                            items = state.items,
+                            key = { it.stationuuid },
+                            contentType = { "station-result" },
+                        ) { station ->
+                            RadioBrowserResultItem(
+                                station = station,
+                                showBitrate = showBitrate,
+                                onAddStation = { onAddStation(station) },
                             )
                         }
                     }
@@ -390,5 +343,97 @@ private fun DiscoverContent(
             }
         }
 
+    }
+}
+
+@Composable
+private fun RadioBrowserResultItem(
+    station: RadioBrowserStation,
+    showBitrate: Boolean,
+    onAddStation: () -> Unit,
+) {
+    val country = station.displayCountry().takeIf { it.isNotEmpty() }
+    val qualityLabel = when {
+        showBitrate && station.bitrate > 0 -> "${station.bitrate} kbps"
+        !showBitrate && station.bitrate >= 128 -> "HD"
+        else -> null
+    }
+    val isQualityBadge = !showBitrate && station.bitrate >= 128
+    val itemShape = MaterialTheme.shapes.medium
+
+    Surface(
+        shape = itemShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(itemShape)
+            .clickable(onClick = onAddStation),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                if (country != null || qualityLabel != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.heightIn(min = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (country != null) {
+                            Text(
+                                text = country,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (country != null && qualityLabel != null) {
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        if (qualityLabel != null) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = if (isQualityBadge)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Text(
+                                    text = qualityLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isQualityBadge)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 5.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            FilledTonalIconButton(
+                onClick = onAddStation,
+                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                modifier = Modifier
+                    .size(40.dp)
+                    .clearAndSetSemantics {},
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null)
+            }
+        }
     }
 }

@@ -52,6 +52,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,6 +88,7 @@ fun NowPlayingScreen(
     Scaffold(
         modifier = Modifier
             .graphicsLayer { translationY = dragOffsetY }
+            .semantics { isTraversalGroup = true }
             .pointerInput(dismissThresholdPx, onDismiss) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
@@ -113,8 +117,9 @@ fun NowPlayingScreen(
                     IconButton(
                         onClick = onDismiss,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        modifier = Modifier.semantics { traversalIndex = 0f },
                     ) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Dismiss")
+                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close player")
                     }
                 },
             )
@@ -132,7 +137,9 @@ fun NowPlayingScreen(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 tonalElevation = 8.dp,
-                modifier = Modifier.size(288.dp),
+                modifier = Modifier
+                    .size(288.dp)
+                    .semantics { traversalIndex = 1f },
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     StationAvatar(
@@ -151,6 +158,7 @@ fun NowPlayingScreen(
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { traversalIndex = 2f },
             )
             if (currentTrackTitle != null && currentTrackTitle != station.name) {
                 Spacer(Modifier.height(8.dp))
@@ -161,6 +169,7 @@ fun NowPlayingScreen(
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { traversalIndex = 3f },
                 )
             }
             if (bitrateText != null) {
@@ -194,7 +203,9 @@ fun NowPlayingScreen(
                     FilledTonalIconButton(
                         onClick = onToggleFavorite,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier.size(56.dp),
+                        modifier = Modifier
+                            .size(56.dp)
+                            .semantics { traversalIndex = 4f },
                     ) {
                         Icon(
                             imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -208,8 +219,11 @@ fun NowPlayingScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     FilledIconButton(
-                        onClick = { if (!isBuffering) onToggle() },
-                        modifier = Modifier.size(88.dp),
+                        onClick = onToggle,
+                        enabled = !isBuffering,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .semantics { traversalIndex = 5f },
                         shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -257,7 +271,9 @@ fun NowPlayingScreen(
                             )
                         },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier.size(56.dp),
+                        modifier = Modifier
+                            .size(56.dp)
+                            .semantics { traversalIndex = 6f },
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Share,

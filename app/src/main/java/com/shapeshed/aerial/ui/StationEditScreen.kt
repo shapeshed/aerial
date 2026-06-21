@@ -36,7 +36,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +44,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -60,7 +63,7 @@ fun StationEditScreen(
     val name by viewModel.name.collectAsStateWithLifecycle()
     val streamUrl by viewModel.streamUrl.collectAsStateWithLifecycle()
     val logoPath by viewModel.logoPath.collectAsStateWithLifecycle()
-    var showRemoveLogoConfirm by remember { mutableStateOf(false) }
+    var showRemoveLogoConfirm by rememberSaveable { mutableStateOf(false) }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -110,7 +113,11 @@ fun StationEditScreen(
                         .fillMaxSize()
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer)
-                        .semantics { contentDescription = "Change station logo" }
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Change station logo"
+                            onClick("Choose station logo") { true }
+                        }
                         .clickable { imagePicker.launch(arrayOf("image/*")) },
                 ) {
                     if (logoPath.isNotEmpty()) {
@@ -137,11 +144,11 @@ fun StationEditScreen(
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .align(Alignment.BottomEnd),
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Edit,
-                        contentDescription = "Change icon",
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(16.dp),
+	                    Icon(
+	                        imageVector = Icons.Rounded.Edit,
+	                        contentDescription = null,
+	                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+	                        modifier = Modifier.size(16.dp),
                     )
                 }
             }

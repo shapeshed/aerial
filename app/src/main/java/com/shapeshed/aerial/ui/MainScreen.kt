@@ -111,6 +111,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -231,8 +234,13 @@ fun MainScreen(
             }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { isTraversalGroup = true },
+    ) {
         Scaffold(
+            modifier = Modifier.semantics { traversalIndex = 0f },
             topBar = {
                 if (searching) {
                     TopAppBar(
@@ -370,7 +378,11 @@ fun MainScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        gridItems(filteredStations, key = { it.id }) { station ->
+                        gridItems(
+                            items = filteredStations,
+                            key = { it.id },
+                            contentType = { "station-card" },
+                        ) { station ->
                             StationCard(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
@@ -393,7 +405,11 @@ fun MainScreen(
                             bottom = padding.calculateBottomPadding() + stationContentBottomPadding,
                         ),
                     ) {
-                        items(filteredStations, key = { it.id }) { station ->
+                        items(
+                            items = filteredStations,
+                            key = { it.id },
+                            contentType = { "station-row" },
+                        ) { station ->
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
@@ -467,6 +483,7 @@ fun MainScreen(
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .semantics { traversalIndex = 1f }
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->

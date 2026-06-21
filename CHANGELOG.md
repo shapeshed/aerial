@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Release preparation script that refreshes the bundled Radio Browser cache,
+  runs Gradle checks, validates Fastlane changelog coverage, and runs F-Droid
+  metadata validation.
+- Version bump script for updating Gradle version fields and creating the
+  matching Fastlane changelog stub.
+- Script for refreshing the bundled Radio Browser offline station cache.
 - Home now scrolls to and briefly highlights a station after it is added from discovery.
 - Monochrome station logos option in Settings (Android 10+): applies the theme primary colour while preserving luminance via `BlendMode.Color`.
 - Custom notification small icon using the app broadcast symbol instead of the generic play icon.

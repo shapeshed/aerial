@@ -73,6 +73,25 @@ docs/screenshots/
 fastlane/metadata/android/en-US/images/phoneScreenshots/
 ```
 
+## Offline Station Cache
+
+Aerial bundles a Radio Browser station cache for offline discovery fallback.
+Refresh it before release commits:
+
+```sh
+scripts/refresh-radio-browser-cache.sh
+```
+
+The script discovers live Radio Browser servers, fetches top-voted non-broken
+stations, validates the JSON with `jq`, and updates:
+
+```text
+app/src/main/res/raw/fallback_stations.json
+```
+
+Do not fetch this cache from Gradle. The checked-in JSON keeps F-Droid and
+release builds offline and reproducible.
+
 ## Release Process
 
 GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs unit
@@ -85,12 +104,36 @@ workflow artifact, and creates a draft GitHub release for tag pushes.
 For release changes:
 
 1. Update `versionCode` and `versionName` in `app/build.gradle` when the app version changes.
-2. Update `CHANGELOG.md`.
-3. Merge the release commit to `main`.
-4. Tag the release commit with a version tag, for example:
+2. Create the Fastlane changelog for the new `versionCode`.
+   This can be done with:
 
 ```sh
-git tag v0.1.0
+scripts/bump-version.sh 0.1.2
+```
+
+3. Update `CHANGELOG.md`.
+4. Update `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
+5. Refresh screenshots if the UI changed.
+6. Run release preparation:
+
+```sh
+scripts/prepare-release.sh
+```
+
+The release preparation script refreshes the Radio Browser offline cache, runs
+`test lint assembleRelease`, validates the Fastlane changelog, copies
+`.fdroid.yml` to the local fdroiddata checkout, and runs:
+
+```sh
+fdroid rewritemeta com.shapeshed.aerial
+fdroid lint com.shapeshed.aerial
+```
+
+7. Merge the release commit to `main`.
+8. Tag the release commit with a signed version tag, for example:
+
+```sh
+git tag -s v0.1.0 -m "v0.1.0"
 git push origin v0.1.0
 ```
 
