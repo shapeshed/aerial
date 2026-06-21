@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -81,7 +83,6 @@ fun AddStationScreen(
     val isLoading by discoveryViewModel.isLoading.collectAsStateWithLifecycle()
     val error: DiscoveryError? by discoveryViewModel.error.collectAsStateWithLifecycle()
     val searchedOnce by discoveryViewModel.searchedOnce.collectAsStateWithLifecycle()
-    val isOfflineFallback by discoveryViewModel.isOfflineFallback.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -110,11 +111,11 @@ fun AddStationScreen(
                 isLoading = isLoading,
                 error = error,
                 searchedOnce = searchedOnce,
-                isOfflineFallback = isOfflineFallback,
                 onQueryChange = discoveryViewModel::onQueryChange,
                 onSearch = discoveryViewModel::search,
                 onRetry = discoveryViewModel::retry,
                 onAddStation = onAddDiscovered,
+                onDismiss = onDismiss,
             )
         }
     }
@@ -129,11 +130,11 @@ private fun DiscoverContent(
     isLoading: Boolean,
     error: DiscoveryError?,
     searchedOnce: Boolean,
-    isOfflineFallback: Boolean = false,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onRetry: () -> Unit,
     onAddStation: (RadioBrowserStation) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val motionScheme = MaterialTheme.motionScheme
     Box(
@@ -147,7 +148,7 @@ private fun DiscoverContent(
                     onQueryChange = onQueryChange,
                     onSearch = { onSearch() },
                     expanded = true,
-                    onExpandedChange = {},
+                    onExpandedChange = { if (!it) onDismiss() },
                     placeholder = { Text("Station name") },
                     leadingIcon = {
                         Icon(Icons.Rounded.Search, contentDescription = null)
@@ -165,7 +166,7 @@ private fun DiscoverContent(
                 )
             },
             expanded = true,
-            onExpandedChange = {},
+            onExpandedChange = { if (!it) onDismiss() },
             colors = SearchBarDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
@@ -197,17 +198,25 @@ private fun DiscoverContent(
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp, vertical = 48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Radio,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(48.dp),
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.size(88.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Radio,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            }
+                        }
                         Text(
                             text = "Find radio stations",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
@@ -232,27 +241,37 @@ private fun DiscoverContent(
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp, vertical = 48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         val errorIcon = when (state.error.kind) {
                             ErrorKind.CONNECTIVITY -> Icons.Rounded.WifiOff
                             ErrorKind.SERVICE -> Icons.Rounded.CloudOff
                             ErrorKind.GENERIC -> Icons.Rounded.Warning
                         }
-                        Icon(
-                            imageVector = errorIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp),
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.size(88.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    imageVector = errorIcon,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            }
+                        }
                         Text(
                             text = state.error.message,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                         )
-                        Spacer(Modifier.height(4.dp))
-                        Button(onClick = onRetry) {
+                        Button(
+                            onClick = onRetry,
+                            shapes = ButtonDefaults.shapes(),
+                        ) {
                             Icon(
                                 Icons.Rounded.Refresh,
                                 contentDescription = null,
@@ -268,17 +287,25 @@ private fun DiscoverContent(
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp, vertical = 48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SearchOff,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(48.dp),
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.size(88.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SearchOff,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            }
+                        }
                         Text(
                             text = "No stations found",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
@@ -292,29 +319,6 @@ private fun DiscoverContent(
                     is ContentState.Results -> LazyColumn(
                         contentPadding = PaddingValues(vertical = 4.dp),
                     ) {
-                        if (isOfflineFallback) {
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CloudOff,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Radio Browser unavailable — using cached results",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
                         items(state.items, key = { it.stationuuid }) { station ->
                             ListItem(
                                 modifier = Modifier

@@ -2,6 +2,10 @@ package com.shapeshed.aerial.ui
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,13 +27,15 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -105,7 +111,10 @@ fun NowPlayingScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
                         Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Dismiss")
                     }
                 },
@@ -183,18 +192,16 @@ fun NowPlayingScreen(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    FilledTonalIconButton(
+                        onClick = onToggleFavorite,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         modifier = Modifier.size(56.dp),
                     ) {
-                        IconButton(onClick = onToggleFavorite) {
-                            Icon(
-                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (station.isFavorite) "Remove from favorites" else "Add to favorites",
-                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                            )
-                        }
+                        Icon(
+                            imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = if (station.isFavorite) "Remove from favorites" else "Add to favorites",
+                            tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                        )
                     }
                 }
                 Box(
@@ -204,19 +211,26 @@ fun NowPlayingScreen(
                     FilledIconButton(
                         onClick = { if (!isBuffering) onToggle() },
                         modifier = Modifier.size(88.dp),
+                        shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                         ),
                     ) {
+                        val motionScheme = MaterialTheme.motionScheme
                         AnimatedContent(
                             targetState = isBuffering to isPlaying,
+                            transitionSpec = {
+                                (fadeIn(motionScheme.defaultEffectsSpec()) +
+                                    scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
+                                    .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                            },
                             label = "playPause",
                         ) { (buffering, playing) ->
                             if (buffering) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     modifier = Modifier.size(42.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 4.dp,
+                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
                                 )
                             } else {
                                 Icon(
@@ -232,29 +246,24 @@ fun NowPlayingScreen(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    FilledTonalIconButton(
+                        onClick = {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, station.name)
+                                putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
+                            }
+                            context.startActivity(
+                                Intent.createChooser(sendIntent, "Share station"),
+                            )
+                        },
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         modifier = Modifier.size(56.dp),
                     ) {
-                        IconButton(
-                            onClick = {
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, station.name)
-                                    putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
-                                }
-                                context.startActivity(
-                                    Intent.createChooser(sendIntent, "Share station"),
-                                )
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Share,
-                                contentDescription = "Share station",
-                                tint = LocalContentColor.current,
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Share,
+                            contentDescription = "Share station",
+                        )
                     }
                 }
             }

@@ -4,12 +4,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,9 +61,11 @@ import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AppBarRow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +87,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.TopAppBar
@@ -159,12 +164,12 @@ fun MainScreen(
 
     val fabBottomPadding by animateDpAsState(
         targetValue = if (currentStation != null) 120.dp else 16.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "fabBottom",
     )
     val fabOffsetY by animateDpAsState(
         targetValue = if (fabVisible) 0.dp else fabBottomPadding + 128.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "fabOffsetY",
     )
     val stationContentBottomPadding =
@@ -277,17 +282,39 @@ fun MainScreen(
                     TopAppBar(
                         title = { Text("Aerial") },
                         actions = {
-                            IconButton(
-                                onClick = { searching = true },
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                            ) {
-                                Icon(Icons.Rounded.Search, contentDescription = "Search")
-                            }
-                            IconButton(
-                                onClick = onSettings,
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                            ) {
-                                Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                            AppBarRow {
+                                customItem(
+                                    appbarContent = {
+                                        IconButton(
+                                            onClick = { searching = true },
+                                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                        ) {
+                                            Icon(Icons.Rounded.Search, contentDescription = "Search")
+                                        }
+                                    },
+                                    menuContent = { menuState ->
+                                        DropdownMenuItem(
+                                            text = { Text("Search") },
+                                            onClick = { searching = true; menuState.dismiss() },
+                                        )
+                                    },
+                                )
+                                customItem(
+                                    appbarContent = {
+                                        IconButton(
+                                            onClick = onSettings,
+                                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                        ) {
+                                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                                        }
+                                    },
+                                    menuContent = { menuState ->
+                                        DropdownMenuItem(
+                                            text = { Text("Settings") },
+                                            onClick = { onSettings(); menuState.dismiss() },
+                                        )
+                                    },
+                                )
                             }
                         },
                     )
@@ -398,15 +425,8 @@ fun MainScreen(
                 ToggleFloatingActionButton(
                     checked = fabMenuExpanded,
                     onCheckedChange = { fabMenuExpanded = it },
-                    containerColor = ToggleFloatingActionButtonDefaults.containerColor(
-                        initialColor = MaterialTheme.colorScheme.primary,
-                        finalColor = MaterialTheme.colorScheme.primary,
-                    ),
                 ) {
-                    val iconColor = ToggleFloatingActionButtonDefaults.iconColor(
-                        initialColor = MaterialTheme.colorScheme.onPrimary,
-                        finalColor = MaterialTheme.colorScheme.onPrimary,
-                    )
+                    val iconColor = ToggleFloatingActionButtonDefaults.iconColor()
                     val iconRotation by animateFloatAsState(
                         targetValue = if (fabMenuExpanded) 45f else 0f,
                         animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
@@ -481,9 +501,15 @@ fun MainScreen(
                                         viewModel.togglePlayback()
                                     },
                             ) {
+                                val motionScheme = MaterialTheme.motionScheme
                                 Box(contentAlignment = Alignment.Center) {
                                     AnimatedContent(
                                         targetState = isBuffering to isPlaying,
+                                        transitionSpec = {
+                                            (fadeIn(motionScheme.defaultEffectsSpec()) +
+                                                scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
+                                                .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                                        },
                                         label = "playPauseIcon",
                                     ) { (buffering, playing) ->
                                         if (buffering) {
@@ -594,6 +620,7 @@ private fun StationControlRow(
         ToggleButton(
             checked = showFavoritesOnly,
             onCheckedChange = { onToggleFavorites() },
+            colors = ToggleButtonDefaults.tonalToggleButtonColors(),
         ) {
             Icon(
                 imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -604,10 +631,12 @@ private fun StationControlRow(
             Text("Favourites")
         }
         Spacer(Modifier.weight(1f))
-        ButtonGroup {
+        ButtonGroup(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
             ToggleButton(
                 checked = !isGridView,
                 onCheckedChange = { if (it) onSetGridView(false) },
+                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                colors = ToggleButtonDefaults.tonalToggleButtonColors(),
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.ViewList,
@@ -618,6 +647,8 @@ private fun StationControlRow(
             ToggleButton(
                 checked = isGridView,
                 onCheckedChange = { if (it) onSetGridView(true) },
+                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                colors = ToggleButtonDefaults.tonalToggleButtonColors(),
             ) {
                 Icon(
                     Icons.Rounded.GridView,
@@ -917,7 +948,6 @@ private fun StationItem(
                     onDismissRequest = {
                         showMenu = false
                     },
-                    shape = MaterialTheme.shapes.medium,
                 ) {
                     DropdownMenuItem(
                         text = {
@@ -1058,7 +1088,6 @@ private fun StationCard(
                     onDismissRequest = {
                         showMenu = false
                     },
-                    shape = MaterialTheme.shapes.medium,
                 ) {
                     DropdownMenuItem(
                         text = {

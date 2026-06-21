@@ -22,8 +22,11 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -45,7 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StationEditScreen(
     viewModel: StationEditViewModel,
@@ -66,7 +69,10 @@ fun StationEditScreen(
             TopAppBar(
                 title = { Text(if (viewModel.isEditing) "Edit station" else "Add station") },
                 navigationIcon = {
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
