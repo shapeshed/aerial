@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shapeshed.aerial.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -46,9 +47,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
     val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
-    val versionName = remember {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
-    }
+    val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip"),

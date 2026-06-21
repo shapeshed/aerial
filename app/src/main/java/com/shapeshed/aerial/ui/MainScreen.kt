@@ -634,31 +634,44 @@ private fun StationControlRow(
             Text("Favourites")
         }
         Spacer(Modifier.weight(1f))
-        ButtonGroup(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
-            ToggleButton(
-                checked = !isGridView,
-                onCheckedChange = { if (it) onSetGridView(false) },
-                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                colors = ToggleButtonDefaults.tonalToggleButtonColors(),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.ViewList,
-                    contentDescription = "List view",
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            ToggleButton(
-                checked = isGridView,
-                onCheckedChange = { if (it) onSetGridView(true) },
-                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                colors = ToggleButtonDefaults.tonalToggleButtonColors(),
-            ) {
-                Icon(
-                    Icons.Rounded.GridView,
-                    contentDescription = "Grid view",
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+        ButtonGroup(
+            overflowIndicator = {},
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        ) {
+            customItem(
+                buttonGroupContent = {
+                    ToggleButton(
+                        checked = !isGridView,
+                        onCheckedChange = { if (it) onSetGridView(false) },
+                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                        colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ViewList,
+                            contentDescription = "List view",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                },
+                menuContent = {},
+            )
+            customItem(
+                buttonGroupContent = {
+                    ToggleButton(
+                        checked = isGridView,
+                        onCheckedChange = { if (it) onSetGridView(true) },
+                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                        colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                    ) {
+                        Icon(
+                            Icons.Rounded.GridView,
+                            contentDescription = "Grid view",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                },
+                menuContent = {},
+            )
         }
     }
 }
@@ -806,6 +819,7 @@ fun StationAvatar(
     station: Station,
     isActive: Boolean,
     size: Dp,
+    modifier: Modifier = Modifier,
     monochrome: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -827,7 +841,7 @@ fun StationAvatar(
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .clip(CircleShape)
             .background(
@@ -836,7 +850,7 @@ fun StationAvatar(
             ),
     ) {
         if (logoModel != null && !logoFailed) {
-            val imageRequest = remember(logoModel) { ImageRequest.Builder(context).data(logoModel).build() }
+            val imageRequest = remember(context, logoModel) { ImageRequest.Builder(context).data(logoModel).build() }
             AsyncImage(
                 model = imageRequest,
                 contentDescription = null,
