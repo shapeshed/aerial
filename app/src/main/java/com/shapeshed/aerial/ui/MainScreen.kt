@@ -60,6 +60,9 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
@@ -460,8 +463,8 @@ fun MainScreen(
 
         AnimatedVisibility(
             visible = currentStation != null,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
+            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
+            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
@@ -558,8 +561,8 @@ fun MainScreen(
 
         AnimatedVisibility(
             visible = showNowPlaying && currentStation != null,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
+            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
+            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
         ) {
             currentStation?.let { station ->
@@ -670,14 +673,22 @@ private fun NoNetworkState() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.WifiOff,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(56.dp),
-            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.size(88.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        imageVector = Icons.Rounded.WifiOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+            }
             Text(
                 text = "No internet connection",
                 style = MaterialTheme.typography.titleMedium,
@@ -704,17 +715,25 @@ private fun NoStationsEmptyState(onGetStarted: () -> Unit) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Radio,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(72.dp),
-            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.size(88.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+            }
             Text(
                 text = "No stations yet",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
@@ -724,8 +743,10 @@ private fun NoStationsEmptyState(onGetStarted: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(4.dp))
-            Button(onClick = onGetStarted) {
+            Button(
+                onClick = onGetStarted,
+                shapes = ButtonDefaults.shapes(),
+            ) {
                 Text("Get started")
             }
         }
@@ -745,17 +766,25 @@ private fun HomeEmptyState(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Radio,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(72.dp),
-            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.size(88.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+            }
             Text(
                 text = text,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
@@ -870,14 +899,12 @@ private fun StationItem(
     else
         MaterialTheme.colorScheme.onSurfaceVariant
 
-    Row(
+    ListItem(
         modifier = modifier
             .fillMaxWidth()
-            .background(containerColor)
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+            .clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = containerColor),
+        leadingContent = {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.graphicsLayer { scaleX = avatarScale; scaleY = avatarScale },
@@ -912,26 +939,28 @@ private fun StationItem(
                     }
                 }
             }
-            Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
+        },
+        headlineContent = {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = if (supportingText != null) {
+            {
                 Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = titleColor,
+                    text = supportingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = supportingColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (supportingText != null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = supportingText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = supportingColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
+        } else null,
+        trailingContent = {
             Box {
                 IconButton(
                     onClick = { showMenu = true },
@@ -989,7 +1018,8 @@ private fun StationItem(
                     )
                 }
             }
-    }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

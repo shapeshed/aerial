@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
@@ -57,6 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -348,7 +348,7 @@ private fun DiscoverContent(
                                             if (qualityLabel != null && country != null) {
                                                 Spacer(Modifier.width(6.dp))
                                                 Surface(
-                                                    shape = RoundedCornerShape(4.dp),
+                                                    shape = MaterialTheme.shapes.extraSmall,
                                                     color = if (!showBitrate && station.bitrate >= 128)
                                                         MaterialTheme.colorScheme.primaryContainer
                                                     else
@@ -378,9 +378,9 @@ private fun DiscoverContent(
                                     FilledTonalIconButton(
                                         onClick = { onAddStation(station) },
                                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                                        modifier = Modifier.size(40.dp),
+                                        modifier = Modifier.size(40.dp).clearAndSetSemantics {},
                                     ) {
-                                        Icon(Icons.Rounded.Add, contentDescription = "Add ${station.name}")
+                                        Icon(Icons.Rounded.Add, contentDescription = null)
                                     }
                                 },
                             )

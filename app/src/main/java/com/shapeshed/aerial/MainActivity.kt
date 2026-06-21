@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -14,6 +13,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
         MainViewModelFactory(app, app.repository, app.settingsDataStore)
     }
 
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AerialTheme {
+                val motionScheme = MaterialTheme.motionScheme
                 val navController = rememberNavController()
                 val repository = remember { (application as AerialApp).repository }
 
@@ -58,16 +60,18 @@ class MainActivity : ComponentActivity() {
                     startDestination = "main",
                     modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                     enterTransition = {
-                        fadeIn(tween(220)) + slideInHorizontally { (it * 0.15f).toInt() }
+                        fadeIn(motionScheme.defaultEffectsSpec()) +
+                            slideInHorizontally(motionScheme.defaultSpatialSpec()) { (it * 0.15f).toInt() }
                     },
                     exitTransition = {
-                        fadeOut(tween(150))
+                        fadeOut(motionScheme.defaultEffectsSpec())
                     },
                     popEnterTransition = {
-                        fadeIn(tween(220))
+                        fadeIn(motionScheme.defaultEffectsSpec())
                     },
                     popExitTransition = {
-                        fadeOut(tween(150)) + slideOutHorizontally { (it * 0.15f).toInt() }
+                        fadeOut(motionScheme.defaultEffectsSpec()) +
+                            slideOutHorizontally(motionScheme.defaultSpatialSpec()) { (it * 0.15f).toInt() }
                     },
                 ) {
                     composable("main") {
