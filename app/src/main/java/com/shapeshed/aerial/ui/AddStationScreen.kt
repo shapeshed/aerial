@@ -1,8 +1,6 @@
 package com.shapeshed.aerial.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -41,8 +39,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -68,7 +68,7 @@ private sealed class ContentState {
     object Empty : ContentState()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AddStationScreen(
     showBitrate: Boolean = false,
@@ -88,7 +88,10 @@ fun AddStationScreen(
             TopAppBar(
                 title = { Text("Find a station") },
                 navigationIcon = {
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -132,6 +135,7 @@ private fun DiscoverContent(
     onRetry: () -> Unit,
     onAddStation: (RadioBrowserStation) -> Unit,
 ) {
+    val motionScheme = MaterialTheme.motionScheme
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
@@ -150,7 +154,10 @@ private fun DiscoverContent(
                     },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
+                            IconButton(
+                                onClick = { onQueryChange("") },
+                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            ) {
                                 Icon(Icons.Rounded.Close, contentDescription = "Clear")
                             }
                         }
@@ -159,6 +166,9 @@ private fun DiscoverContent(
             },
             expanded = true,
             onExpandedChange = {},
+            colors = SearchBarDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
             modifier = Modifier.fillMaxWidth(),
             windowInsets = WindowInsets(0),
         ) {
@@ -173,9 +183,9 @@ private fun DiscoverContent(
             AnimatedContent(
                 targetState = contentState,
                 transitionSpec = {
-                    (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
-                        scaleIn(spring(stiffness = Spring.StiffnessMediumLow), initialScale = 0.95f))
-                        .togetherWith(fadeOut(spring(stiffness = Spring.StiffnessMediumLow)))
+                    (fadeIn(motionScheme.defaultEffectsSpec()) +
+                        scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.95f))
+                        .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
                 },
                 contentKey = { it::class },
                 label = "discovery-content",
@@ -214,7 +224,7 @@ private fun DiscoverContent(
                             .padding(48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        LoadingIndicator()
+                        ContainedLoadingIndicator()
                     }
 
                     is ContentState.Error -> Column(
@@ -280,8 +290,7 @@ private fun DiscoverContent(
                     }
 
                     is ContentState.Results -> LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
                     ) {
                         if (isOfflineFallback) {
                             item {
@@ -309,7 +318,6 @@ private fun DiscoverContent(
                         items(state.items, key = { it.stationuuid }) { station ->
                             ListItem(
                                 modifier = Modifier
-                                    .clip(MaterialTheme.shapes.large)
                                     .clickable { onAddStation(station) },
                                 headlineContent = {
                                     Text(
@@ -365,6 +373,7 @@ private fun DiscoverContent(
                                 trailingContent = {
                                     FilledTonalIconButton(
                                         onClick = { onAddStation(station) },
+                                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                                         modifier = Modifier.size(40.dp),
                                     ) {
                                         Icon(Icons.Rounded.Add, contentDescription = "Add ${station.name}")
