@@ -71,7 +71,8 @@ class BbcNowPlayingApiTest {
 
         assertEquals(
             BbcNowPlayingItem(
-                title = "Tame Impala & JENNIE - Dracula - JENNIE Remix",
+                artistTitle = "Tame Impala & JENNIE",
+                trackTitle = "Dracula - JENNIE Remix",
                 artworkUrl = "https://ichef.bbci.co.uk/images/ic/640x640/artwork-now.jpg",
                 artworkData = null,
             ),
@@ -80,7 +81,7 @@ class BbcNowPlayingApiTest {
     }
 
     @Test
-    fun parseBbcNowPlayingResponseReturnsNullWhenNoNowPlayingFlagIsPresent() {
+    fun parseBbcNowPlayingResponseReturnsNullWhenNoCurrentItemIsMarked() {
         val result = parseBbcNowPlayingResponse(
             """
             {
@@ -108,11 +109,18 @@ class BbcNowPlayingApiTest {
               "total": 1,
               "data": [
                 {
-                  "titles": {
-                    "primary": "You and Yours",
-                    "secondary": "Internet of Things, Luxury Brands, £5 Chicken"
-                  },
-                  "image_url": "https://ichef.bbci.co.uk/images/ic/{recipe}/programme.jpg"
+                  "on_air": true,
+                  "programme": {
+                    "titles": {
+                      "primary": "Going Home with Vick, Katie and Jamie on Radio 1",
+                      "secondary": "Chaos on your way home!"
+                    },
+                    "images": [
+                      {
+                        "url": "https://ichef.bbci.co.uk/images/ic/{recipe}/programme.jpg"
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -121,8 +129,9 @@ class BbcNowPlayingApiTest {
         )
 
         assertEquals(
-            BbcNowPlayingItem(
-                title = "You and Yours - Internet of Things, Luxury Brands, £5 Chicken",
+            BbcBroadcastItem(
+                showTitle = "Going Home with Vick, Katie and Jamie on Radio 1",
+                episodeTitle = "Chaos on your way home!",
                 artworkUrl = "https://ichef.bbci.co.uk/images/ic/640x640/programme.jpg",
                 artworkData = null,
             ),
@@ -152,8 +161,9 @@ class BbcNowPlayingApiTest {
         )
 
         assertEquals(
-            BbcNowPlayingItem(
-                title = "Older Show - Old subtitle",
+            BbcBroadcastItem(
+                showTitle = "Older Show",
+                episodeTitle = "Old subtitle",
                 artworkUrl = "https://ichef.bbci.co.uk/images/ic/640x640/older.jpg",
                 artworkData = null,
             ),

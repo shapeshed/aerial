@@ -26,6 +26,8 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.shapeshed.aerial.data.NowPlayingEnricher
+import com.shapeshed.aerial.data.NowPlayingInfo
+import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +51,7 @@ class PlayerService : MediaSessionService() {
     private var lastIcyTitle: String? = null
     private var icyMetadataGeneration: Int = 0
     private var activeEnricher: NowPlayingEnricher? = null
+    private var lastAppliedNowPlayingSignature: String? = null
 
     private fun log(message: String) {
         Log.d(TAG, message)
@@ -80,6 +83,11 @@ class PlayerService : MediaSessionService() {
                 updateFavoriteButton()
             }
         }
+        serviceScope.launch {
+            NowPlayingStore.state.collectLatest { info ->
+                applyNowPlayingInfo(info)
+            }
+        }
     }
 
     private val icyListener = object : Player.Listener {
@@ -95,6 +103,7 @@ class PlayerService : MediaSessionService() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
             lastIcyTitle = null
+            lastAppliedNowPlayingSignature = null
             activeEnricher?.stop()
             activeEnricher = null
             stationForMediaItem(mediaItem)?.let { station ->
@@ -237,6 +246,60 @@ class PlayerService : MediaSessionService() {
             }
             .build()
         player.replaceMediaItem(index, item.buildUpon().setMediaMetadata(mediaMetadata).build())
+    }
+
+    private fun applyNowPlayingInfo(info: NowPlayingInfo?) {
+        val currentMediaItem = player.currentMediaItem ?: return
+        val currentStation = currentStation() ?: return
+        if (info?.stationId != currentStation.id) return
+
+        val artworkData = when {
+            info.trackTitle != null -> info.trackArtworkData ?: info.artworkData ?: info.programmeArtworkData
+            else -> info.artworkData ?: info.programmeArtworkData ?: info.trackArtworkData
+        }
+        val signature = buildString {
+            append(info.title.orEmpty())
+            append('|')
+            append(info.subtitle.orEmpty())
+            append('|')
+            append(info.programmeTitle.orEmpty())
+            append('|')
+            append(info.programmeSubtitle.orEmpty())
+            append('|')
+            append(info.trackTitle.orEmpty())
+            append('|')
+            append(info.trackSubtitle.orEmpty())
+            append('|')
+            append(System.identityHashCode(artworkData))
+        }
+        if (signature == lastAppliedNowPlayingSignature) return
+        lastAppliedNowPlayingSignature = signature
+
+        val mediaMetadata = currentMediaItem.mediaMetadata.buildUpon()
+            .setTitle(info.trackArtist ?: info.title ?: currentMediaItem.mediaMetadata.title)
+            .setArtist(
+                when {
+                    info.trackArtist != null -> info.trackTitle ?: info.subtitle ?: info.programmeTitle
+                    else -> info.programmeTitle ?: currentMediaItem.mediaMetadata.artist
+                }
+            )
+            .setSubtitle(
+                when {
+                    info.trackArtist != null -> info.trackTitle ?: info.subtitle
+                    else -> info.subtitle ?: info.programmeSubtitle ?: currentMediaItem.mediaMetadata.subtitle
+                }
+            )
+            .apply {
+                if (artworkData != null) {
+                    setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                }
+            }
+            .build()
+
+        player.replaceMediaItem(
+            player.currentMediaItemIndex,
+            currentMediaItem.buildUpon().setMediaMetadata(mediaMetadata).build()
+        )
     }
 
     override fun onDestroy() {

@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -85,22 +86,38 @@ fun NowPlayingScreen(
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var currentTrackArtworkFailed by remember(currentTrackArtworkData, currentTrackArtworkUrl) { mutableStateOf(false) }
     val artworkShape = MaterialTheme.shapes.extraLarge
-    // For music stations: title = track, subtitle = show name.
-    // For talk stations: title = show name, subtitle = episode title.
-    val primaryTitle = nowPlayingInfo?.title ?: currentTrackTitle ?: station.name
-    val secondaryTitle = when {
-        nowPlayingInfo != null -> nowPlayingInfo.subtitle
-        else -> currentTrackTitle?.takeIf { it != primaryTitle }
+    val mainTitle = nowPlayingInfo?.trackArtist
+        ?: nowPlayingInfo?.programmeTitle
+        ?: nowPlayingInfo?.title
+        ?: station.name
+    val mainSubtitle = when {
+        nowPlayingInfo?.trackArtist != null -> nowPlayingInfo.trackTitle
+        else -> nowPlayingInfo?.programmeSubtitle ?: nowPlayingInfo?.subtitle
     }
-    val artworkModel = when {
+    val trackTitle = nowPlayingInfo?.trackTitle ?: currentTrackTitle
+    val trackSubtitle = nowPlayingInfo?.trackSubtitle
+    val mainArtworkModel = when {
+        nowPlayingInfo?.programmeArtworkData != null -> nowPlayingInfo.programmeArtworkData
+        !nowPlayingInfo?.programmeArtworkUrl.isNullOrBlank() -> nowPlayingInfo.programmeArtworkUrl
         nowPlayingInfo?.artworkData != null -> nowPlayingInfo.artworkData
-        !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo!!.artworkUrl
+        !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo.artworkUrl
         currentTrackArtworkData != null -> currentTrackArtworkData
         !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null
     }
+    val trackArtworkModel = when {
+        nowPlayingInfo?.trackArtworkData != null -> nowPlayingInfo.trackArtworkData
+        !nowPlayingInfo?.trackArtworkUrl.isNullOrBlank() -> nowPlayingInfo.trackArtworkUrl
+        currentTrackArtworkData != null -> currentTrackArtworkData
+        !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
+        else -> null
+    }
+    var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
+    var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
+    val showTrackBlock = !nowPlayingInfo?.trackArtist.isNullOrBlank() &&
+        !trackTitle.isNullOrBlank() &&
+        trackTitle != mainSubtitle
     val bitrateText = when {
         bitrateKbps == null -> null
         showBitrate -> "$bitrateKbps kbps"
@@ -165,12 +182,12 @@ fun NowPlayingScreen(
                     .semantics { traversalIndex = 1f },
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    if (artworkModel != null && !currentTrackArtworkFailed) {
+                    if (mainArtworkModel != null && !mainArtworkFailed) {
                         AsyncImage(
-                            model = artworkModel,
+                            model = mainArtworkModel,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            onError = { currentTrackArtworkFailed = true },
+                            onError = { mainArtworkFailed = true },
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
@@ -185,7 +202,7 @@ fun NowPlayingScreen(
             }
             Spacer(Modifier.height(36.dp))
             Text(
-                text = primaryTitle,
+                text = mainTitle,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -193,10 +210,10 @@ fun NowPlayingScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { traversalIndex = 2f },
             )
-            if (secondaryTitle != null && secondaryTitle != primaryTitle) {
+            if (mainSubtitle != null && mainSubtitle != mainTitle) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = secondaryTitle,
+                    text = mainSubtitle,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -312,6 +329,72 @@ fun NowPlayingScreen(
                             imageVector = Icons.Rounded.Share,
                             contentDescription = "Share station",
                         )
+                    }
+                }
+            }
+            if (showTrackBlock) {
+                Spacer(Modifier.height(20.dp))
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(52.dp),
+                        ) {
+                            if (trackArtworkModel != null && !trackArtworkFailed) {
+                                AsyncImage(
+                                    model = trackArtworkModel,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    onError = { trackArtworkFailed = true },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    tonalElevation = 2.dp,
+                                    modifier = Modifier.size(44.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Radio,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.size(22.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = trackTitle,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (!trackSubtitle.isNullOrBlank() && trackSubtitle != trackTitle) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = trackSubtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                 }
             }

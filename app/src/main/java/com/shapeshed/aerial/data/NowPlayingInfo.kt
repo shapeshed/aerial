@@ -7,13 +7,23 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Generic now-playing metadata for any enriched station.
- * [title] is the primary display text (track name for music, programme for talk).
- * [subtitle] is the secondary display text (show name for music, episode for talk).
+ * [title] / [subtitle] remain the primary display pair for backward compatibility.
+ * BBC enrichers also populate programme and track-specific fields so the UI can
+ * show them separately when both are available.
  */
 data class NowPlayingInfo(
     val stationId: Long,
     val title: String? = null,
     val subtitle: String? = null,
+    val programmeTitle: String? = null,
+    val programmeSubtitle: String? = null,
+    val programmeArtworkUrl: String? = null,
+    val programmeArtworkData: ByteArray? = null,
+    val trackArtist: String? = null,
+    val trackTitle: String? = null,
+    val trackSubtitle: String? = null,
+    val trackArtworkUrl: String? = null,
+    val trackArtworkData: ByteArray? = null,
     val artworkUrl: String? = null,
     val artworkData: ByteArray? = null,
 )

@@ -414,6 +414,12 @@ fun MainScreen(
                             key = { it.id },
                             contentType = { "station-row" },
                         ) { station ->
+                            val stationNowPlayingText = when {
+                                activeNowPlayingInfo?.trackTitle != null -> activeNowPlayingInfo.trackTitle
+                                activeNowPlayingInfo?.programmeTitle != null -> activeNowPlayingInfo.programmeTitle
+                                activeNowPlayingInfo?.title != null -> activeNowPlayingInfo.title
+                                else -> currentTrackTitle
+                            }
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
@@ -421,8 +427,7 @@ fun MainScreen(
                                 isBuffering = isBuffering && currentStation?.id == station.id,
                                 supportingText = if (currentStation?.id == station.id) {
                                     playbackError
-                                        ?: activeNowPlayingInfo?.title
-                                        ?: currentTrackTitle
+                                        ?: stationNowPlayingText
                                         ?: when {
                                             isBuffering -> "Buffering"
                                             isPlaying -> "Playing"
@@ -495,14 +500,20 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                // When enriched info is present: title (track/show) on top, station name below.
-                // Otherwise: station name on top, status text (track or Playing/Paused) below.
-                val enrichedTitle = activeNowPlayingInfo?.title
-                val miniPlayerTitle = enrichedTitle ?: station.name
+                val miniPlayerTitle = activeNowPlayingInfo?.trackArtist
+                    ?: activeNowPlayingInfo?.title
+                    ?: station.name
                 val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else if (enrichedTitle != null) station.name
-                    else currentTrackTitle ?: if (isPlaying) "Playing" else "Paused"
+                    else when {
+                        activeNowPlayingInfo?.trackTitle != null &&
+                            activeNowPlayingInfo.trackTitle != miniPlayerTitle -> activeNowPlayingInfo.trackTitle
+                        activeNowPlayingInfo?.subtitle != null &&
+                            activeNowPlayingInfo.subtitle != miniPlayerTitle -> activeNowPlayingInfo.subtitle
+                        currentTrackTitle != null && currentTrackTitle != miniPlayerTitle -> currentTrackTitle
+                        isPlaying -> "Playing"
+                        else -> "Paused"
+                    }
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -573,8 +584,9 @@ fun MainScreen(
                                 text = miniPlayerTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (miniPlayerSubtitle != null) {
                             Text(
                                 text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -584,6 +596,7 @@ fun MainScreen(
                         }
                     }
                 }
+            }
             }
         }
 
