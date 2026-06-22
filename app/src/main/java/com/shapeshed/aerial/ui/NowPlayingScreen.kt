@@ -44,10 +44,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -59,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.shapeshed.aerial.data.BbcNowPlayingState
+import coil3.compose.AsyncImage
 import com.shapeshed.aerial.data.Station
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -69,7 +73,10 @@ fun NowPlayingScreen(
     isBuffering: Boolean,
     bitrateKbps: Int?,
     showBitrate: Boolean = false,
+    bbcNowPlaying: BbcNowPlayingState? = null,
     currentTrackTitle: String?,
+    currentTrackArtworkData: ByteArray? = null,
+    currentTrackArtworkUrl: String? = null,
     monochromeLogos: Boolean = false,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -78,6 +85,24 @@ fun NowPlayingScreen(
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var currentTrackArtworkFailed by remember(currentTrackArtworkData, currentTrackArtworkUrl) { mutableStateOf(false) }
+    val artworkShape = MaterialTheme.shapes.extraLarge
+    val stationBbcNowPlaying = bbcNowPlaying?.takeIf { it.stationId == station.id }
+    val bbcTrackTitle = stationBbcNowPlaying?.trackTitle
+    val bbcProgrammeTitle = stationBbcNowPlaying?.programmeTitle
+    val primaryTitle = bbcTrackTitle ?: bbcProgrammeTitle ?: station.name
+    val secondaryTitle = when {
+        bbcTrackTitle != null && bbcProgrammeTitle != null && bbcProgrammeTitle != bbcTrackTitle -> bbcProgrammeTitle
+        stationBbcNowPlaying != null -> null
+        else -> currentTrackTitle
+    }
+    val artworkModel = when {
+        stationBbcNowPlaying?.artworkData != null -> stationBbcNowPlaying.artworkData
+        !stationBbcNowPlaying?.artworkUrl.isNullOrBlank() -> stationBbcNowPlaying.artworkUrl
+        currentTrackArtworkData != null -> currentTrackArtworkData
+        !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
+        else -> null
+    }
     val bitrateText = when {
         bitrateKbps == null -> null
         showBitrate -> "$bitrateKbps kbps"
@@ -134,7 +159,7 @@ fun NowPlayingScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             Surface(
-                shape = CircleShape,
+                shape = artworkShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 tonalElevation = 8.dp,
                 modifier = Modifier
@@ -142,17 +167,27 @@ fun NowPlayingScreen(
                     .semantics { traversalIndex = 1f },
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    StationAvatar(
-                        station = station,
-                        isActive = true,
-                        size = 260.dp,
-                        monochrome = monochromeLogos,
-                    )
+                    if (artworkModel != null && !currentTrackArtworkFailed) {
+                        AsyncImage(
+                            model = artworkModel,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            onError = { currentTrackArtworkFailed = true },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        StationAvatar(
+                            station = station,
+                            isActive = true,
+                            size = 260.dp,
+                            monochrome = monochromeLogos,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(36.dp))
             Text(
-                text = station.name,
+                text = primaryTitle,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -160,10 +195,10 @@ fun NowPlayingScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { traversalIndex = 2f },
             )
-            if (currentTrackTitle != null && currentTrackTitle != station.name) {
+            if (secondaryTitle != null && secondaryTitle != primaryTitle) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = currentTrackTitle,
+                    text = secondaryTitle,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

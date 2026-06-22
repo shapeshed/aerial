@@ -27,6 +27,7 @@ import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.isBbcStation
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -101,6 +102,12 @@ class MainViewModel(
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
 
+    private val _currentTrackArtworkUrl = MutableStateFlow<String?>(null)
+    val currentTrackArtworkUrl: StateFlow<String?> = _currentTrackArtworkUrl.asStateFlow()
+
+    private val _currentTrackArtworkData = MutableStateFlow<ByteArray?>(null)
+    val currentTrackArtworkData: StateFlow<ByteArray?> = _currentTrackArtworkData.asStateFlow()
+
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
@@ -168,9 +175,23 @@ class MainViewModel(
             _playbackError.value = error.userMessage()
         }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            val station = currentStation.value
+            if (station != null && isBbcStation(station)) {
+                return
+            }
+            val title = mediaMetadata.title?.toString()?.trim()
             val artist = mediaMetadata.artist?.toString()?.trim()
-            if (!artist.isNullOrEmpty() && artist != "Live Radio") {
-                _currentTrackTitle.value = artist
+            val artwork = mediaMetadata.artworkUri?.toString()?.trim()
+            val artworkData = mediaMetadata.artworkData
+            when {
+                !title.isNullOrEmpty() && title != "Live Radio" -> _currentTrackTitle.value = title
+                !artist.isNullOrEmpty() && artist != "Live Radio" -> _currentTrackTitle.value = artist
+            }
+            _currentTrackArtworkData.value = artworkData
+            _currentTrackArtworkUrl.value = if (artworkData == null && !artwork.isNullOrEmpty()) {
+                artwork
+            } else {
+                null
             }
         }
         @OptIn(UnstableApi::class)
@@ -190,6 +211,8 @@ class MainViewModel(
     fun play(station: Station) {
         _currentStationId.value = station.id
         _currentTrackTitle.value = null
+        _currentTrackArtworkUrl.value = null
+        _currentTrackArtworkData.value = null
         _bitrateKbps.value = null
         _playbackError.value = null
         if (station.radioBrowserUuid.isNotEmpty()) {

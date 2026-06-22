@@ -124,7 +124,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.shapeshed.aerial.data.BbcNowPlayingStore
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.data.isBbcStation
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -144,6 +146,9 @@ fun MainScreen(
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val bitrateKbps by viewModel.bitrateKbps.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
+    val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
+    val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
+    val bbcNowPlaying by BbcNowPlayingStore.state.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
@@ -180,6 +185,9 @@ fun MainScreen(
     )
     val stationContentBottomPadding =
         if (currentStation != null) 128.dp else 0.dp
+    val activeBbcNowPlaying = currentStation
+        ?.takeIf(::isBbcStation)
+        ?.let { station -> bbcNowPlaying?.takeIf { it.stationId == station.id } }
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
@@ -410,19 +418,25 @@ fun MainScreen(
                             key = { it.id },
                             contentType = { "station-row" },
                         ) { station ->
+                            val stationBbcNowPlaying = activeBbcNowPlaying?.takeIf { it.stationId == station.id }
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
                                 isPlaying = isPlaying && currentStation?.id == station.id,
                                 isBuffering = isBuffering && currentStation?.id == station.id,
-                                supportingText = if (currentStation?.id == station.id)
-                                    playbackError ?: currentTrackTitle ?: when {
-                                        isBuffering -> "Buffering"
-                                        isPlaying -> "Playing"
-                                        else -> "Paused"
-                                    }
-                                else
-                                    null,
+                                supportingText = if (currentStation?.id == station.id) {
+                                    playbackError
+                                        ?: stationBbcNowPlaying?.trackTitle
+                                        ?: stationBbcNowPlaying?.programmeTitle
+                                        ?: if (stationBbcNowPlaying == null && isBbcStation(station)) station.name else currentTrackTitle
+                                        ?: when {
+                                            isBuffering -> "Buffering"
+                                            isPlaying -> "Playing"
+                                            else -> "Paused"
+                                        }
+                                } else {
+                                    null
+                                },
                                 isRecentlyAdded = recentlyAddedStationId == station.id,
                                 monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
@@ -487,9 +501,12 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
+                val stationBbcNowPlaying = activeBbcNowPlaying?.takeIf { it.stationId == station.id }
                 val statusText = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else currentTrackTitle
+                    else stationBbcNowPlaying?.trackTitle
+                    ?: stationBbcNowPlaying?.programmeTitle
+                    ?: if (stationBbcNowPlaying == null && isBbcStation(station)) station.name else currentTrackTitle
                     ?: if (isPlaying) "Playing"
                     else "Paused"
                 BoxWithConstraints {
@@ -589,7 +606,10 @@ fun MainScreen(
                     isBuffering = isBuffering,
                     bitrateKbps = bitrateKbps,
                     showBitrate = showBitrate,
+                    bbcNowPlaying = activeBbcNowPlaying,
                     currentTrackTitle = currentTrackTitle,
+                    currentTrackArtworkData = currentTrackArtworkData,
+                    currentTrackArtworkUrl = currentTrackArtworkUrl,
                     monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },

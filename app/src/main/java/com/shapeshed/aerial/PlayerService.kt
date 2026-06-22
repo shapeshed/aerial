@@ -3,7 +3,9 @@ package com.shapeshed.aerial
 import android.app.PendingIntent
 import android.app.TaskStackBuilder
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
@@ -23,14 +25,20 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.shapeshed.aerial.data.BbcNowPlayingState
+import com.shapeshed.aerial.data.BbcNowPlayingStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.fetchBbcNowPlaying
+import com.shapeshed.aerial.data.isBbcStation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @OptIn(UnstableApi::class)
@@ -44,6 +52,13 @@ class PlayerService : MediaSessionService() {
     private lateinit var repository: StationRepository
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
+    private var icyMetadataGeneration: Int = 0
+    private var bbcNowPlayingJob: Job? = null
+    private var bbcRefreshJob: Job? = null
+
+    private fun log(message: String) {
+        Log.d(TAG, message)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -64,6 +79,7 @@ class PlayerService : MediaSessionService() {
             .setCallback(sessionCallback)
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
             .build()
+        log("onCreate")
         serviceScope.launch {
             repository.getAll().collectLatest { updatedStations ->
                 stations = updatedStations
@@ -73,8 +89,25 @@ class PlayerService : MediaSessionService() {
     }
 
     private val icyListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            log("onIsPlayingChanged=$isPlaying")
+            if (!isPlaying) {
+                stopBbcNowPlayingRefresh()
+            }
+        }
+
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
             lastIcyTitle = null
+            stationForMediaItem(mediaItem)?.let { station ->
+                if (isBbcStation(station)) {
+                    BbcNowPlayingStore.set(null)
+                    scheduleBbcNowPlayingRefresh(station)
+                } else {
+                    BbcNowPlayingStore.set(null)
+                    stopBbcNowPlayingRefresh()
+                }
+            }
             updateFavoriteButton()
         }
 
@@ -84,18 +117,24 @@ class PlayerService : MediaSessionService() {
                 val entry = metadata[i]
                 if (entry is IcyInfo) {
                     val title = entry.title?.trim()
+                    log("ICY metadata title=$title entry=$entry")
                     if (title.isNullOrEmpty()) return
                     if (title == lastIcyTitle) return
                     val item = player.currentMediaItem ?: return
+                    val station = currentStation()
+                    if (station != null && isBbcStation(station)) {
+                        updateBbcTrackTitle(station.id, title)
+                        return
+                    }
                     lastIcyTitle = title
-                    player.replaceMediaItem(
-                        player.currentMediaItemIndex,
-                        item.buildUpon().setMediaMetadata(
-                            item.mediaMetadata.buildUpon()
-                                .setArtist(title)
-                                .setSubtitle(title)
-                                .build()
-                        ).build()
+                    icyMetadataGeneration += 1
+                    replaceCurrentMediaItem(
+                        item,
+                        index = player.currentMediaItemIndex,
+                        stationName = station?.name ?: item.mediaMetadata.title?.toString().orEmpty(),
+                        title = title,
+                        artworkData = item.mediaMetadata.artworkData,
+                        artworkUri = item.mediaMetadata.artworkUri,
                     )
                 }
             }
@@ -173,8 +212,101 @@ class PlayerService : MediaSessionService() {
         return stations.firstOrNull { it.id == id }
     }
 
+    private fun stationForMediaItem(mediaItem: MediaItem?): Station? {
+        val id = mediaItem?.mediaId?.toLongOrNull() ?: return null
+        return stations.firstOrNull { it.id == id }
+    }
+
+    private fun requestBbcNowPlayingUpdate(station: Station) {
+        bbcNowPlayingJob?.cancel()
+        bbcNowPlayingJob = serviceScope.launch(Dispatchers.IO) {
+            log("BBC fetch start station=${station.name}")
+            val info = fetchBbcNowPlaying(station) ?: return@launch
+            withContext(Dispatchers.Main.immediate) {
+                val currentItem = player.currentMediaItem ?: return@withContext
+                if (currentItem.mediaId.toLongOrNull() != station.id) return@withContext
+                log(
+                    "BBC apply programme=${info.programmeTitle} track=${info.trackTitle} station=${station.name}"
+                )
+                BbcNowPlayingStore.set(
+                    BbcNowPlayingState(
+                        stationId = station.id,
+                        programmeTitle = info.programmeTitle,
+                        trackTitle = info.trackTitle,
+                        artworkUrl = info.artworkUrl,
+                        artworkData = info.artworkData,
+                    )
+                )
+            }
+        }
+    }
+
+    private fun scheduleBbcNowPlayingRefresh(station: Station) {
+        if (!isBbcStation(station)) return
+        log("BBC refresh job start station=${station.name}")
+        bbcRefreshJob?.cancel()
+        bbcRefreshJob = serviceScope.launch {
+            requestBbcNowPlayingUpdate(station)
+            delay(BBC_NOW_PLAYING_REFRESH_MS)
+            val shouldRefreshAgain = withContext(Dispatchers.Main.immediate) {
+                val currentStation = currentStation()
+                currentStation?.id == station.id && player.isPlaying
+            }
+            if (shouldRefreshAgain) {
+                requestBbcNowPlayingUpdate(station)
+            }
+        }
+    }
+
+    private fun updateBbcTrackTitle(stationId: Long, trackTitle: String) {
+        BbcNowPlayingStore.update { current ->
+            when {
+                current == null -> BbcNowPlayingState(
+                    stationId = stationId,
+                    trackTitle = trackTitle,
+                )
+                current.stationId != stationId -> current
+                current.trackTitle == trackTitle -> current
+                else -> current.copy(trackTitle = trackTitle)
+            }
+        }
+    }
+
+    private fun stopBbcNowPlayingRefresh() {
+        log("BBC refresh job stop")
+        bbcRefreshJob?.cancel()
+        bbcRefreshJob = null
+        bbcNowPlayingJob?.cancel()
+        bbcNowPlayingJob = null
+    }
+
+    private fun replaceCurrentMediaItem(
+        item: MediaItem,
+        index: Int,
+        stationName: String,
+        title: String,
+        artworkData: ByteArray? = null,
+        artworkUri: Uri?,
+    ) {
+        val mediaMetadata = item.mediaMetadata.buildUpon()
+            .setTitle(title)
+            .setArtist(stationName)
+            .setSubtitle(title)
+            .apply {
+                if (artworkData != null) {
+                    setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                }
+                if (artworkUri != null) {
+                    setArtworkUri(artworkUri)
+                }
+            }
+            .build()
+        player.replaceMediaItem(index, item.buildUpon().setMediaMetadata(mediaMetadata).build())
+    }
+
     override fun onDestroy() {
         serviceScope.cancel()
+        stopBbcNowPlayingRefresh()
         player.removeListener(icyListener)
         mediaSession.release()
         player.release()
@@ -190,6 +322,8 @@ class PlayerService : MediaSessionService() {
         }
 
     private companion object {
+        const val TAG = "AerialPlayerService"
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
+        const val BBC_NOW_PLAYING_REFRESH_MS = 5_000L
     }
 }
