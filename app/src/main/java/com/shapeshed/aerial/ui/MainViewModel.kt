@@ -9,6 +9,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
+val LAST_STATION_ID_KEY = longPreferencesKey("last_station_id")
 
 class MainViewModel(
     application: Application,
@@ -60,13 +62,17 @@ class MainViewModel(
             repository.getAll().first()
             _isInitialized.value = true
         }
+        viewModelScope.launch {
+            dataStore.data.map { it[LAST_STATION_ID_KEY] }.first()
+                ?.let { _currentStationId.value = it }
+        }
     }
 
     val isGridView: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[GRID_VIEW_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    private val _showFavoritesOnly = MutableStateFlow(false)
+    private val _showFavoritesOnly = MutableStateFlow((application as AerialApp).showFavoritesOnly)
     val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
@@ -107,6 +113,11 @@ class MainViewModel(
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
+    private val _showNowPlaying = MutableStateFlow((application as AerialApp).showNowPlaying)
+    val showNowPlaying: StateFlow<Boolean> = _showNowPlaying.asStateFlow()
+    fun openNowPlaying() { _showNowPlaying.value = true; (getApplication<AerialApp>()).showNowPlaying = true }
+    fun closeNowPlaying() { _showNowPlaying.value = false; (getApplication<AerialApp>()).showNowPlaying = false }
+
     val monochromeLogos: StateFlow<Boolean> = dataStore.data
         .map { it[MONOCHROME_LOGOS_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -124,16 +135,18 @@ class MainViewModel(
         val token = SessionToken(appContext, ComponentName(appContext, PlayerService::class.java))
         controllerFuture = MediaController.Builder(appContext, token).buildAsync()
         controllerFuture?.addListener({
-            controller = controllerFuture?.get()
-            controller?.addListener(playerListener)
-            controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+            val ctrl = controllerFuture?.get() ?: return@addListener
+            controller = ctrl
+            ctrl.addListener(playerListener)
+            if (ctrl.currentMediaItem != null) {
                 if (_currentStationId.value == null) {
-                    _currentStationId.value = id
-                    _isPlaying.value = controller?.isPlaying ?: false
-                    controller?.mediaMetadata?.artist?.toString()?.trim()
-                        ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
-                        ?.let { _currentTrackTitle.value = it }
+                    ctrl.currentMediaItem?.mediaId?.toLongOrNull()
+                        ?.let { _currentStationId.value = it }
                 }
+                _isPlaying.value = ctrl.isPlaying
+                ctrl.mediaMetadata.artist?.toString()?.trim()
+                    ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+                    ?.let { _currentTrackTitle.value = it }
             }
         }, ContextCompat.getMainExecutor(appContext))
     }
@@ -143,11 +156,9 @@ class MainViewModel(
     }
 
     fun toggleFavoritesFilter() {
-        _showFavoritesOnly.value = !_showFavoritesOnly.value
-    }
-
-    fun setFavoritesFilter(favOnly: Boolean) {
-        _showFavoritesOnly.value = favOnly
+        val v = !_showFavoritesOnly.value
+        _showFavoritesOnly.value = v
+        getApplication<AerialApp>().showFavoritesOnly = v
     }
 
     fun toggleFavorite(station: Station) {
@@ -198,6 +209,7 @@ class MainViewModel(
 
     fun play(station: Station) {
         _currentStationId.value = station.id
+        viewModelScope.launch { dataStore.edit { it[LAST_STATION_ID_KEY] = station.id } }
         _currentTrackTitle.value = null
         _bitrateKbps.value = null
         _playbackError.value = null
@@ -244,12 +256,15 @@ class MainViewModel(
     }
 
     fun togglePlayback() {
-        controller?.let {
-            if (it.isPlaying) {
-                it.pause()
+        val ctrl = controller ?: return
+        if (ctrl.isPlaying) {
+            ctrl.pause()
+        } else {
+            _playbackError.value = null
+            if (ctrl.currentMediaItem != null) {
+                ctrl.play()
             } else {
-                _playbackError.value = null
-                it.play()
+                _allStations.value.firstOrNull { it.id == _currentStationId.value }?.let { play(it) }
             }
         }
     }
@@ -308,6 +323,7 @@ class MainViewModel(
             if (_currentStationId.value == station.id) {
                 controller?.stop()
                 _currentStationId.value = null
+                dataStore.edit { it.remove(LAST_STATION_ID_KEY) }
             }
             repository.delete(station)
             withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }

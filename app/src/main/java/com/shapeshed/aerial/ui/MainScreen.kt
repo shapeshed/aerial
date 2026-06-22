@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -30,12 +31,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -124,6 +126,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlinx.coroutines.delay
@@ -151,17 +154,23 @@ fun MainScreen(
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
-
     val haptic = LocalHapticFeedback.current
-    var showNowPlaying by remember { mutableStateOf(false) }
+    val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
+    var animateNowPlayingEntry by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var fabMenuExpanded by remember { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
     var stationPendingDelete by remember { mutableStateOf<Station?>(null) }
     val searchFocusRequester = remember { FocusRequester() }
-    val listState = rememberLazyListState()
-    val gridState = rememberLazyGridState()
+    var favoritesFilterScrollHandled by remember { mutableStateOf(false) }
+    val app = context.applicationContext as AerialApp
+    val listState = rememberSaveable(saver = LazyListState.Saver) {
+        LazyListState(app.listScrollIndex, app.listScrollOffset)
+    }
+    val gridState = rememberSaveable(saver = LazyGridState.Saver) {
+        LazyGridState(app.gridScrollIndex, app.gridScrollOffset)
+    }
 
     val filteredStations = remember(stations, searchQuery) {
         if (searchQuery.isBlank()) stations
@@ -181,31 +190,27 @@ fun MainScreen(
     val stationContentBottomPadding =
         if (currentStation != null) 128.dp else 0.dp
 
-    BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
+    BackHandler(enabled = showNowPlaying) { viewModel.closeNowPlaying(); animateNowPlayingEntry = false }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
     BackHandler(enabled = fabMenuExpanded) { fabMenuExpanded = false }
     BackHandler(enabled = stationPendingDelete != null) { stationPendingDelete = null }
 
     LaunchedEffect(Unit) { viewModel.connect(context) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> app.listScrollIndex = index; app.listScrollOffset = offset }
+    }
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> app.gridScrollIndex = index; app.gridScrollOffset = offset }
+    }
     LaunchedEffect(searching) {
         if (searching) searchFocusRequester.requestFocus()
     }
     LaunchedEffect(showFavoritesOnly) {
+        if (!favoritesFilterScrollHandled) { favoritesFilterScrollHandled = true; return@LaunchedEffect }
         listState.scrollToItem(0)
         gridState.scrollToItem(0)
-    }
-    LaunchedEffect(currentStation?.id, filteredStations, isGridView) {
-        val id = currentStation?.id ?: return@LaunchedEffect
-        val index = filteredStations.indexOfFirst { it.id == id }
-        if (index == -1) return@LaunchedEffect
-        val isVisible = if (isGridView) {
-            gridState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        } else {
-            listState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        }
-        if (!isVisible) {
-            if (isGridView) gridState.animateScrollToItem(index) else listState.animateScrollToItem(index)
-        }
     }
     LaunchedEffect(recentlyAddedStationId, filteredStations, isGridView) {
         val stationId = recentlyAddedStationId ?: return@LaunchedEffect
@@ -567,7 +572,7 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .width(columnWidth)
-                                .clickable { showNowPlaying = true }
+                                .clickable { viewModel.openNowPlaying(); animateNowPlayingEntry = true }
                                 .padding(horizontal = 14.dp),
                             verticalArrangement = Arrangement.Center,
                         ) {
@@ -590,24 +595,29 @@ fun MainScreen(
         }
 
         AnimatedVisibility(
-            visible = showNowPlaying && currentStation != null,
-            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
+            visible = showNowPlaying,
+            enter = if (animateNowPlayingEntry)
+                slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it })
+            else
+                EnterTransition.None,
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
         ) {
-            currentStation?.let { station ->
-                NowPlayingScreen(
-                    station = station,
-                    isPlaying = isPlaying,
-                    isBuffering = isBuffering,
-                    bitrateKbps = bitrateKbps,
-                    showBitrate = showBitrate,
-                    currentTrackTitle = currentTrackTitle,
-                    monochromeLogos = monochromeLogos,
-                    onToggle = { viewModel.togglePlayback() },
-                    onToggleFavorite = { viewModel.toggleFavorite(station) },
-                    onDismiss = { showNowPlaying = false },
-                )
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                currentStation?.let { station ->
+                    NowPlayingScreen(
+                        station = station,
+                        isPlaying = isPlaying,
+                        isBuffering = isBuffering,
+                        bitrateKbps = bitrateKbps,
+                        showBitrate = showBitrate,
+                        currentTrackTitle = currentTrackTitle,
+                        monochromeLogos = monochromeLogos,
+                        onToggle = { viewModel.togglePlayback() },
+                        onToggleFavorite = { viewModel.toggleFavorite(station) },
+                        onDismiss = { viewModel.closeNowPlaying(); animateNowPlayingEntry = false },
+                    )
+                }
             }
         }
     }

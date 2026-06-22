@@ -20,6 +20,12 @@ class AerialApp : Application() {
     val repository by lazy { StationRepository(StationDatabase.get(this).stationDao()) }
     val settingsDataStore get() = dataStore
     val networkMonitor by lazy { NetworkMonitor(this) }
+    var showNowPlaying: Boolean = false
+    var showFavoritesOnly: Boolean = false
+    var listScrollIndex: Int = 0
+    var listScrollOffset: Int = 0
+    var gridScrollIndex: Int = 0
+    var gridScrollOffset: Int = 0
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
