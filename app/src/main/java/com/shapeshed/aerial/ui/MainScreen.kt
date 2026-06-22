@@ -124,9 +124,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.shapeshed.aerial.data.BbcNowPlayingStore
 import com.shapeshed.aerial.data.Station
-import com.shapeshed.aerial.data.isBbcStation
 import java.io.File
 import kotlinx.coroutines.delay
 
@@ -148,7 +146,7 @@ fun MainScreen(
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
     val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
     val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
-    val bbcNowPlaying by BbcNowPlayingStore.state.collectAsStateWithLifecycle()
+    val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
@@ -185,9 +183,7 @@ fun MainScreen(
     )
     val stationContentBottomPadding =
         if (currentStation != null) 128.dp else 0.dp
-    val activeBbcNowPlaying = currentStation
-        ?.takeIf(::isBbcStation)
-        ?.let { station -> bbcNowPlaying?.takeIf { it.stationId == station.id } }
+    val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
@@ -418,7 +414,6 @@ fun MainScreen(
                             key = { it.id },
                             contentType = { "station-row" },
                         ) { station ->
-                            val stationBbcNowPlaying = activeBbcNowPlaying?.takeIf { it.stationId == station.id }
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
@@ -426,9 +421,8 @@ fun MainScreen(
                                 isBuffering = isBuffering && currentStation?.id == station.id,
                                 supportingText = if (currentStation?.id == station.id) {
                                     playbackError
-                                        ?: stationBbcNowPlaying?.trackTitle
-                                        ?: stationBbcNowPlaying?.programmeTitle
-                                        ?: if (stationBbcNowPlaying == null && isBbcStation(station)) station.name else currentTrackTitle
+                                        ?: activeNowPlayingInfo?.title
+                                        ?: currentTrackTitle
                                         ?: when {
                                             isBuffering -> "Buffering"
                                             isPlaying -> "Playing"
@@ -501,14 +495,14 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val stationBbcNowPlaying = activeBbcNowPlaying?.takeIf { it.stationId == station.id }
-                val statusText = playbackError
+                // When enriched info is present: title (track/show) on top, station name below.
+                // Otherwise: station name on top, status text (track or Playing/Paused) below.
+                val enrichedTitle = activeNowPlayingInfo?.title
+                val miniPlayerTitle = enrichedTitle ?: station.name
+                val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else stationBbcNowPlaying?.trackTitle
-                    ?: stationBbcNowPlaying?.programmeTitle
-                    ?: if (stationBbcNowPlaying == null && isBbcStation(station)) station.name else currentTrackTitle
-                    ?: if (isPlaying) "Playing"
-                    else "Paused"
+                    else if (enrichedTitle != null) station.name
+                    else currentTrackTitle ?: if (isPlaying) "Playing" else "Paused"
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -576,13 +570,13 @@ fun MainScreen(
                             verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                text = station.name,
+                                text = miniPlayerTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = statusText,
+                                text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -606,7 +600,7 @@ fun MainScreen(
                     isBuffering = isBuffering,
                     bitrateKbps = bitrateKbps,
                     showBitrate = showBitrate,
-                    bbcNowPlaying = activeBbcNowPlaying,
+                    nowPlayingInfo = activeNowPlayingInfo,
                     currentTrackTitle = currentTrackTitle,
                     currentTrackArtworkData = currentTrackArtworkData,
                     currentTrackArtworkUrl = currentTrackArtworkUrl,

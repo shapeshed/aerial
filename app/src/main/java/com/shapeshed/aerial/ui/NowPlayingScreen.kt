@@ -61,8 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.shapeshed.aerial.data.BbcNowPlayingState
 import coil3.compose.AsyncImage
+import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.Station
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -73,7 +73,7 @@ fun NowPlayingScreen(
     isBuffering: Boolean,
     bitrateKbps: Int?,
     showBitrate: Boolean = false,
-    bbcNowPlaying: BbcNowPlayingState? = null,
+    nowPlayingInfo: NowPlayingInfo? = null,
     currentTrackTitle: String?,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
@@ -87,18 +87,16 @@ fun NowPlayingScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var currentTrackArtworkFailed by remember(currentTrackArtworkData, currentTrackArtworkUrl) { mutableStateOf(false) }
     val artworkShape = MaterialTheme.shapes.extraLarge
-    val stationBbcNowPlaying = bbcNowPlaying?.takeIf { it.stationId == station.id }
-    val bbcTrackTitle = stationBbcNowPlaying?.trackTitle
-    val bbcProgrammeTitle = stationBbcNowPlaying?.programmeTitle
-    val primaryTitle = bbcTrackTitle ?: bbcProgrammeTitle ?: station.name
+    // For music stations: title = track, subtitle = show name.
+    // For talk stations: title = show name, subtitle = episode title.
+    val primaryTitle = nowPlayingInfo?.title ?: currentTrackTitle ?: station.name
     val secondaryTitle = when {
-        bbcTrackTitle != null && bbcProgrammeTitle != null && bbcProgrammeTitle != bbcTrackTitle -> bbcProgrammeTitle
-        stationBbcNowPlaying != null -> null
-        else -> currentTrackTitle
+        nowPlayingInfo != null -> nowPlayingInfo.subtitle
+        else -> currentTrackTitle?.takeIf { it != primaryTitle }
     }
     val artworkModel = when {
-        stationBbcNowPlaying?.artworkData != null -> stationBbcNowPlaying.artworkData
-        !stationBbcNowPlaying?.artworkUrl.isNullOrBlank() -> stationBbcNowPlaying.artworkUrl
+        nowPlayingInfo?.artworkData != null -> nowPlayingInfo.artworkData
+        !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo!!.artworkUrl
         currentTrackArtworkData != null -> currentTrackArtworkData
         !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null

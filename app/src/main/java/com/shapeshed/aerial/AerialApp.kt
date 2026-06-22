@@ -5,7 +5,9 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.shapeshed.aerial.data.BbcNowPlayingEnricher
 import com.shapeshed.aerial.data.NetworkMonitor
+import com.shapeshed.aerial.data.NowPlayingEnricher
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
@@ -20,6 +22,7 @@ class AerialApp : Application() {
     val repository by lazy { StationRepository(StationDatabase.get(this).stationDao()) }
     val settingsDataStore get() = dataStore
     val networkMonitor by lazy { NetworkMonitor(this) }
+    val enrichers: List<NowPlayingEnricher> = listOf(BbcNowPlayingEnricher())
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

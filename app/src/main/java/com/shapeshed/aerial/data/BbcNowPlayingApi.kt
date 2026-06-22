@@ -15,13 +15,15 @@ internal suspend fun fetchBbcNowPlaying(station: Station): BbcNowPlayingContent?
     val token = fetchBbcToken(serviceId) ?: return@withContext null
     val segment = fetchBbcSegments(serviceId, token)?.let(::parseBbcNowPlayingResponse)
     val broadcast = fetchBbcBroadcasts(serviceId, token)?.let(::parseBbcBroadcastResponse)
-    val programmeTitle = broadcast?.title
+    val showTitle = broadcast?.showTitle
+    val episodeTitle = broadcast?.episodeTitle
     val trackTitle = segment?.title
     val artworkUrl = segment?.artworkUrl ?: broadcast?.artworkUrl
     val artworkData = segment?.artworkData ?: broadcast?.artworkData
-    if (programmeTitle == null && trackTitle == null) return@withContext null
+    if (showTitle == null && trackTitle == null) return@withContext null
     BbcNowPlayingContent(
-        programmeTitle = programmeTitle,
+        showTitle = showTitle,
+        episodeTitle = episodeTitle,
         trackTitle = trackTitle,
         artworkUrl = artworkUrl,
         artworkData = artworkData,
@@ -61,7 +63,7 @@ internal fun parseBbcNowPlayingResponse(json: String): BbcNowPlayingItem? {
     return parseBbcItemPayload(JSONObject(json))
 }
 
-internal fun parseBbcBroadcastResponse(json: String, now: Instant = Instant.now()): BbcNowPlayingItem? {
+internal fun parseBbcBroadcastResponse(json: String, now: Instant = Instant.now()): BbcBroadcastItem? {
     return parseBbcBroadcastItemPayload(JSONObject(json), now)
 }
 
@@ -84,19 +86,26 @@ internal data class BbcNowPlayingItem(
     val artworkData: ByteArray?,
 )
 
+internal data class BbcBroadcastItem(
+    val showTitle: String,
+    val episodeTitle: String?,
+    val artworkUrl: String?,
+    val artworkData: ByteArray?,
+)
+
 internal data class BbcNowPlayingContent(
-    val programmeTitle: String?,
-    val trackTitle: String?,
+    val showTitle: String?,     // programme/show name (broadcasts.titles.primary)
+    val episodeTitle: String?,  // episode title (broadcasts.titles.secondary)
+    val trackTitle: String?,    // "Artist - Track" from segments (null for talk stations)
     val artworkUrl: String?,
     val artworkData: ByteArray?,
 )
 
 private fun parseBbcItemPayload(root: JSONObject): BbcNowPlayingItem? {
     val items = root.optJSONArray("data") ?: return null
-    val chosen = (0 until items.length())
-        .map { items.optJSONObject(it) }
-        .firstOrNull { it?.optJSONObject("offset")?.optBoolean("now_playing") == true }
-        ?: return null
+    if (items.length() == 0) return null
+    // The now_playing flag is unreliable (always false); use the most recent segment instead.
+    val chosen = items.optJSONObject(0) ?: return null
 
     val titles = chosen.optJSONObject("titles") ?: return null
     val title = joinBbcTitle(
@@ -108,7 +117,7 @@ private fun parseBbcItemPayload(root: JSONObject): BbcNowPlayingItem? {
     return BbcNowPlayingItem(title = title, artworkUrl = artworkUrl, artworkData = artworkData)
 }
 
-private fun parseBbcBroadcastItemPayload(root: JSONObject, now: Instant): BbcNowPlayingItem? {
+private fun parseBbcBroadcastItemPayload(root: JSONObject, now: Instant): BbcBroadcastItem? {
     val items = root.optJSONArray("data") ?: return null
     val chosen = (0 until items.length())
         .mapNotNull { items.optJSONObject(it) }
@@ -121,12 +130,16 @@ private fun parseBbcBroadcastItemPayload(root: JSONObject, now: Instant): BbcNow
         ?: return null
 
     val titles = chosen.optJSONObject("titles") ?: return null
-    val primary = titles.optString("primary").trim()
-    val secondary = titles.optString("secondary").trim()
-    val title = joinBbcTitle(primary, secondary) ?: return null
+    val primary = titles.optString("primary").trim().takeIf { it.isNotBlank() } ?: return null
+    val secondary = titles.optString("secondary").trim().takeIf { it.isNotBlank() }
     val artworkUrl = chosen.optString("image_url").trim().takeIf { it.isNotBlank() }?.replace("{recipe}", "640x640")
     val artworkData = artworkUrl?.let { fetchBbcBytes(it) }
-    return BbcNowPlayingItem(title = title, artworkUrl = artworkUrl, artworkData = artworkData)
+    return BbcBroadcastItem(
+        showTitle = primary,
+        episodeTitle = secondary,
+        artworkUrl = artworkUrl,
+        artworkData = artworkData,
+    )
 }
 
 private fun parseInstantOrNull(value: String): Instant? = runCatching { Instant.parse(value) }.getOrNull()

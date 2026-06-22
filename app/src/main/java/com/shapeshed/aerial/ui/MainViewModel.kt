@@ -24,10 +24,11 @@ import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.data.NowPlayingInfo
+import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.isBbcStation
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -111,6 +112,9 @@ class MainViewModel(
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
+    val nowPlayingInfo: StateFlow<NowPlayingInfo?> = NowPlayingStore.state
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
@@ -175,10 +179,6 @@ class MainViewModel(
             _playbackError.value = error.userMessage()
         }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            val station = currentStation.value
-            if (station != null && isBbcStation(station)) {
-                return
-            }
             val title = mediaMetadata.title?.toString()?.trim()
             val artist = mediaMetadata.artist?.toString()?.trim()
             val artwork = mediaMetadata.artworkUri?.toString()?.trim()
