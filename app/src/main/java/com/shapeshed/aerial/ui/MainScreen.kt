@@ -156,6 +156,9 @@ fun MainScreen(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
+    val isSeekable by viewModel.isSeekable.collectAsStateWithLifecycle()
+    val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
     var animateNowPlayingEntry by remember { mutableStateOf(false) }
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -613,9 +616,17 @@ fun MainScreen(
                         showBitrate = showBitrate,
                         currentTrackTitle = currentTrackTitle,
                         monochromeLogos = monochromeLogos,
+                        isSeekable = isSeekable,
+                        currentPosition = currentPosition,
+                        duration = duration,
                         onToggle = { viewModel.togglePlayback() },
                         onToggleFavorite = { viewModel.toggleFavorite(station) },
                         onDismiss = { viewModel.closeNowPlaying(); animateNowPlayingEntry = false },
+                        onSeekTo = { viewModel.seekTo(it) },
+                        onSeekBack = { viewModel.seekBack() },
+                        onSeekForward = { viewModel.seekForward() },
+                        onSeekToStart = { viewModel.seekToStart() },
+                        onSeekToLive = { viewModel.seekToLive() },
                     )
                 }
             }

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
@@ -27,8 +28,10 @@ import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,12 +41,17 @@ class PlayerService : MediaSessionService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
+    private val seekToStartCommand = SessionCommand(ACTION_SEEK_TO_START, Bundle.EMPTY)
+    private val seekToLiveCommand = SessionCommand(ACTION_SEEK_TO_LIVE, Bundle.EMPTY)
 
     private lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaSession
     private lateinit var repository: StationRepository
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
+    private var isSeekable = false
+    private var isAtLive = true
+    private var liveOffsetJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -56,10 +64,19 @@ class PlayerService : MediaSessionService() {
         player = ExoPlayer.Builder(this)
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
+            .setSeekBackIncrementMs(30_000)
+            .setSeekForwardIncrementMs(30_000)
             .build()
             .apply { enableAudioOffload() }
         player.addListener(icyListener)
-        mediaSession = MediaSession.Builder(this, player)
+        // Wrap the player so Media3's legacy bridge sees seekable DVR streams as non-live.
+        // Without this, isCurrentMediaItemLive() == true causes the bridge to skip
+        // ACTION_SEEK_TO, so the seekbar never appears in system media controls.
+        val sessionPlayer = object : ForwardingPlayer(player) {
+            override fun isCurrentMediaItemLive(): Boolean =
+                if (isCurrentMediaItemSeekable) false else super.isCurrentMediaItemLive()
+        }
+        mediaSession = MediaSession.Builder(this, sessionPlayer)
             .setSessionActivity(pendingIntent())
             .setCallback(sessionCallback)
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
@@ -67,7 +84,7 @@ class PlayerService : MediaSessionService() {
         serviceScope.launch {
             repository.getAll().collectLatest { updatedStations ->
                 stations = updatedStations
-                updateFavoriteButton()
+                updateMediaButtonPreferences()
             }
         }
     }
@@ -75,7 +92,27 @@ class PlayerService : MediaSessionService() {
     private val icyListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             lastIcyTitle = null
-            updateFavoriteButton()
+            isSeekable = false
+            isAtLive = true
+            liveOffsetJob?.cancel()
+            updateMediaButtonPreferences()
+        }
+
+        override fun onPlaybackStateChanged(state: Int) {
+            if (state == Player.STATE_READY) {
+                val seekable = player.isCurrentMediaItemSeekable
+                if (seekable != isSeekable) {
+                    isSeekable = seekable
+                    updateMediaButtonPreferences()
+                }
+                if (isSeekable && player.isPlaying) startLiveOffsetTracking()
+            } else if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
+                liveOffsetJob?.cancel()
+            }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying && isSeekable) startLiveOffsetTracking() else liveOffsetJob?.cancel()
         }
 
         @OptIn(UnstableApi::class)
@@ -102,6 +139,20 @@ class PlayerService : MediaSessionService() {
         }
     }
 
+    private fun startLiveOffsetTracking() {
+        liveOffsetJob?.cancel()
+        liveOffsetJob = serviceScope.launch {
+            while (true) {
+                delay(2_000)
+                val nowAtLive = player.currentLiveOffset < 5_000L
+                if (nowAtLive != isAtLive) {
+                    isAtLive = nowAtLive
+                    updateMediaButtonPreferences()
+                }
+            }
+        }
+    }
+
     private fun ExoPlayer.enableAudioOffload() {
         trackSelectionParameters = trackSelectionParameters
             .buildUpon()
@@ -123,6 +174,15 @@ class PlayerService : MediaSessionService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                         .buildUpon()
                         .add(favoriteCommand)
+                        .add(seekToStartCommand)
+                        .add(seekToLiveCommand)
+                        .build()
+                )
+                .setAvailablePlayerCommands(
+                    Player.Commands.Builder()
+                        .addAllCommands()
+                        .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                        .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                         .build()
                 )
                 .build()
@@ -134,6 +194,14 @@ class PlayerService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (customCommand.customAction == ACTION_SEEK_TO_START) {
+                player.seekTo(0L)
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            if (customCommand.customAction == ACTION_SEEK_TO_LIVE) {
+                player.seekToDefaultPosition()
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (customCommand.customAction != ACTION_TOGGLE_FAVORITE) {
                 return super.onCustomCommand(session, controller, customCommand, args)
             }
@@ -145,17 +213,46 @@ class PlayerService : MediaSessionService() {
                     repository.update(updatedStation)
                 }
                 stations = stations.map { if (it.id == updatedStation.id) updatedStation else it }
-                updateFavoriteButton()
+                updateMediaButtonPreferences()
             }
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
     }
 
-    private fun updateFavoriteButton() {
-        if (::mediaSession.isInitialized) {
-            mediaSession.setMediaButtonPreferences(listOf(favoriteButton(currentStation())))
+    private fun updateMediaButtonPreferences() {
+        if (!::mediaSession.isInitialized) return
+        val buttons = buildList {
+            if (isSeekable) {
+                add(seekBackButton())
+                add(seekForwardButton())
+                add(seekToStartButton())
+                if (!isAtLive) add(seekToLiveButton())
+            } else {
+                add(favoriteButton(currentStation()))
+            }
         }
+        mediaSession.setMediaButtonPreferences(buttons)
     }
+
+    private fun seekBackButton() = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_30)
+        .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+        .setDisplayName("Rewind 30s")
+        .build()
+
+    private fun seekForwardButton() = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+        .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+        .setDisplayName("Skip forward 30s")
+        .build()
+
+    private fun seekToStartButton() = CommandButton.Builder(CommandButton.ICON_PREVIOUS)
+        .setSessionCommand(seekToStartCommand)
+        .setDisplayName("Start")
+        .build()
+
+    private fun seekToLiveButton() = CommandButton.Builder(CommandButton.ICON_NEXT)
+        .setSessionCommand(seekToLiveCommand)
+        .setDisplayName("Live")
+        .build()
 
     private fun favoriteButton(station: Station?): CommandButton {
         val isFavorite = station?.isFavorite == true
@@ -191,5 +288,7 @@ class PlayerService : MediaSessionService() {
 
     private companion object {
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
+        const val ACTION_SEEK_TO_START = "com.shapeshed.aerial.action.SEEK_TO_START"
+        const val ACTION_SEEK_TO_LIVE = "com.shapeshed.aerial.action.SEEK_TO_LIVE"
     }
 }

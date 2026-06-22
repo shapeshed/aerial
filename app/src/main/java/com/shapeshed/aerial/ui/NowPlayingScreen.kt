@@ -2,6 +2,7 @@ package com.shapeshed.aerial.ui
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -22,10 +23,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Forward30
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Replay30
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -38,14 +42,18 @@ import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlin.math.abs
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,6 +69,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.shapeshed.aerial.data.Station
 
+private fun formatContentTime(currentPosition: Long, duration: Long): String {
+    val liveOffset = (duration - currentPosition).coerceAtLeast(0L)
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = System.currentTimeMillis() - liveOffset
+    return "%02d:%02d:%02d".format(
+        cal.get(java.util.Calendar.HOUR_OF_DAY),
+        cal.get(java.util.Calendar.MINUTE),
+        cal.get(java.util.Calendar.SECOND),
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NowPlayingScreen(
@@ -71,9 +90,17 @@ fun NowPlayingScreen(
     showBitrate: Boolean = false,
     currentTrackTitle: String?,
     monochromeLogos: Boolean = false,
+    isSeekable: Boolean = false,
+    currentPosition: Long = 0L,
+    duration: Long = 0L,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
+    onSeekTo: (Long) -> Unit = {},
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
+    onSeekToStart: () -> Unit = {},
+    onSeekToLive: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
@@ -93,21 +120,13 @@ fun NowPlayingScreen(
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
                         val nextOffset = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                        if (nextOffset > 0f) {
-                            change.consume()
-                        }
+                        if (nextOffset > 0f) change.consume()
                         dragOffsetY = nextOffset
                     },
                     onDragEnd = {
-                        if (dragOffsetY >= dismissThresholdPx) {
-                            onDismiss()
-                        } else {
-                            dragOffsetY = 0f
-                        }
+                        if (dragOffsetY >= dismissThresholdPx) onDismiss() else dragOffsetY = 0f
                     },
-                    onDragCancel = {
-                        dragOffsetY = 0f
-                    },
+                    onDragCancel = { dragOffsetY = 0f },
                 )
             },
         topBar = {
@@ -133,24 +152,34 @@ fun NowPlayingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            val liveOffset = if (isSeekable && duration > 0) (duration - currentPosition).coerceAtLeast(0L) else 0L
+            val isAtLive = liveOffset < 5_000L
+            val liveTextColor by animateColorAsState(
+                targetValue = if (isAtLive) MaterialTheme.colorScheme.primary
+                              else MaterialTheme.colorScheme.onSurfaceVariant,
+                label = "liveTextColor",
+            )
+
+            val artworkSize = if (isSeekable) 220.dp else 288.dp
+            val artworkInner = if (isSeekable) 196.dp else 260.dp
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 tonalElevation = 8.dp,
                 modifier = Modifier
-                    .size(288.dp)
+                    .size(artworkSize)
                     .semantics { traversalIndex = 1f },
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     StationAvatar(
                         station = station,
                         isActive = true,
-                        size = 260.dp,
+                        size = artworkInner,
                         monochrome = monochromeLogos,
                     )
                 }
             }
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(if (isSeekable) 20.dp else 36.dp))
             Text(
                 text = station.name,
                 style = MaterialTheme.typography.headlineMedium,
@@ -191,21 +220,193 @@ fun NowPlayingScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(44.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterEnd,
+            if (isSeekable && duration > 0) {
+                Spacer(Modifier.height(16.dp))
+                // Status chip: LIVE pill or content clock time
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    if (isAtLive) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(6.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                ) {}
+                                Text(
+                                    text = "LIVE",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = formatContentTime(currentPosition, duration),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                var scrubbing by remember { mutableStateOf(false) }
+                var scrubPosition by remember { mutableFloatStateOf(0f) }
+                // Keep showing scrubPosition after a seek until currentPosition catches up,
+                // so the thumb doesn't snap back while ExoPlayer buffers to the new position.
+                var pendingSeek by remember { mutableStateOf<Long?>(null) }
+                LaunchedEffect(currentPosition) {
+                    val target = pendingSeek ?: return@LaunchedEffect
+                    if (abs(currentPosition - target) < 3_000L) pendingSeek = null
+                }
+                val sliderValue = when {
+                    scrubbing -> scrubPosition
+                    pendingSeek != null -> pendingSeek!!.toFloat()
+                    else -> currentPosition.toFloat()
+                }
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { scrubbing = true; scrubPosition = it },
+                    onValueChangeFinished = {
+                        val target = scrubPosition.toLong()
+                        pendingSeek = target
+                        onSeekTo(target)
+                        scrubbing = false
+                    },
+                    valueRange = 0f..duration.toFloat(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(Modifier.height(if (isSeekable) 16.dp else 44.dp))
+            val playPauseButton: @Composable () -> Unit = {
+                val motionScheme = MaterialTheme.motionScheme
+                FilledIconButton(
+                    onClick = onToggle,
+                    enabled = !isBuffering,
+                    modifier = Modifier
+                        .size(88.dp)
+                        .semantics { traversalIndex = 5f },
+                    shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    AnimatedContent(
+                        targetState = isBuffering to isPlaying,
+                        transitionSpec = {
+                            (fadeIn(motionScheme.defaultEffectsSpec()) +
+                                scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
+                                .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                        },
+                        label = "playPause",
+                    ) { (buffering, playing) ->
+                        if (buffering) {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(42.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = if (playing) "Pause" else "Play",
+                                modifier = Modifier.size(44.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            if (isSeekable) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    Surface(
+                        onClick = onSeekToStart,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            Icon(
+                                Icons.Rounded.SkipPrevious,
+                                contentDescription = "Go to start",
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "Start",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    FilledTonalIconButton(
+                        onClick = onSeekBack,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(Icons.Rounded.Replay30, contentDescription = "Rewind 30 seconds")
+                    }
+                    playPauseButton()
+                    FilledTonalIconButton(
+                        onClick = onSeekForward,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(Icons.Rounded.Forward30, contentDescription = "Skip forward 30 seconds")
+                    }
+                    Surface(
+                        onClick = onSeekToLive,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier.size(28.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(10.dp),
+                                    shape = CircleShape,
+                                    color = liveTextColor,
+                                ) {}
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "Live",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = liveTextColor,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FilledTonalIconButton(
                         onClick = onToggleFavorite,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier
-                            .size(56.dp)
-                            .semantics { traversalIndex = 4f },
+                        modifier = Modifier.size(48.dp).semantics { traversalIndex = 4f },
                     ) {
                         Icon(
                             imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -213,52 +414,6 @@ fun NowPlayingScreen(
                             tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                         )
                     }
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    FilledIconButton(
-                        onClick = onToggle,
-                        enabled = !isBuffering,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .semantics { traversalIndex = 5f },
-                        shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) {
-                        val motionScheme = MaterialTheme.motionScheme
-                        AnimatedContent(
-                            targetState = isBuffering to isPlaying,
-                            transitionSpec = {
-                                (fadeIn(motionScheme.defaultEffectsSpec()) +
-                                    scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
-                                    .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
-                            },
-                            label = "playPause",
-                        ) { (buffering, playing) ->
-                            if (buffering) {
-                                CircularWavyProgressIndicator(
-                                    modifier = Modifier.size(42.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                    contentDescription = if (playing) "Pause" else "Play",
-                                    modifier = Modifier.size(44.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
                     FilledTonalIconButton(
                         onClick = {
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
@@ -266,19 +421,50 @@ fun NowPlayingScreen(
                                 putExtra(Intent.EXTRA_SUBJECT, station.name)
                                 putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
                             }
-                            context.startActivity(
-                                Intent.createChooser(sendIntent, "Share station"),
-                            )
+                            context.startActivity(Intent.createChooser(sendIntent, "Share station"))
                         },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier
-                            .size(56.dp)
-                            .semantics { traversalIndex = 6f },
+                        modifier = Modifier.size(48.dp).semantics { traversalIndex = 6f },
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share station",
-                        )
+                        Icon(Icons.Rounded.Share, contentDescription = "Share station")
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                        FilledTonalIconButton(
+                            onClick = onToggleFavorite,
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            modifier = Modifier.size(56.dp).semantics { traversalIndex = 4f },
+                        ) {
+                            Icon(
+                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = if (station.isFavorite) "Remove from favorites" else "Add to favorites",
+                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        playPauseButton()
+                    }
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, station.name)
+                                    putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Share station"))
+                            },
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            modifier = Modifier.size(56.dp).semantics { traversalIndex = 6f },
+                        ) {
+                            Icon(Icons.Rounded.Share, contentDescription = "Share station")
+                        }
                     }
                 }
             }

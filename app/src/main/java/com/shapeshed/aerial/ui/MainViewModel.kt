@@ -32,6 +32,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -126,6 +128,36 @@ class MainViewModel(
         .map { it[SHOW_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    private val _currentPosition = MutableStateFlow(0L)
+    val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
+
+    private val _duration = MutableStateFlow(0L)
+    val duration: StateFlow<Long> = _duration.asStateFlow()
+
+    private val _isSeekable = MutableStateFlow(false)
+    val isSeekable: StateFlow<Boolean> = _isSeekable.asStateFlow()
+
+    private var positionUpdateJob: Job? = null
+
+    private fun startPositionUpdates() {
+        positionUpdateJob?.cancel()
+        positionUpdateJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                controller?.let { ctrl ->
+                    _currentPosition.value = ctrl.currentPosition
+                    _duration.value = ctrl.duration.coerceAtLeast(0L)
+                }
+            }
+        }
+    }
+
+    fun seekTo(positionMs: Long) { controller?.seekTo(positionMs) }
+    fun seekToStart() { controller?.seekTo(0L) }
+    fun seekToLive() { controller?.seekToDefaultPosition() }
+    fun seekBack() { controller?.seekBack() }
+    fun seekForward() { controller?.seekForward() }
+
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
@@ -144,6 +176,10 @@ class MainViewModel(
                         ?.let { _currentStationId.value = it }
                 }
                 _isPlaying.value = ctrl.isPlaying
+                _isSeekable.value = ctrl.isCurrentMediaItemSeekable
+                _duration.value = ctrl.duration.coerceAtLeast(0L)
+                _currentPosition.value = ctrl.currentPosition
+                if (ctrl.isPlaying) startPositionUpdates()
                 ctrl.mediaMetadata.artist?.toString()?.trim()
                     ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
                     ?.let { _currentTrackTitle.value = it }
@@ -178,14 +214,26 @@ class MainViewModel(
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+            if (isPlaying) startPositionUpdates() else positionUpdateJob?.cancel()
         }
         override fun onPlaybackStateChanged(state: Int) {
             _isBuffering.value = state == Player.STATE_BUFFERING
+            if (state == Player.STATE_READY) {
+                controller?.let { ctrl ->
+                    _isSeekable.value = ctrl.isCurrentMediaItemSeekable
+                    _duration.value = ctrl.duration.coerceAtLeast(0L)
+                }
+            }
         }
         override fun onPlayerError(error: PlaybackException) {
             _isBuffering.value = false
             _isPlaying.value = false
-            _playbackError.value = error.userMessage()
+            if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                controller?.seekToDefaultPosition()
+                controller?.prepare()
+            } else {
+                _playbackError.value = error.userMessage()
+            }
         }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val artist = mediaMetadata.artist?.toString()?.trim()
@@ -331,6 +379,7 @@ class MainViewModel(
     }
 
     override fun onCleared() {
+        positionUpdateJob?.cancel()
         controllerFuture?.let { MediaController.releaseFuture(it) }
         super.onCleared()
     }
