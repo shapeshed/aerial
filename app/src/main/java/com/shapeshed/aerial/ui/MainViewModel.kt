@@ -138,6 +138,15 @@ class MainViewModel(
         controllerFuture?.addListener({
             controller = controllerFuture?.get()
             controller?.addListener(playerListener)
+            controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+                if (_currentStationId.value == null) {
+                    _currentStationId.value = id
+                    _isPlaying.value = controller?.isPlaying ?: false
+                    controller?.mediaMetadata?.artist?.toString()?.trim()
+                        ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+                        ?.let { _currentTrackTitle.value = it }
+                }
+            }
         }, ContextCompat.getMainExecutor(appContext))
     }
 

@@ -199,6 +199,19 @@ fun MainScreen(
         listState.scrollToItem(0)
         gridState.scrollToItem(0)
     }
+    LaunchedEffect(currentStation?.id, filteredStations, isGridView) {
+        val id = currentStation?.id ?: return@LaunchedEffect
+        val index = filteredStations.indexOfFirst { it.id == id }
+        if (index == -1) return@LaunchedEffect
+        val isVisible = if (isGridView) {
+            gridState.layoutInfo.visibleItemsInfo.any { it.index == index }
+        } else {
+            listState.layoutInfo.visibleItemsInfo.any { it.index == index }
+        }
+        if (!isVisible) {
+            if (isGridView) gridState.animateScrollToItem(index) else listState.animateScrollToItem(index)
+        }
+    }
     LaunchedEffect(recentlyAddedStationId, filteredStations, isGridView) {
         val stationId = recentlyAddedStationId ?: return@LaunchedEffect
         val index = filteredStations.indexOfFirst { it.id == stationId }

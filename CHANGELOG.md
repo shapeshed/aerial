@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- Tapping media notification controls no longer creates a new activity when the app is already running.
+- Mini player and playback state now restore correctly when returning to the app from a notification.
+- White flash before Compose renders on app launch is eliminated.
+- Home list and grid now scroll to the active station on launch if it is off-screen.
+
 ## [0.2.0] - 2026-06-21
 
 ### Added
