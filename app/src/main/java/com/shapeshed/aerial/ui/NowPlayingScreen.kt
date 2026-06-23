@@ -87,14 +87,8 @@ fun NowPlayingScreen(
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val artworkShape = MaterialTheme.shapes.extraLarge
-    val mainTitle = nowPlayingInfo?.trackArtist
-        ?: nowPlayingInfo?.programmeTitle
-        ?: nowPlayingInfo?.title
-        ?: station.name
-    val mainSubtitle = when {
-        nowPlayingInfo?.trackArtist != null -> nowPlayingInfo.trackTitle
-        else -> nowPlayingInfo?.programmeSubtitle ?: nowPlayingInfo?.subtitle
-    }
+    val programmeTitle = nowPlayingInfo?.programmeTitle ?: nowPlayingInfo?.title ?: station.name
+    val programmeSubtitle = nowPlayingInfo?.programmeSubtitle ?: nowPlayingInfo?.subtitle
     val trackTitle = nowPlayingInfo?.trackTitle ?: currentTrackTitle
     val trackSubtitle = nowPlayingInfo?.trackSubtitle
     val mainArtworkModel = when {
@@ -115,9 +109,7 @@ fun NowPlayingScreen(
     }
     var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
-    val showTrackBlock = !nowPlayingInfo?.trackArtist.isNullOrBlank() &&
-        !trackTitle.isNullOrBlank() &&
-        trackTitle != mainSubtitle
+    val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
     val bitrateText = when {
         bitrateKbps == null -> null
         showBitrate -> "$bitrateKbps kbps"
@@ -202,7 +194,7 @@ fun NowPlayingScreen(
             }
             Spacer(Modifier.height(36.dp))
             Text(
-                text = mainTitle,
+                text = programmeTitle,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -210,10 +202,10 @@ fun NowPlayingScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { traversalIndex = 2f },
             )
-            if (mainSubtitle != null && mainSubtitle != mainTitle) {
+            if (programmeSubtitle != null && programmeSubtitle != programmeTitle) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = mainSubtitle,
+                    text = programmeSubtitle,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
