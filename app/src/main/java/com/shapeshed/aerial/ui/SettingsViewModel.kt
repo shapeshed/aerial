@@ -11,7 +11,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.data.StationImporter
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -36,6 +38,7 @@ import org.json.JSONObject
 
 val MONOCHROME_LOGOS_KEY = booleanPreferencesKey("monochrome_logos")
 val SHOW_BITRATE_KEY = booleanPreferencesKey("show_bitrate")
+val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 
 class SettingsViewModel(
     application: Application,
@@ -51,6 +54,10 @@ class SettingsViewModel(
         .map { it[SHOW_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val enrichMetadata: StateFlow<Boolean> = dataStore.data
+        .map { it[ENRICH_METADATA_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
 
@@ -63,6 +70,36 @@ class SettingsViewModel(
     fun setShowBitrate(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SHOW_BITRATE_KEY] = enabled }
+        }
+    }
+
+    fun setEnrichMetadata(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[ENRICH_METADATA_KEY] = enabled }
+        }
+    }
+
+    fun importDiscoveredStations() {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val discovered = getApplication<AerialApp>().enrichers
+                        .filterIsInstance<StationImporter>()
+                        .flatMap { it.discoverStations() }
+                    discovered.forEach { d ->
+                        repository.upsertImported(
+                            Station(name = d.name, streamUrl = d.streamUrl, logoPath = d.logoUrl),
+                        )
+                    }
+                    discovered.size
+                }
+            }
+            _messages.emit(
+                result.fold(
+                    onSuccess = { "Imported $it stations from all providers" },
+                    onFailure = { "Import failed: ${it.message ?: "unknown error"}" },
+                ),
+            )
         }
     }
 

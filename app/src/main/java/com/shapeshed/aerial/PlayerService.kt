@@ -25,16 +25,20 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.shapeshed.aerial.data.NowPlayingEnricher
+import com.shapeshed.aerial.data.MetadataEnricher
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.parseIcyTitle
+import com.shapeshed.aerial.ui.ENRICH_METADATA_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -50,8 +54,9 @@ class PlayerService : MediaSessionService() {
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
     private var icyMetadataGeneration: Int = 0
-    private var activeEnricher: NowPlayingEnricher? = null
+    private var activeEnricher: MetadataEnricher? = null
     private var lastAppliedNowPlayingSignature: String? = null
+    private var enrichMetadataEnabled = false
 
     private fun log(message: String) {
         Log.d(TAG, message)
@@ -88,6 +93,24 @@ class PlayerService : MediaSessionService() {
                 applyNowPlayingInfo(info)
             }
         }
+        serviceScope.launch {
+            dataStore.data
+                .map { it[ENRICH_METADATA_KEY] ?: false }
+                .distinctUntilChanged()
+                .collectLatest { enabled ->
+                    enrichMetadataEnabled = enabled
+                    if (!enabled) {
+                        activeEnricher?.stop()
+                        activeEnricher = null
+                    } else {
+                        currentStation()?.let { station ->
+                            val enricher = (application as AerialApp).enrichers.firstOrNull { it.canEnrich(station) }
+                            activeEnricher = enricher
+                            if (player.isPlaying) enricher?.start(station, serviceScope)
+                        }
+                    }
+                }
+        }
     }
 
     private val icyListener = object : Player.Listener {
@@ -106,10 +129,12 @@ class PlayerService : MediaSessionService() {
             lastAppliedNowPlayingSignature = null
             activeEnricher?.stop()
             activeEnricher = null
-            stationForMediaItem(mediaItem)?.let { station ->
-                val enricher = (application as AerialApp).enrichers.firstOrNull { it.canEnrich(station) }
-                activeEnricher = enricher
-                enricher?.start(station, serviceScope)
+            if (enrichMetadataEnabled) {
+                stationForMediaItem(mediaItem)?.let { station ->
+                    val enricher = (application as AerialApp).enrichers.firstOrNull { it.canEnrich(station) }
+                    activeEnricher = enricher
+                    enricher?.start(station, serviceScope)
+                }
             }
             updateFavoriteButton()
         }
@@ -124,20 +149,22 @@ class PlayerService : MediaSessionService() {
                     log("ICY title=$title")
                     if (title.isNullOrEmpty()) return
                     if (title == lastIcyTitle) return
-                    // Stations handled by an enricher don't use ICY metadata
-                    if (activeEnricher != null) return
-                    val item = player.currentMediaItem ?: return
-                    val station = currentStation()
                     lastIcyTitle = title
                     icyMetadataGeneration += 1
+                    val item = player.currentMediaItem ?: return
+                    val station = currentStation()
+                    val stationName = station?.name ?: item.mediaMetadata.title?.toString().orEmpty()
+                    val (icyArtist, icyTrackTitle) = parseIcyTitle(title)
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
-                        stationName = station?.name ?: item.mediaMetadata.title?.toString().orEmpty(),
-                        title = title,
+                        stationName = stationName,
+                        artist = icyArtist,
+                        title = icyTrackTitle,
                         artworkData = item.mediaMetadata.artworkData,
                         artworkUri = item.mediaMetadata.artworkUri,
                     )
+                    activeEnricher?.onIcyTitle(title)
                 } else {
                     // Any non-ICY metadata may signal a track transition for enriched stations.
                     // (Note: BBC HLS currently drops ID3 timed metadata due to a Media3 bug,
@@ -228,13 +255,14 @@ class PlayerService : MediaSessionService() {
         item: MediaItem,
         index: Int,
         stationName: String,
+        artist: String? = null,
         title: String,
         artworkData: ByteArray? = null,
         artworkUri: Uri?,
     ) {
         val mediaMetadata = item.mediaMetadata.buildUpon()
             .setTitle(title)
-            .setArtist(stationName)
+            .setArtist(artist ?: stationName)
             .setSubtitle(title)
             .apply {
                 if (artworkData != null) {
@@ -253,22 +281,15 @@ class PlayerService : MediaSessionService() {
         val currentStation = currentStation() ?: return
         if (info?.stationId != currentStation.id) return
 
-        val artworkData = when {
-            info.trackTitle != null -> info.trackArtworkData ?: info.artworkData ?: info.programmeArtworkData
-            else -> info.artworkData ?: info.programmeArtworkData ?: info.trackArtworkData
-        }
+        val artworkData = info.track?.artworkData ?: info.artworkData
         val signature = buildString {
-            append(info.title.orEmpty())
-            append('|')
-            append(info.subtitle.orEmpty())
-            append('|')
             append(info.programmeTitle.orEmpty())
             append('|')
             append(info.programmeSubtitle.orEmpty())
             append('|')
-            append(info.trackTitle.orEmpty())
+            append(info.track?.artist.orEmpty())
             append('|')
-            append(info.trackSubtitle.orEmpty())
+            append(info.track?.title.orEmpty())
             append('|')
             append(System.identityHashCode(artworkData))
         }
@@ -276,17 +297,17 @@ class PlayerService : MediaSessionService() {
         lastAppliedNowPlayingSignature = signature
 
         val mediaMetadata = currentMediaItem.mediaMetadata.buildUpon()
-            .setTitle(info.trackArtist ?: info.title ?: currentMediaItem.mediaMetadata.title)
+            .setTitle(info.track?.artist ?: info.programmeTitle ?: currentMediaItem.mediaMetadata.title)
             .setArtist(
                 when {
-                    info.trackArtist != null -> info.trackTitle ?: info.subtitle ?: info.programmeTitle
+                    info.track != null -> info.track.title
                     else -> info.programmeTitle ?: currentMediaItem.mediaMetadata.artist
                 }
             )
             .setSubtitle(
                 when {
-                    info.trackArtist != null -> info.trackTitle ?: info.subtitle
-                    else -> info.subtitle ?: info.programmeSubtitle ?: currentMediaItem.mediaMetadata.subtitle
+                    info.track != null -> info.track.title
+                    else -> info.programmeSubtitle ?: currentMediaItem.mediaMetadata.subtitle
                 }
             )
             .apply {

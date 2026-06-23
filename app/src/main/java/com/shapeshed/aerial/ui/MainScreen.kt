@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -415,9 +416,8 @@ fun MainScreen(
                             contentType = { "station-row" },
                         ) { station ->
                             val stationNowPlayingText = when {
-                                activeNowPlayingInfo?.trackTitle != null -> activeNowPlayingInfo.trackTitle
+                                activeNowPlayingInfo?.track?.title != null -> activeNowPlayingInfo.track.title
                                 activeNowPlayingInfo?.programmeTitle != null -> activeNowPlayingInfo.programmeTitle
-                                activeNowPlayingInfo?.title != null -> activeNowPlayingInfo.title
                                 else -> currentTrackTitle
                             }
                             StationItem(
@@ -500,16 +500,16 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val miniPlayerTitle = activeNowPlayingInfo?.trackArtist
-                    ?: activeNowPlayingInfo?.title
+                val miniPlayerTitle = activeNowPlayingInfo?.track?.artist
+                    ?: activeNowPlayingInfo?.programmeTitle
                     ?: station.name
                 val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
                     else when {
-                        activeNowPlayingInfo?.trackTitle != null &&
-                            activeNowPlayingInfo.trackTitle != miniPlayerTitle -> activeNowPlayingInfo.trackTitle
-                        activeNowPlayingInfo?.subtitle != null &&
-                            activeNowPlayingInfo.subtitle != miniPlayerTitle -> activeNowPlayingInfo.subtitle
+                        activeNowPlayingInfo?.track?.title != null &&
+                            activeNowPlayingInfo.track.title != miniPlayerTitle -> activeNowPlayingInfo.track.title
+                        activeNowPlayingInfo?.programmeSubtitle != null &&
+                            activeNowPlayingInfo.programmeSubtitle != miniPlayerTitle -> activeNowPlayingInfo.programmeSubtitle
                         currentTrackTitle != null && currentTrackTitle != miniPlayerTitle -> currentTrackTitle
                         isPlaying -> "Playing"
                         else -> "Paused"
@@ -529,7 +529,40 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                            val miniArtworkModel = with(activeNowPlayingInfo) {
+                                when {
+                                    this?.track?.artworkData != null -> this.track.artworkData
+                                    !this?.track?.artworkUrl.isNullOrBlank() -> this?.track?.artworkUrl
+                                    this?.artworkData != null -> this.artworkData
+                                    !this?.artworkUrl.isNullOrBlank() -> this?.artworkUrl
+                                    else -> null
+                                }
+                            }
+                            var miniArtworkFailed by remember(miniArtworkModel) { mutableStateOf(false) }
+                            AnimatedContent(
+                                targetState = if (miniArtworkFailed) null else miniArtworkModel,
+                                transitionSpec = {
+                                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
+                                },
+                                label = "miniPlayerArtwork",
+                            ) { model ->
+                                if (model != null) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        modifier = Modifier.size(52.dp),
+                                    ) {
+                                        AsyncImage(
+                                            model = model,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            onError = { miniArtworkFailed = true },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                } else {
+                                    StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                                }
+                            }
                         },
                         trailingContent = {
                             Surface(

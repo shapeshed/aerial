@@ -29,6 +29,7 @@ import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.bauerStreamUrl
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -227,7 +228,7 @@ class MainViewModel(
             ?.let { Uri.parse(it) }
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
-            .setUri(station.streamUrl)
+            .setUri(bauerStreamUrl(station))
             .setMediaMetadata(
                 MediaMetadata.Builder().apply {
                     val localArtworkData = station.logoPath

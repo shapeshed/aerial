@@ -1,19 +1,22 @@
 package com.shapeshed.aerial.data
 
+import android.util.LruCache
+import com.shapeshed.aerial.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-fun isBbcStation(station: Station): Boolean = resolveBbcServiceId(station) != null
+fun isBbcStation(station: Station): Boolean = BBC_SERVICE_ID_REGEX.containsMatchIn(station.streamUrl)
 
-internal suspend fun fetchBbcNowPlaying(station: Station): BbcNowPlayingContent? = withContext(Dispatchers.IO) {
+internal suspend fun fetchBbcMetadata(station: Station): BbcMetadataContent? = withContext(Dispatchers.IO) {
     val serviceId = resolveBbcServiceId(station) ?: return@withContext null
-    val segment = fetchBbcSegments(serviceId)?.let(::parseBbcNowPlayingResponse)
+    val segment = fetchBbcSegments(serviceId)?.let(::parseBbcTrackResponse)
     val broadcast = fetchBbcBroadcasts(serviceId)?.let(::parseBbcBroadcastResponse)
     val showTitle = broadcast?.showTitle
     val episodeTitle = broadcast?.episodeTitle
@@ -24,7 +27,7 @@ internal suspend fun fetchBbcNowPlaying(station: Station): BbcNowPlayingContent?
     val programmeArtworkUrl = broadcast?.artworkUrl
     val programmeArtworkData = broadcast?.artworkData
     if (showTitle == null && trackArtist == null && trackTitle == null) return@withContext null
-    BbcNowPlayingContent(
+    BbcMetadataContent(
         showTitle = showTitle,
         episodeTitle = episodeTitle,
         trackArtist = trackArtist,
@@ -36,37 +39,39 @@ internal suspend fun fetchBbcNowPlaying(station: Station): BbcNowPlayingContent?
     )
 }
 
+private val BBC_SERVICE_ID_REGEX = Regex("bbc_[a-z0-9_]+")
+
 internal fun resolveBbcServiceId(station: Station): String? {
-    extractBbcServiceIdFromUrl(station.streamUrl)?.let { return it }
-
-    val haystack = station.name.lowercase(Locale.US)
-    val candidates = listOf(
-        "bbc_radio_one" to listOf("radio 1", "radio_one"),
-        "bbc_radio_two" to listOf("radio 2", "radio_two"),
-        "bbc_radio_three" to listOf("radio 3", "radio_three"),
-        "bbc_radio_fourfm" to listOf("radio 4", "radio_fourfm", "radio four fm"),
-        "bbc_radio_five_live" to listOf("five live", "radio_five_live", "radio five live"),
-        "bbc_6music" to listOf("6 music", "6music"),
-        "bbc_asian_network" to listOf("asian network", "asian_network"),
-    )
-
-    return candidates.firstOrNull { (_, needles) ->
-        needles.any { needle -> haystack.contains(needle) }
-    }?.first
+    val serviceIds = getBbcServiceIds()
+    return BBC_SERVICE_ID_REGEX.findAll(station.streamUrl)
+        .map { it.value }
+        .firstOrNull { it in serviceIds }
 }
 
-internal fun extractBbcServiceIdFromUrl(streamUrl: String): String? {
-    val path = runCatching { URL(streamUrl).path }.getOrNull() ?: return null
-    val segments = path.split('/').filter { it.isNotBlank() }
-    val liveIndex = segments.indexOf("live")
-    if (liveIndex < 0 || liveIndex + 2 >= segments.size) return null
-    val region = segments[liveIndex + 1]
-    if (region != "uk" && region != "ww") return null
-    return segments[liveIndex + 2].lowercase(Locale.US).takeIf { it.startsWith("bbc_") }
+private val cachedServiceIds = AtomicReference<Set<String>?>(null)
+
+private fun getBbcServiceIds(): Set<String> {
+    cachedServiceIds.get()?.let { return it }
+    val fetched = fetchBbcServiceIds()
+    // Only cache on success — a failed fetch (empty set) should be retried next time.
+    if (fetched.isNotEmpty()) cachedServiceIds.compareAndSet(null, fetched)
+    return fetched
 }
 
-internal fun parseBbcNowPlayingResponse(json: String): BbcNowPlayingItem? {
-    return parseBbcItemPayload(JSONObject(json))
+private fun fetchBbcServiceIds(): Set<String> {
+    val json = requestBbcJson("https://rms.api.bbc.co.uk/v2/networks?limit=100") ?: return emptySet()
+    return try {
+        val data = JSONObject(json).optJSONArray("data") ?: return emptySet()
+        (0 until data.length())
+            .mapNotNull { data.optJSONObject(it)?.optString("default_service_id")?.trim()?.takeIf { s -> s.isNotBlank() } }
+            .toSet()
+    } catch (_: Exception) {
+        emptySet()
+    }
+}
+
+internal fun parseBbcTrackResponse(json: String): BbcTrackItem? {
+    return parseBbcTrackPayload(JSONObject(json))
 }
 
 internal fun parseBbcBroadcastResponse(json: String, now: Instant = Instant.now()): BbcBroadcastItem? {
@@ -81,7 +86,7 @@ private fun fetchBbcBroadcasts(serviceId: String): String? {
     return requestBbcJson("https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=$serviceId&on_air=now")
 }
 
-internal data class BbcNowPlayingItem(
+internal data class BbcTrackItem(
     val artistTitle: String,
     val trackTitle: String,
     val artworkUrl: String?,
@@ -95,7 +100,7 @@ internal data class BbcBroadcastItem(
     val artworkData: ByteArray?,
 )
 
-internal data class BbcNowPlayingContent(
+internal data class BbcMetadataContent(
     val showTitle: String?,     // programme/show name (broadcasts.titles.primary)
     val episodeTitle: String?,  // episode title (broadcasts.titles.secondary)
     val trackArtist: String?,
@@ -106,12 +111,15 @@ internal data class BbcNowPlayingContent(
     val trackArtworkData: ByteArray?,
 )
 
-private fun parseBbcItemPayload(root: JSONObject): BbcNowPlayingItem? {
+private fun parseBbcTrackPayload(root: JSONObject): BbcTrackItem? {
     val items = root.optJSONArray("data") ?: return null
     if (items.length() == 0) return null
+    // now_playing lives at offset.now_playing, not the item root.
+    // When talking, the API returns the last played track with offset.now_playing=false —
+    // returning null here clears the track block and shows the station image again.
     val chosen = (0 until items.length())
         .mapNotNull { items.optJSONObject(it) }
-        .firstOrNull { it.optJSONObject("offset")?.optBoolean("now_playing") == true }
+        .firstOrNull { it.optJSONObject("offset")?.optBoolean("now_playing", false) == true }
         ?: return null
 
     val titles = chosen.optJSONObject("titles") ?: return null
@@ -119,7 +127,7 @@ private fun parseBbcItemPayload(root: JSONObject): BbcNowPlayingItem? {
     val trackTitle = titles.optString("secondary").trim().takeIf { it.isNotBlank() } ?: return null
     val artworkUrl = chosen.optString("image_url").trim().takeIf { it.isNotBlank() }?.replace("{recipe}", "640x640")
     val artworkData = artworkUrl?.let { fetchBbcBytes(it) }
-    return BbcNowPlayingItem(
+    return BbcTrackItem(
         artistTitle = artistTitle,
         trackTitle = trackTitle,
         artworkUrl = artworkUrl,
@@ -169,7 +177,7 @@ private fun requestBbcJson(url: String): String? {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/0.2.0")
+        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
         try {
             if (conn.responseCode !in 200..299) return null
             conn.inputStream.bufferedReader().use { it.readText() }
@@ -187,11 +195,11 @@ private fun fetchBbcBytes(url: String): ByteArray? {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/0.2.0")
+        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
         try {
             if (conn.responseCode !in 200..299) return null
             conn.inputStream.use { input ->
-                input.readBytes().also { bytes -> artworkCache[url] = bytes }
+                input.readBytes().also { bytes -> artworkCache.put(url, bytes) }
             }
         } finally {
             conn.disconnect()
@@ -201,4 +209,6 @@ private fun fetchBbcBytes(url: String): ByteArray? {
     }
 }
 
-private val artworkCache = ConcurrentHashMap<String, ByteArray>()
+private val artworkCache = object : LruCache<String, ByteArray>(4 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ByteArray) = value.size
+}
