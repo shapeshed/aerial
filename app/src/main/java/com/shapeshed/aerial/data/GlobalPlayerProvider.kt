@@ -14,7 +14,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
-class GlobalPlayerMetadataEnricher : MetadataEnricher, StationImporter {
+class GlobalPlayerProvider : Provider {
     override fun discoverStations() = discoverGlobalStations()
     private var job: Job? = null
     private var webSocket: WebSocket? = null
@@ -86,7 +86,7 @@ class GlobalPlayerMetadataEnricher : MetadataEnricher, StationImporter {
     }
 
     companion object {
-        private const val TAG = "GlobalPlayerEnricher"
+        private const val TAG = "GlobalPlayerStationProvider"
     }
 }
 

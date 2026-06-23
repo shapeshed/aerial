@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private val MB_USER_AGENT get() = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
-private const val TAG = "MusicBrainzEnricher"
+private const val TAG = "MusicBrainzProvider"
 
 fun parseIcyTitle(raw: String): Pair<String?, String> {
     val idx = raw.indexOf(" - ")
@@ -20,7 +20,7 @@ fun parseIcyTitle(raw: String): Pair<String?, String> {
     else Pair(null, raw.trim())
 }
 
-class MusicBrainzEnricher : MetadataEnricher {
+class MusicBrainzProvider : Provider {
     private var station: Station? = null
     private var scope: CoroutineScope? = null
     private var lookupJob: Job? = null

@@ -16,9 +16,6 @@ data class DiscoveredStation(
     val logoUrl: String = "",
 )
 
-interface StationImporter {
-    fun discoverStations(): List<DiscoveredStation>
-}
 
 fun discoverBbcStations(): List<DiscoveredStation> {
     val json = requestDiscoveryJson("https://rms.api.bbc.co.uk/v2/networks?limit=100") ?: return emptyList()
@@ -114,13 +111,22 @@ fun discoverWirelessStations(): List<DiscoveredStation> {
         val streamUrl = streams.optString("progressive").trim().takeIf { it.isNotBlank() }
             ?: streams.optString("hls").trim().takeIf { it.isNotBlank() }
             ?: continue
-        val logoUrl = obj.optString("thumbnail").trim().takeIf { it.isNotBlank() }
-            ?: obj.optString("logo").trim().takeIf { it.isNotBlank() }
+        val logoUrl = wirelessLogoUrl(obj, "thumbnail")
+            ?: wirelessLogoUrl(obj, "logo")
             ?: ""
         result.add(DiscoveredStation(name = name, streamUrl = streamUrl, logoUrl = logoUrl))
     }
     Log.d(TAG, "Wireless: discovered ${result.size} stations")
     return result
+}
+
+private fun wirelessLogoUrl(obj: JSONObject, key: String): String? {
+    val value = obj.opt(key) ?: return null
+    return when (value) {
+        is JSONObject -> value.optString("url").trim().takeIf { it.isNotBlank() }
+        is String -> value.trim().takeIf { it.isNotBlank() }
+        else -> null
+    }
 }
 
 private fun requestDiscoveryJson(url: String): String? {

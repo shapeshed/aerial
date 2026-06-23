@@ -21,13 +21,14 @@ data class TrackInfo(
     val artworkData: ByteArray? = null,
 )
 
-interface MetadataEnricher {
+interface Provider {
     fun canEnrich(station: Station): Boolean
     fun start(station: Station, scope: CoroutineScope)
     fun pause()
     fun stop()
     fun notifyTransition()
     fun onIcyTitle(rawTitle: String) {}
+    fun discoverStations(): List<DiscoveredStation> = emptyList()
 }
 
 object NowPlayingStore {

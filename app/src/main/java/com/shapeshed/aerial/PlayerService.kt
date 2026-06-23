@@ -1,7 +1,6 @@
 package com.shapeshed.aerial
 
 import android.app.PendingIntent
-import android.app.TaskStackBuilder
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -25,7 +24,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.shapeshed.aerial.data.MetadataEnricher
+import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.Station
@@ -54,7 +53,7 @@ class PlayerService : MediaSessionService() {
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
     private var icyMetadataGeneration: Int = 0
-    private var activeEnricher: MetadataEnricher? = null
+    private var activeEnricher: Provider? = null
     private var lastAppliedNowPlayingSignature: String? = null
     private var enrichMetadataEnabled = false
 
@@ -104,7 +103,7 @@ class PlayerService : MediaSessionService() {
                         activeEnricher = null
                     } else {
                         currentStation()?.let { station ->
-                            val enricher = (application as AerialApp).enrichers.firstOrNull { it.canEnrich(station) }
+                            val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
                             activeEnricher = enricher
                             if (player.isPlaying) enricher?.start(station, serviceScope)
                         }
@@ -131,7 +130,7 @@ class PlayerService : MediaSessionService() {
             activeEnricher = null
             if (enrichMetadataEnabled) {
                 stationForMediaItem(mediaItem)?.let { station ->
-                    val enricher = (application as AerialApp).enrichers.firstOrNull { it.canEnrich(station) }
+                    val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
                     activeEnricher = enricher
                     enricher?.start(station, serviceScope)
                 }
@@ -336,10 +335,14 @@ class PlayerService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
     private fun pendingIntent(): PendingIntent =
-        TaskStackBuilder.create(this).run {
-            addNextIntent(Intent(this@PlayerService, MainActivity::class.java))
-            getPendingIntent(0, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        }
+        PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
 
     private companion object {
         const val TAG = "AerialPlayerService"

@@ -157,7 +157,8 @@ fun MainScreen(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 
     val haptic = LocalHapticFeedback.current
-    var showNowPlaying by remember { mutableStateOf(false) }
+    val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
+
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var fabMenuExpanded by remember { mutableStateOf(false) }
@@ -186,7 +187,7 @@ fun MainScreen(
         if (currentStation != null) 128.dp else 0.dp
     val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
-    BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
+    BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
     BackHandler(enabled = fabMenuExpanded) { fabMenuExpanded = false }
     BackHandler(enabled = stationPendingDelete != null) { stationPendingDelete = null }
@@ -622,7 +623,7 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .width(columnWidth)
-                                .clickable { showNowPlaying = true }
+                                .clickable { viewModel.setShowNowPlaying(true) }
                                 .padding(horizontal = 14.dp),
                             verticalArrangement = Arrangement.Center,
                         ) {
@@ -647,12 +648,13 @@ fun MainScreen(
         }
 
         AnimatedVisibility(
-            visible = showNowPlaying && currentStation != null,
+            visible = showNowPlaying,
             enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
         ) {
-            currentStation?.let { station ->
+            val station = currentStation
+            if (station != null) {
                 NowPlayingScreen(
                     station = station,
                     isPlaying = isPlaying,
@@ -666,8 +668,10 @@ fun MainScreen(
                     monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
-                    onDismiss = { showNowPlaying = false },
+                    onDismiss = { viewModel.setShowNowPlaying(false) },
                 )
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
             }
         }
     }

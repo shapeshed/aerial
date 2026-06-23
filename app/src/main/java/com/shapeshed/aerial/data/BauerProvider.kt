@@ -9,7 +9,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-class BauerMetadataEnricher : MetadataEnricher, StationImporter {
+class BauerProvider : Provider {
     override fun discoverStations() = discoverBauerStations()
     private var job: Job? = null
     private var transitionSignal = Channel<Unit>(Channel.CONFLATED)
@@ -56,7 +56,7 @@ class BauerMetadataEnricher : MetadataEnricher, StationImporter {
     }
 
     companion object {
-        private const val TAG = "BauerMetadataEnricher"
+        private const val TAG = "BauerStationProvider"
         private val REFRESH_STEPS_MS = longArrayOf(5_000L, 10_000L)
         private const val REFRESH_STEADY_MS = 30_000L
     }

@@ -13,7 +13,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.data.Station
-import com.shapeshed.aerial.data.StationImporter
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -83,8 +82,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    val discovered = getApplication<AerialApp>().enrichers
-                        .filterIsInstance<StationImporter>()
+                    val discovered = getApplication<AerialApp>().providers
                         .flatMap { it.discoverStations() }
                     discovered.forEach { d ->
                         repository.upsertImported(

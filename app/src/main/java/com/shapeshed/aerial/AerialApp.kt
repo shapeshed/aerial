@@ -5,16 +5,16 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import com.shapeshed.aerial.data.BauerMetadataEnricher
-import com.shapeshed.aerial.data.BbcMetadataEnricher
-import com.shapeshed.aerial.data.GlobalPlayerMetadataEnricher
-import com.shapeshed.aerial.data.MetadataEnricher
-import com.shapeshed.aerial.data.MusicBrainzEnricher
+import com.shapeshed.aerial.data.BauerProvider
+import com.shapeshed.aerial.data.BbcProvider
+import com.shapeshed.aerial.data.GlobalPlayerProvider
+import com.shapeshed.aerial.data.MusicBrainzProvider
+import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.WirelessMetadataEnricher
+import com.shapeshed.aerial.data.WirelessProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,8 +25,9 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 class AerialApp : Application() {
     val repository by lazy { StationRepository(StationDatabase.get(this).stationDao()) }
     val settingsDataStore get() = dataStore
+    var showNowPlayingOnResume: Boolean = false
     val networkMonitor by lazy { NetworkMonitor(this) }
-    val enrichers: List<MetadataEnricher> = listOf(BbcMetadataEnricher(), BauerMetadataEnricher(), GlobalPlayerMetadataEnricher(), WirelessMetadataEnricher(), MusicBrainzEnricher())
+    val providers: List<Provider> = listOf(BbcProvider(), BauerProvider(), GlobalPlayerProvider(), WirelessProvider(), MusicBrainzProvider())
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

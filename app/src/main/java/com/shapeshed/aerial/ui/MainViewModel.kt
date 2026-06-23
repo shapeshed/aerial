@@ -10,8 +10,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -51,6 +54,7 @@ class MainViewModel(
     application: Application,
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
 
     val isOnline = (application as AerialApp).networkMonitor.isOnline
@@ -115,6 +119,15 @@ class MainViewModel(
 
     val nowPlayingInfo: StateFlow<NowPlayingInfo?> = NowPlayingStore.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow(
+        "showNowPlaying",
+        getApplication<AerialApp>().showNowPlayingOnResume,
+    )
+    fun setShowNowPlaying(value: Boolean) {
+        savedStateHandle["showNowPlaying"] = value
+        getApplication<AerialApp>().showNowPlayingOnResume = value
+    }
 
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
@@ -373,8 +386,8 @@ class MainViewModelFactory(
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
 ) : ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
-        return MainViewModel(application, repository, dataStore) as T
+        return MainViewModel(application, repository, dataStore, extras.createSavedStateHandle()) as T
     }
 }
