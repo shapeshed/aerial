@@ -552,8 +552,8 @@ fun NowPlayingScreen(
                         ) {
                             Text(
                                 text = trackArtist ?: trackTitle.orEmpty(),
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
@@ -565,7 +565,7 @@ fun NowPlayingScreen(
                             ) {
                                 Text(
                                     text = trackTitle,
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Normal,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     overflow = TextOverflow.Ellipsis,
