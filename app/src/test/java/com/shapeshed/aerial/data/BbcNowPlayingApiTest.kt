@@ -28,18 +28,18 @@ class BbcNowPlayingApiTest {
     }
 
     @Test
-    fun resolveBbcServiceIdStillFallsBackToStationNameForOlderEntries() {
+    fun resolveBbcServiceIdReturnsNullWhenUrlContainsNoServiceId() {
         val station = station(
             name = "BBC 6 Music",
             url = "https://example.com/live",
         )
 
-        assertEquals("bbc_6music", resolveBbcServiceId(station))
+        assertNull(resolveBbcServiceId(station))
     }
 
     @Test
-    fun parseBbcNowPlayingResponsePrefersNowPlayingItem() {
-        val result = parseBbcNowPlayingResponse(
+    fun parseBbcTrackResponsePrefersNowPlayingItem() {
+        val result = parseBbcTrackResponse(
             """
             {
               "total": 2,
@@ -70,7 +70,7 @@ class BbcNowPlayingApiTest {
         )
 
         assertEquals(
-            BbcNowPlayingItem(
+            BbcTrackItem(
                 artistTitle = "Tame Impala & JENNIE",
                 trackTitle = "Dracula - JENNIE Remix",
                 artworkUrl = "https://ichef.bbci.co.uk/images/ic/640x640/artwork-now.jpg",
@@ -81,8 +81,8 @@ class BbcNowPlayingApiTest {
     }
 
     @Test
-    fun parseBbcNowPlayingResponseReturnsNullWhenNoCurrentItemIsMarked() {
-        val result = parseBbcNowPlayingResponse(
+    fun parseBbcTrackResponseReturnsNullWhenNoCurrentItemIsMarked() {
+        val result = parseBbcTrackResponse(
             """
             {
               "data": [
@@ -172,8 +172,8 @@ class BbcNowPlayingApiTest {
     }
 
     @Test
-    fun parseBbcNowPlayingResponseReturnsNullForEmptyPayload() {
-        assertNull(parseBbcNowPlayingResponse("""{"data": []}"""))
+    fun parseBbcTrackResponseReturnsNullForEmptyPayload() {
+        assertNull(parseBbcTrackResponse("""{"data": []}"""))
     }
 
     private fun station(name: String, url: String) = Station(

@@ -23,9 +23,9 @@ internal suspend fun fetchBbcMetadata(station: Station): BbcMetadataContent? = w
     val trackArtist = segment?.artistTitle
     val trackTitle = segment?.trackTitle
     val trackArtworkUrl = segment?.artworkUrl
-    val trackArtworkData = segment?.artworkData
+    val trackArtworkData = trackArtworkUrl?.let { fetchBbcBytes(it) }
     val programmeArtworkUrl = broadcast?.artworkUrl
-    val programmeArtworkData = broadcast?.artworkData
+    val programmeArtworkData = programmeArtworkUrl?.let { fetchBbcBytes(it) }
     if (showTitle == null && trackArtist == null && trackTitle == null) return@withContext null
     BbcMetadataContent(
         showTitle = showTitle,
@@ -126,12 +126,11 @@ private fun parseBbcTrackPayload(root: JSONObject): BbcTrackItem? {
     val artistTitle = titles.optString("primary").trim().takeIf { it.isNotBlank() } ?: return null
     val trackTitle = titles.optString("secondary").trim().takeIf { it.isNotBlank() } ?: return null
     val artworkUrl = chosen.optString("image_url").trim().takeIf { it.isNotBlank() }?.replace("{recipe}", "640x640")
-    val artworkData = artworkUrl?.let { fetchBbcBytes(it) }
     return BbcTrackItem(
         artistTitle = artistTitle,
         trackTitle = trackTitle,
         artworkUrl = artworkUrl,
-        artworkData = artworkData,
+        artworkData = null,
     )
 }
 
@@ -161,12 +160,11 @@ private fun parseBbcBroadcastItemPayload(root: JSONObject, now: Instant): BbcBro
         ?.takeIf { it.isNotBlank() }
         ?.replace("{recipe}", "640x640")
         ?: chosen.optString("image_url").trim().takeIf { it.isNotBlank() }?.replace("{recipe}", "640x640")
-    val artworkData = artworkUrl?.let { fetchBbcBytes(it) }
     return BbcBroadcastItem(
         showTitle = primary,
         episodeTitle = secondary,
         artworkUrl = artworkUrl,
-        artworkData = artworkData,
+        artworkData = null,
     )
 }
 
