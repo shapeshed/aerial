@@ -11,8 +11,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -25,9 +28,12 @@ import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.data.NowPlayingInfo
+import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.bauerStreamUrl
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -50,6 +56,7 @@ class MainViewModel(
     application: Application,
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
 
     val isOnline = (application as AerialApp).networkMonitor.isOnline
@@ -107,8 +114,26 @@ class MainViewModel(
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
 
+    private val _currentTrackArtworkUrl = MutableStateFlow<String?>(null)
+    val currentTrackArtworkUrl: StateFlow<String?> = _currentTrackArtworkUrl.asStateFlow()
+
+    private val _currentTrackArtworkData = MutableStateFlow<ByteArray?>(null)
+    val currentTrackArtworkData: StateFlow<ByteArray?> = _currentTrackArtworkData.asStateFlow()
+
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
+    val nowPlayingInfo: StateFlow<NowPlayingInfo?> = NowPlayingStore.state
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow(
+        "showNowPlaying",
+        getApplication<AerialApp>().showNowPlayingOnResume,
+    )
+    fun setShowNowPlaying(value: Boolean) {
+        savedStateHandle["showNowPlaying"] = value
+        getApplication<AerialApp>().showNowPlayingOnResume = value
+    }
 
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
@@ -188,9 +213,19 @@ class MainViewModel(
             _playbackError.value = error.userMessage()
         }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+            val title = mediaMetadata.title?.toString()?.trim()
             val artist = mediaMetadata.artist?.toString()?.trim()
-            if (!artist.isNullOrEmpty() && artist != "Live Radio") {
-                _currentTrackTitle.value = artist
+            val artwork = mediaMetadata.artworkUri?.toString()?.trim()
+            val artworkData = mediaMetadata.artworkData
+            when {
+                !title.isNullOrEmpty() && title != "Live Radio" -> _currentTrackTitle.value = title
+                !artist.isNullOrEmpty() && artist != "Live Radio" -> _currentTrackTitle.value = artist
+            }
+            _currentTrackArtworkData.value = artworkData
+            _currentTrackArtworkUrl.value = if (artworkData == null && !artwork.isNullOrEmpty()) {
+                artwork
+            } else {
+                null
             }
         }
         @OptIn(UnstableApi::class)
@@ -211,6 +246,8 @@ class MainViewModel(
         _currentStationId.value = station.id
         viewModelScope.launch { dataStore.edit { it[LAST_STATION_ID_KEY] = station.id } }
         _currentTrackTitle.value = null
+        _currentTrackArtworkUrl.value = null
+        _currentTrackArtworkData.value = null
         _bitrateKbps.value = null
         _playbackError.value = null
         if (station.radioBrowserUuid.isNotEmpty()) {
@@ -225,7 +262,7 @@ class MainViewModel(
             ?.let { Uri.parse(it) }
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
-            .setUri(station.streamUrl)
+            .setUri(bauerStreamUrl(station))
             .setMediaMetadata(
                 MediaMetadata.Builder().apply {
                     val localArtworkData = station.logoPath
@@ -365,8 +402,8 @@ class MainViewModelFactory(
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
 ) : ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
-        return MainViewModel(application, repository, dataStore) as T
+        return MainViewModel(application, repository, dataStore, extras.createSavedStateHandle()) as T
     }
 }

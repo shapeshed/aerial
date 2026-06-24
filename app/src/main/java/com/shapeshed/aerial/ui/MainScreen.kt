@@ -6,7 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -31,13 +31,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -126,7 +125,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlinx.coroutines.delay
@@ -147,6 +145,9 @@ fun MainScreen(
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val bitrateKbps by viewModel.bitrateKbps.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
+    val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
+    val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
+    val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
@@ -154,23 +155,18 @@ fun MainScreen(
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
+
     val haptic = LocalHapticFeedback.current
     val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
-    var animateNowPlayingEntry by remember { mutableStateOf(false) }
+
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var fabMenuExpanded by remember { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
     var stationPendingDelete by remember { mutableStateOf<Station?>(null) }
     val searchFocusRequester = remember { FocusRequester() }
-    var favoritesFilterScrollHandled by remember { mutableStateOf(false) }
-    val app = context.applicationContext as AerialApp
-    val listState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState(app.listScrollIndex, app.listScrollOffset)
-    }
-    val gridState = rememberSaveable(saver = LazyGridState.Saver) {
-        LazyGridState(app.gridScrollIndex, app.gridScrollOffset)
-    }
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     val filteredStations = remember(stations, searchQuery) {
         if (searchQuery.isBlank()) stations
@@ -189,28 +185,33 @@ fun MainScreen(
     )
     val stationContentBottomPadding =
         if (currentStation != null) 128.dp else 0.dp
+    val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
-    BackHandler(enabled = showNowPlaying) { viewModel.closeNowPlaying(); animateNowPlayingEntry = false }
+    BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
     BackHandler(enabled = fabMenuExpanded) { fabMenuExpanded = false }
     BackHandler(enabled = stationPendingDelete != null) { stationPendingDelete = null }
 
     LaunchedEffect(Unit) { viewModel.connect(context) }
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) -> app.listScrollIndex = index; app.listScrollOffset = offset }
-    }
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) -> app.gridScrollIndex = index; app.gridScrollOffset = offset }
-    }
     LaunchedEffect(searching) {
         if (searching) searchFocusRequester.requestFocus()
     }
     LaunchedEffect(showFavoritesOnly) {
-        if (!favoritesFilterScrollHandled) { favoritesFilterScrollHandled = true; return@LaunchedEffect }
         listState.scrollToItem(0)
         gridState.scrollToItem(0)
+    }
+    LaunchedEffect(currentStation?.id, filteredStations, isGridView) {
+        val id = currentStation?.id ?: return@LaunchedEffect
+        val index = filteredStations.indexOfFirst { it.id == id }
+        if (index == -1) return@LaunchedEffect
+        val isVisible = if (isGridView) {
+            gridState.layoutInfo.visibleItemsInfo.any { it.index == index }
+        } else {
+            listState.layoutInfo.visibleItemsInfo.any { it.index == index }
+        }
+        if (!isVisible) {
+            if (isGridView) gridState.animateScrollToItem(index) else listState.animateScrollToItem(index)
+        }
     }
     LaunchedEffect(recentlyAddedStationId, filteredStations, isGridView) {
         val stationId = recentlyAddedStationId ?: return@LaunchedEffect
@@ -428,19 +429,27 @@ fun MainScreen(
                             key = { it.id },
                             contentType = { "station-row" },
                         ) { station ->
+                            val stationNowPlayingText = when {
+                                activeNowPlayingInfo?.track?.title != null -> activeNowPlayingInfo.track.title
+                                activeNowPlayingInfo?.programmeTitle != null -> activeNowPlayingInfo.programmeTitle
+                                else -> currentTrackTitle
+                            }
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
                                 isPlaying = isPlaying && currentStation?.id == station.id,
                                 isBuffering = isBuffering && currentStation?.id == station.id,
-                                supportingText = if (currentStation?.id == station.id)
-                                    playbackError ?: currentTrackTitle ?: when {
-                                        isBuffering -> "Buffering"
-                                        isPlaying -> "Playing"
-                                        else -> "Paused"
-                                    }
-                                else
-                                    null,
+                                supportingText = if (currentStation?.id == station.id) {
+                                    playbackError
+                                        ?: stationNowPlayingText
+                                        ?: when {
+                                            isBuffering -> "Buffering"
+                                            isPlaying -> "Playing"
+                                            else -> "Paused"
+                                        }
+                                } else {
+                                    null
+                                },
                                 isRecentlyAdded = recentlyAddedStationId == station.id,
                                 monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
@@ -505,11 +514,20 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val statusText = playbackError
+                val miniPlayerTitle = activeNowPlayingInfo?.track?.artist
+                    ?: activeNowPlayingInfo?.programmeTitle
+                    ?: station.name
+                val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else currentTrackTitle
-                    ?: if (isPlaying) "Playing"
-                    else "Paused"
+                    else when {
+                        activeNowPlayingInfo?.track?.title != null &&
+                            activeNowPlayingInfo.track.title != miniPlayerTitle -> activeNowPlayingInfo.track.title
+                        activeNowPlayingInfo?.programmeSubtitle != null &&
+                            activeNowPlayingInfo.programmeSubtitle != miniPlayerTitle -> activeNowPlayingInfo.programmeSubtitle
+                        currentTrackTitle != null && currentTrackTitle != miniPlayerTitle -> currentTrackTitle
+                        isPlaying -> "Playing"
+                        else -> "Paused"
+                    }
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -525,7 +543,40 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                            val miniArtworkModel = with(activeNowPlayingInfo) {
+                                when {
+                                    this?.track?.artworkData != null -> this.track.artworkData
+                                    !this?.track?.artworkUrl.isNullOrBlank() -> this?.track?.artworkUrl
+                                    this?.artworkData != null -> this.artworkData
+                                    !this?.artworkUrl.isNullOrBlank() -> this?.artworkUrl
+                                    else -> null
+                                }
+                            }
+                            var miniArtworkFailed by remember(miniArtworkModel) { mutableStateOf(false) }
+                            AnimatedContent(
+                                targetState = if (miniArtworkFailed) null else miniArtworkModel,
+                                transitionSpec = {
+                                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
+                                },
+                                label = "miniPlayerArtwork",
+                            ) { model ->
+                                if (model != null) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        modifier = Modifier.size(52.dp),
+                                    ) {
+                                        AsyncImage(
+                                            model = model,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            onError = { miniArtworkFailed = true },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                } else {
+                                    StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                                }
+                            }
                         },
                         trailingContent = {
                             Surface(
@@ -572,18 +623,19 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .width(columnWidth)
-                                .clickable { viewModel.openNowPlaying(); animateNowPlayingEntry = true }
+                                .clickable { viewModel.setShowNowPlaying(true) }
                                 .padding(horizontal = 14.dp),
                             verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                text = station.name,
+                                text = miniPlayerTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (miniPlayerSubtitle != null) {
                             Text(
-                                text = statusText,
+                                text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -592,32 +644,34 @@ fun MainScreen(
                     }
                 }
             }
+            }
         }
 
         AnimatedVisibility(
             visible = showNowPlaying,
-            enter = if (animateNowPlayingEntry)
-                slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it })
-            else
-                EnterTransition.None,
+            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
         ) {
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                currentStation?.let { station ->
-                    NowPlayingScreen(
-                        station = station,
-                        isPlaying = isPlaying,
-                        isBuffering = isBuffering,
-                        bitrateKbps = bitrateKbps,
-                        showBitrate = showBitrate,
-                        currentTrackTitle = currentTrackTitle,
-                        monochromeLogos = monochromeLogos,
-                        onToggle = { viewModel.togglePlayback() },
-                        onToggleFavorite = { viewModel.toggleFavorite(station) },
-                        onDismiss = { viewModel.closeNowPlaying(); animateNowPlayingEntry = false },
-                    )
-                }
+            val station = currentStation
+            if (station != null) {
+                NowPlayingScreen(
+                    station = station,
+                    isPlaying = isPlaying,
+                    isBuffering = isBuffering,
+                    bitrateKbps = bitrateKbps,
+                    showBitrate = showBitrate,
+                    nowPlayingInfo = activeNowPlayingInfo,
+                    currentTrackTitle = currentTrackTitle,
+                    currentTrackArtworkData = currentTrackArtworkData,
+                    currentTrackArtworkUrl = currentTrackArtworkUrl,
+                    monochromeLogos = monochromeLogos,
+                    onToggle = { viewModel.togglePlayback() },
+                    onToggleFavorite = { viewModel.toggleFavorite(station) },
+                    onDismiss = { viewModel.setShowNowPlaying(false) },
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
             }
         }
     }

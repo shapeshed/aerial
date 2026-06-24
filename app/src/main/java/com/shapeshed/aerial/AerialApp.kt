@@ -5,10 +5,16 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.shapeshed.aerial.data.BauerProvider
+import com.shapeshed.aerial.data.BbcProvider
+import com.shapeshed.aerial.data.GlobalPlayerProvider
+import com.shapeshed.aerial.data.MusicBrainzProvider
+import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.WirelessProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,7 +25,9 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 class AerialApp : Application() {
     val repository by lazy { StationRepository(StationDatabase.get(this).stationDao()) }
     val settingsDataStore get() = dataStore
+    var showNowPlayingOnResume: Boolean = false
     val networkMonitor by lazy { NetworkMonitor(this) }
+    val providers: List<Provider> = listOf(BbcProvider(), BauerProvider(), GlobalPlayerProvider(), WirelessProvider(), MusicBrainzProvider())
     var showNowPlaying: Boolean = false
     var showFavoritesOnly: Boolean = false
     var listScrollIndex: Int = 0
@@ -31,8 +39,6 @@ class AerialApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Parse the bundled fallback station list while the splash screen is showing
-        // so it's ready in memory before the user reaches the search screen.
         appScope.launch {
             runCatching {
                 val json = resources.openRawResource(R.raw.fallback_stations)

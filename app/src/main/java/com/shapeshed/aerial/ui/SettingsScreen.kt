@@ -47,6 +47,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
     val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
+    val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
     val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
@@ -125,6 +126,20 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
+            item(contentType = "setting") {
+                ListItem(
+                    modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
+                    headlineContent = { Text("Enrich stream metadata") },
+                    supportingContent = { Text("Show track info and artwork for supported streams") },
+                    trailingContent = {
+                        Switch(
+                            checked = enrichMetadata,
+                            onCheckedChange = { viewModel.setEnrichMetadata(it) },
+                        )
+                    },
+                )
+                HorizontalDivider()
+            }
             item(contentType = "section") {
                 Text(
                     text = "Data",
@@ -164,6 +179,23 @@ fun SettingsScreen(
                     headlineContent = { Text("Radio Browser") },
                     supportingContent = { Text("Station discovery powered by radio-browser.info") },
                 )
+            }
+            if (BuildConfig.DEBUG) {
+                item(contentType = "section") {
+                    Text(
+                        text = "Debug",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
+                }
+                item(contentType = "action") {
+                    ListItem(
+                        modifier = Modifier.clickable { viewModel.importDiscoveredStations() },
+                        headlineContent = { Text("Import all provider stations") },
+                        supportingContent = { Text("Seed BBC, Bauer, Global, and Wireless stations with logos") },
+                    )
+                }
             }
             item(contentType = "footer") {
                 Text(
