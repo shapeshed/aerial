@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "a286af7b43997d139f4c8509e0097e2c",
+    "identityHash": "9c6d4040fbcf42c0f06203fafa90196c",
     "entities": [
       {
         "tableName": "stations",
@@ -65,7 +65,7 @@
       },
       {
         "tableName": "registry_stations",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT NOT NULL, `country` TEXT NOT NULL, `countryCode` TEXT NOT NULL, `tags` TEXT NOT NULL, `provider` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT NOT NULL, `country` TEXT NOT NULL, `countryCode` TEXT NOT NULL, `tags` TEXT NOT NULL, `provider` TEXT NOT NULL, `searchText` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -114,6 +114,12 @@
             "columnName": "provider",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "searchText",
+            "columnName": "searchText",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -126,7 +132,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a286af7b43997d139f4c8509e0097e2c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9c6d4040fbcf42c0f06203fafa90196c')"
     ]
   }
 }

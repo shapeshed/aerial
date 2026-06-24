@@ -30,6 +30,9 @@ abstract class RegistryDao {
     @Query("SELECT * FROM registry_stations WHERE LOWER(tags) LIKE '%' || LOWER(:tag) || '%' ORDER BY RANDOM() LIMIT 1")
     abstract suspend fun randomStationByTag(tag: String): RegistryStation?
 
-    @Query("SELECT * FROM registry_stations WHERE LOWER(name) LIKE '%' || LOWER(:query) || '%' OR LOWER(tags) LIKE '%' || LOWER(:query) || '%' OR LOWER(country) LIKE '%' || LOWER(:query) || '%' ORDER BY name LIMIT 50")
+    @Query("SELECT * FROM registry_stations WHERE LOWER(searchText) LIKE '%' || LOWER(:query) || '%' OR LOWER(country) LIKE '%' || LOWER(:query) || '%' OR LOWER(countryCode) LIKE '%' || LOWER(:query) || '%' ORDER BY name LIMIT 50")
     abstract suspend fun search(query: String): List<RegistryStation>
+
+    @Query("SELECT tags FROM registry_stations WHERE tags != ''")
+    abstract suspend fun allTagStrings(): List<String>
 }

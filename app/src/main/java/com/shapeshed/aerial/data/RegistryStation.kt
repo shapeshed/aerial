@@ -13,4 +13,5 @@ data class RegistryStation(
     val countryCode: String = "",
     val tags: String = "",
     val provider: String = "",
+    val searchText: String = "",
 )

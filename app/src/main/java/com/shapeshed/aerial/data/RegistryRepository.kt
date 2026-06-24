@@ -25,8 +25,28 @@ class RegistryRepository(private val dao: RegistryDao) {
 
     suspend fun search(query: String): List<RegistryStation> {
         if (query.isBlank()) return emptyList()
-        return dao.search(query.trim())
+        val normalized = NumberNormalizer.normalize(query.trim())
+        val candidates = dao.search(normalized)
+        val words = normalized.lowercase().split(" ").filter { it.isNotBlank() }
+        if (words.size <= 1) return candidates
+        // Multi-word query: require each word to match at a word boundary to avoid
+        // "radio 1" matching "Absolute Radio 10s" via the substring "radio 1" in "radio 10s"
+        return candidates.filter { station ->
+            val haystack = " ${station.searchText.lowercase()} ${station.country.lowercase()} ${station.countryCode.lowercase()} "
+            words.all { word -> haystack.contains(" $word ") }
+        }
     }
+
+    suspend fun popularTags(count: Int = 4): List<String> =
+        dao.allTagStrings()
+            .flatMap { it.split(" ") }
+            .filter { it.length > 1 }
+            .groupingBy { it.lowercase() }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(count)
+            .map { it.key.replaceFirstChar { c -> c.uppercaseChar() } }
 
     private fun parseRegistry(json: String): List<RegistryStation> {
         return try {
@@ -46,6 +66,7 @@ class RegistryRepository(private val dao: RegistryDao) {
                     countryCode = obj.optString("country_code").trim(),
                     tags = tags,
                     provider = obj.optString("provider").trim(),
+                    searchText = NumberNormalizer.normalize("$name $tags"),
                 )
             }
         } catch (e: Exception) {

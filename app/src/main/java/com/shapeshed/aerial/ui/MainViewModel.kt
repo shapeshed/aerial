@@ -70,10 +70,16 @@ class MainViewModel(
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
+    private val _popularTags = MutableStateFlow<List<String>>(emptyList())
+    val popularTags: StateFlow<List<String>> = _popularTags.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.getAll().first()
             _isInitialized.value = true
+        }
+        viewModelScope.launch {
+            _popularTags.value = registryRepository.popularTags()
         }
     }
 

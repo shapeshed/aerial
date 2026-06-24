@@ -164,6 +164,7 @@ fun MainScreen(
     val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
     val registrySearchResults by viewModel.registrySearchResults.collectAsStateWithLifecycle()
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
+    val popularTags by viewModel.popularTags.collectAsStateWithLifecycle()
 
     val textFieldState = rememberTextFieldState()
     val searchBarState = rememberContainedSearchBarState()
@@ -293,6 +294,7 @@ fun MainScreen(
                         isPlaying = isPlaying,
                         isBuffering = isBuffering,
                         monochromeLogos = monochromeLogos,
+                        popularTags = popularTags,
                         bottomPadding = padding.calculateBottomPadding() + stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
                         onAddTapped = { scope.launch { searchBarState.animateToExpanded() } },
@@ -811,6 +813,7 @@ private fun HomeContent(
     isPlaying: Boolean,
     isBuffering: Boolean,
     monochromeLogos: Boolean,
+    popularTags: List<String>,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onAddTapped: () -> Unit,
@@ -831,10 +834,10 @@ private fun HomeContent(
         item("tap-to-listen") {
             Column(modifier = Modifier.padding(bottom = 8.dp)) {
                 Text(
-                    text = "Tap to listen",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    text = "Your favorites",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
                 )
                 val totalTiles = stations.size + 1
                 val rows = (0 until totalTiles).toList().chunked(3)
@@ -881,6 +884,7 @@ private fun HomeContent(
         }
         item("just-listen-pills") {
             CategoryPills(
+                tags = popularTags,
                 onCategoryTap = onCategoryTap,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -1000,15 +1004,16 @@ private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CategoryPills(
+    tags: List<String>,
     onCategoryTap: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val categories = listOf("Pop", "News", "Dance", "Rock")
+    if (tags.isEmpty()) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        categories.forEach { category ->
+        tags.forEach { category ->
             SuggestionChip(
                 onClick = { onCategoryTap(category) },
                 label = { Text(category) },
