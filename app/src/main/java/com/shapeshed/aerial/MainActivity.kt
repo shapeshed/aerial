@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
 
     private val mainViewModel: MainViewModel by viewModels {
         val app = application as AerialApp
-        MainViewModelFactory(app, app.repository, app.settingsDataStore)
+        MainViewModelFactory(app, app.repository, app.registryRepository, app.settingsDataStore)
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)

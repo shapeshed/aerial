@@ -7,9 +7,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Station::class], version = 6, exportSchema = true)
+@Database(entities = [Station::class, RegistryStation::class], version = 7, exportSchema = true)
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
+    abstract fun registryDao(): RegistryDao
 
     companion object {
         @Volatile private var instance: StationDatabase? = null
@@ -48,10 +49,31 @@ abstract class StationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS registry_fts")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS registry_stations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        streamUrl TEXT NOT NULL,
+                        logoUrl TEXT NOT NULL DEFAULT '',
+                        country TEXT NOT NULL DEFAULT '',
+                        countryCode TEXT NOT NULL DEFAULT '',
+                        tags TEXT NOT NULL DEFAULT '',
+                        provider TEXT NOT NULL DEFAULT ''
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): StationDatabase =
             instance ?: synchronized(this) {
                 Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .fallbackToDestructiveMigrationFrom(8, 9)
                     .build()
                     .also { instance = it }
             }

@@ -174,12 +174,6 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
-            item(contentType = "info") {
-                ListItem(
-                    headlineContent = { Text("Radio Browser") },
-                    supportingContent = { Text("Station discovery powered by radio-browser.info") },
-                )
-            }
             if (BuildConfig.DEBUG) {
                 item(contentType = "section") {
                     Text(

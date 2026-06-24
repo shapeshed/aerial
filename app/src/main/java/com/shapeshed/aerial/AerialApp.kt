@@ -12,6 +12,7 @@ import com.shapeshed.aerial.data.MusicBrainzProvider
 import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RadioBrowserApi
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.WirelessProvider
@@ -23,7 +24,9 @@ import kotlinx.coroutines.launch
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class AerialApp : Application() {
-    val repository by lazy { StationRepository(StationDatabase.get(this).stationDao()) }
+    private val db by lazy { StationDatabase.get(this) }
+    val repository by lazy { StationRepository(db.stationDao()) }
+    val registryRepository by lazy { RegistryRepository(db.registryDao()) }
     val settingsDataStore get() = dataStore
     var showNowPlayingOnResume: Boolean = false
     val networkMonitor by lazy { NetworkMonitor(this) }
@@ -46,6 +49,9 @@ class AerialApp : Application() {
                     .readText()
                 RadioBrowserApi.warmFallback(json)
             }
+        }
+        appScope.launch {
+            runCatching { registryRepository.sync(this@AerialApp) }
         }
     }
 }

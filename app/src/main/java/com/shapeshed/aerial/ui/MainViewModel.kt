@@ -9,7 +9,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import org.json.JSONArray
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
@@ -31,6 +32,8 @@ import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.RadioBrowserApi
+import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.bauerStreamUrl
@@ -43,6 +46,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -50,11 +54,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
-val LAST_STATION_ID_KEY = longPreferencesKey("last_station_id")
+private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
+private const val MAX_RECENT_SEARCHES = 5
 
 class MainViewModel(
     application: Application,
     private val repository: StationRepository,
+    private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
@@ -69,17 +75,13 @@ class MainViewModel(
             repository.getAll().first()
             _isInitialized.value = true
         }
-        viewModelScope.launch {
-            dataStore.data.map { it[LAST_STATION_ID_KEY] }.first()
-                ?.let { _currentStationId.value = it }
-        }
     }
 
     val isGridView: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[GRID_VIEW_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    private val _showFavoritesOnly = MutableStateFlow((application as AerialApp).showFavoritesOnly)
+    private val _showFavoritesOnly = MutableStateFlow(false)
     val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
@@ -95,12 +97,15 @@ class MainViewModel(
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
+    private val _ephemeralStation = MutableStateFlow<Station?>(null)
 
     val currentStation: StateFlow<Station?> = combine(
         _allStations,
         _currentStationId,
-    ) { list, id -> list.firstOrNull { it.id == id } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        _ephemeralStation,
+    ) { list, id, ephemeral ->
+        ephemeral ?: id?.let { i -> list.firstOrNull { s -> s.id == i } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -135,13 +140,126 @@ class MainViewModel(
         getApplication<AerialApp>().showNowPlayingOnResume = value
     }
 
+    private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val registrySearchResults: StateFlow<List<RegistryStation>> = _registrySearchResults.asStateFlow()
+
+    fun searchRegistry(query: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _registrySearchResults.value = registryRepository.search(query)
+        }
+    }
+
+    fun clearRegistrySearch() {
+        _registrySearchResults.value = emptyList()
+    }
+
+    fun playRandomFromCategory(tag: String) {
+        viewModelScope.launch {
+            val station = withContext(Dispatchers.IO) {
+                registryRepository.randomByCategory(tag.lowercase())
+            } ?: return@launch
+            playFromRegistry(station)
+        }
+    }
+
+    fun playFromRegistry(registryStation: RegistryStation) {
+        val station = Station(
+            name = registryStation.name,
+            streamUrl = registryStation.streamUrl,
+            logoPath = registryStation.logoUrl,
+        )
+        play(station)
+    }
+
+    fun addFromRegistry(registryStation: RegistryStation) {
+        viewModelScope.launch {
+            val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
+                withContext(Dispatchers.IO) { downloadLogo(registryStation.logoUrl) } ?: registryStation.logoUrl
+            } else {
+                ""
+            }
+            val stationId = repository.insertOrGetExisting(
+                Station(
+                    name = registryStation.name,
+                    streamUrl = registryStation.streamUrl,
+                    logoPath = localLogoPath,
+                    isFavorite = true,
+                ),
+            )
+            _recentlyAddedStationId.value = stationId
+        }
+    }
+
+    fun removeFromRegistry(registryStation: RegistryStation) {
+        val station = _allStations.value.find { it.streamUrl == registryStation.streamUrl } ?: return
+        deleteStation(station)
+    }
+
+    fun addAndPlayFromRegistry(registryStation: RegistryStation) {
+        viewModelScope.launch {
+            val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
+                withContext(Dispatchers.IO) { downloadLogo(registryStation.logoUrl) } ?: registryStation.logoUrl
+            } else {
+                ""
+            }
+            val station = Station(
+                name = registryStation.name,
+                streamUrl = registryStation.streamUrl,
+                logoPath = localLogoPath,
+                isFavorite = true,
+            )
+            val stationId = repository.insertOrGetExisting(station)
+            _recentlyAddedStationId.value = stationId
+            play(station.copy(id = stationId))
+        }
+    }
+
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
-    private val _showNowPlaying = MutableStateFlow((application as AerialApp).showNowPlaying)
-    val showNowPlaying: StateFlow<Boolean> = _showNowPlaying.asStateFlow()
-    fun openNowPlaying() { _showNowPlaying.value = true; (getApplication<AerialApp>()).showNowPlaying = true }
-    fun closeNowPlaying() { _showNowPlaying.value = false; (getApplication<AerialApp>()).showNowPlaying = false }
+    val recentSearches: StateFlow<List<String>> = dataStore.data
+        .map { prefs ->
+            prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                try {
+                    val arr = JSONArray(json)
+                    (0 until arr.length()).map { arr.getString(it) }
+                } catch (_: Exception) { emptyList() }
+            } ?: emptyList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun saveRecentSearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                    try {
+                        val arr = JSONArray(json)
+                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
+                    } catch (_: Exception) { mutableListOf() }
+                } ?: mutableListOf()
+                current.remove(trimmed)
+                current.add(0, trimmed)
+                prefs[RECENT_SEARCHES_KEY] = JSONArray(current.take(MAX_RECENT_SEARCHES)).toString()
+            }
+        }
+    }
+
+    fun removeRecentSearch(query: String) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                    try {
+                        val arr = JSONArray(json)
+                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
+                    } catch (_: Exception) { mutableListOf() }
+                } ?: mutableListOf()
+                current.remove(query)
+                prefs[RECENT_SEARCHES_KEY] = JSONArray(current).toString()
+            }
+        }
+    }
 
     val monochromeLogos: StateFlow<Boolean> = dataStore.data
         .map { it[MONOCHROME_LOGOS_KEY] ?: false }
@@ -160,18 +278,16 @@ class MainViewModel(
         val token = SessionToken(appContext, ComponentName(appContext, PlayerService::class.java))
         controllerFuture = MediaController.Builder(appContext, token).buildAsync()
         controllerFuture?.addListener({
-            val ctrl = controllerFuture?.get() ?: return@addListener
-            controller = ctrl
-            ctrl.addListener(playerListener)
-            if (ctrl.currentMediaItem != null) {
+            controller = controllerFuture?.get()
+            controller?.addListener(playerListener)
+            controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
                 if (_currentStationId.value == null) {
-                    ctrl.currentMediaItem?.mediaId?.toLongOrNull()
-                        ?.let { _currentStationId.value = it }
+                    _currentStationId.value = id
+                    _isPlaying.value = controller?.isPlaying ?: false
+                    controller?.mediaMetadata?.artist?.toString()?.trim()
+                        ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+                        ?.let { _currentTrackTitle.value = it }
                 }
-                _isPlaying.value = ctrl.isPlaying
-                ctrl.mediaMetadata.artist?.toString()?.trim()
-                    ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
-                    ?.let { _currentTrackTitle.value = it }
             }
         }, ContextCompat.getMainExecutor(appContext))
     }
@@ -181,9 +297,11 @@ class MainViewModel(
     }
 
     fun toggleFavoritesFilter() {
-        val v = !_showFavoritesOnly.value
-        _showFavoritesOnly.value = v
-        getApplication<AerialApp>().showFavoritesOnly = v
+        _showFavoritesOnly.value = !_showFavoritesOnly.value
+    }
+
+    fun setFavoritesFilter(favOnly: Boolean) {
+        _showFavoritesOnly.value = favOnly
     }
 
     fun toggleFavorite(station: Station) {
@@ -243,8 +361,13 @@ class MainViewModel(
     }
 
     fun play(station: Station) {
-        _currentStationId.value = station.id
-        viewModelScope.launch { dataStore.edit { it[LAST_STATION_ID_KEY] = station.id } }
+        if (station.id == 0L) {
+            _ephemeralStation.value = station
+            _currentStationId.value = null
+        } else {
+            _ephemeralStation.value = null
+            _currentStationId.value = station.id
+        }
         _currentTrackTitle.value = null
         _currentTrackArtworkUrl.value = null
         _currentTrackArtworkData.value = null
@@ -293,15 +416,12 @@ class MainViewModel(
     }
 
     fun togglePlayback() {
-        val ctrl = controller ?: return
-        if (ctrl.isPlaying) {
-            ctrl.pause()
-        } else {
-            _playbackError.value = null
-            if (ctrl.currentMediaItem != null) {
-                ctrl.play()
+        controller?.let {
+            if (it.isPlaying) {
+                it.pause()
             } else {
-                _allStations.value.firstOrNull { it.id == _currentStationId.value }?.let { play(it) }
+                _playbackError.value = null
+                it.play()
             }
         }
     }
@@ -360,7 +480,6 @@ class MainViewModel(
             if (_currentStationId.value == station.id) {
                 controller?.stop()
                 _currentStationId.value = null
-                dataStore.edit { it.remove(LAST_STATION_ID_KEY) }
             }
             repository.delete(station)
             withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
@@ -400,10 +519,11 @@ private fun PlaybackException.userMessage(): String {
 class MainViewModelFactory(
     private val application: Application,
     private val repository: StationRepository,
+    private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
 ) : ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
-        return MainViewModel(application, repository, dataStore, extras.createSavedStateHandle()) as T
+        return MainViewModel(application, repository, registryRepository, dataStore, extras.createSavedStateHandle()) as T
     }
 }

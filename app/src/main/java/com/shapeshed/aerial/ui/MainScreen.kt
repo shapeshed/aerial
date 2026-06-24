@@ -33,19 +33,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -56,6 +49,8 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WifiOff
@@ -64,12 +59,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AppBarRow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,27 +78,40 @@ import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.toPath
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarValue
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.rememberContainedSearchBarState
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -115,19 +120,18 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -158,101 +162,107 @@ fun MainScreen(
 
     val haptic = LocalHapticFeedback.current
     val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
+    val registrySearchResults by viewModel.registrySearchResults.collectAsStateWithLifecycle()
+    val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
 
-    var searching by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var fabMenuExpanded by remember { mutableStateOf(false) }
-    var fabVisible by remember { mutableStateOf(true) }
+    val textFieldState = rememberTextFieldState()
+    val searchBarState = rememberContainedSearchBarState()
+    val isSearchExpanded by remember { derivedStateOf { searchBarState.currentValue == SearchBarValue.Expanded } }
+    val searchQueryText by remember { derivedStateOf { textFieldState.text.toString() } }
     var stationPendingDelete by remember { mutableStateOf<Station?>(null) }
-    val searchFocusRequester = remember { FocusRequester() }
-    val listState = rememberLazyListState()
-    val gridState = rememberLazyGridState()
 
-    val filteredStations = remember(stations, searchQuery) {
-        if (searchQuery.isBlank()) stations
-        else stations.filter { it.name.contains(searchQuery, ignoreCase = true) }
-    }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    val fabBottomPadding by animateDpAsState(
-        targetValue = if (currentStation != null) 120.dp else 16.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "fabBottom",
-    )
-    val fabOffsetY by animateDpAsState(
-        targetValue = if (fabVisible) 0.dp else fabBottomPadding + 128.dp,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "fabOffsetY",
-    )
-    val stationContentBottomPadding =
-        if (currentStation != null) 128.dp else 0.dp
+    val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
+
+    val stationContentBottomPadding = if (currentStation != null) 128.dp else 0.dp
     val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
     BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
-    BackHandler(enabled = searching) { searching = false; searchQuery = "" }
-    BackHandler(enabled = fabMenuExpanded) { fabMenuExpanded = false }
+    BackHandler(enabled = isSearchExpanded) {
+        textFieldState.edit { replace(0, length, "") }
+        viewModel.clearRegistrySearch()
+        scope.launch { searchBarState.animateToCollapsed() }
+    }
     BackHandler(enabled = stationPendingDelete != null) { stationPendingDelete = null }
 
     LaunchedEffect(Unit) { viewModel.connect(context) }
-    LaunchedEffect(searching) {
-        if (searching) searchFocusRequester.requestFocus()
+    LaunchedEffect(searchQueryText) {
+        if (searchQueryText.isNotBlank()) viewModel.searchRegistry(searchQueryText)
+        else viewModel.clearRegistrySearch()
     }
-    LaunchedEffect(showFavoritesOnly) {
-        listState.scrollToItem(0)
-        gridState.scrollToItem(0)
-    }
-    LaunchedEffect(currentStation?.id, filteredStations, isGridView) {
-        val id = currentStation?.id ?: return@LaunchedEffect
-        val index = filteredStations.indexOfFirst { it.id == id }
-        if (index == -1) return@LaunchedEffect
-        val isVisible = if (isGridView) {
-            gridState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        } else {
-            listState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        }
-        if (!isVisible) {
-            if (isGridView) gridState.animateScrollToItem(index) else listState.animateScrollToItem(index)
-        }
-    }
-    LaunchedEffect(recentlyAddedStationId, filteredStations, isGridView) {
+    LaunchedEffect(recentlyAddedStationId) {
         val stationId = recentlyAddedStationId ?: return@LaunchedEffect
-        val index = filteredStations.indexOfFirst { it.id == stationId }
-        if (index == -1) return@LaunchedEffect
-
-        if (isGridView) {
-            gridState.animateScrollToItem(index)
-        } else {
-            listState.animateScrollToItem(index)
-        }
         delay(1_500)
         viewModel.clearRecentlyAddedStation(stationId)
     }
-    LaunchedEffect(isGridView) {
-        fabVisible = true
-        val getIndex: () -> Int = if (isGridView) {
-            { gridState.firstVisibleItemIndex }
-        } else {
-            { listState.firstVisibleItemIndex }
-        }
-        val getOffset: () -> Int = if (isGridView) {
-            { gridState.firstVisibleItemScrollOffset }
-        } else {
-            { listState.firstVisibleItemScrollOffset }
-        }
-        var previousIndex = getIndex()
-        var previousOffset = getOffset()
-        snapshotFlow { getIndex() to getOffset() }
-            .collect { (index, offset) ->
-                if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
-                    fabVisible = false
-                    fabMenuExpanded = false
-                } else if (index < previousIndex || offset < previousOffset) {
-                    fabVisible = true
+
+    val searchInputField: @Composable () -> Unit = {
+        SearchBarDefaults.InputField(
+            textFieldState = textFieldState,
+            searchBarState = searchBarState,
+            onSearch = { viewModel.saveRecentSearch(it) },
+            placeholder = { Text("Search stations") },
+            leadingIcon = {
+                if (isSearchExpanded) {
+                    IconButton(
+                        onClick = {
+                            textFieldState.edit { replace(0, length, "") }
+                            viewModel.clearRegistrySearch()
+                            scope.launch { searchBarState.animateToCollapsed() }
+                        },
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                    }
+                } else {
+                    IconButton(
+                        onClick = { scope.launch { drawerState.open() } },
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
+                        Icon(Icons.Rounded.Menu, contentDescription = "Menu")
+                    }
                 }
-                previousIndex = index
-                previousOffset = offset
-            }
+            },
+            trailingIcon = {
+                if (isSearchExpanded && searchQueryText.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            textFieldState.edit { replace(0, length, "") }
+                            viewModel.clearRegistrySearch()
+                        },
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                    }
+                }
+            },
+        )
     }
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Text(
+                    text = "Aerial",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(28.dp),
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                    label = { Text("Settings") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onSettings()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
+        },
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -260,248 +270,36 @@ fun MainScreen(
     ) {
         Scaffold(
             modifier = Modifier.semantics { traversalIndex = 0f },
-            topBar = {
-                if (searching) {
-                    TopAppBar(
-                        title = {
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                ),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                decorationBox = { inner ->
-                                    Box(contentAlignment = Alignment.CenterStart) {
-                                        if (searchQuery.isEmpty()) {
-                                            Text(
-                                                text = "Search stations",
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        inner()
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(searchFocusRequester),
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { searching = false; searchQuery = "" },
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                            ) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Close search")
-                            }
-                        },
-                        actions = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { searchQuery = "" },
-                                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                                ) {
-                                    Icon(Icons.Rounded.Close, contentDescription = "Clear")
-                                }
-                            }
-                        },
-                    )
-                } else {
-                    TopAppBar(
-                        title = { Text("Aerial") },
-                        actions = {
-                            AppBarRow {
-                                customItem(
-                                    appbarContent = {
-                                        IconButton(
-                                            onClick = { searching = true },
-                                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                                        ) {
-                                            Icon(Icons.Rounded.Search, contentDescription = "Search")
-                                        }
-                                    },
-                                    menuContent = { menuState ->
-                                        DropdownMenuItem(
-                                            text = { Text("Search") },
-                                            onClick = { searching = true; menuState.dismiss() },
-                                        )
-                                    },
-                                )
-                                customItem(
-                                    appbarContent = {
-                                        IconButton(
-                                            onClick = onSettings,
-                                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                                        ) {
-                                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-                                        }
-                                    },
-                                    menuContent = { menuState ->
-                                        DropdownMenuItem(
-                                            text = { Text("Settings") },
-                                            onClick = { onSettings(); menuState.dismiss() },
-                                        )
-                                    },
-                                )
-                            }
-                        },
-                    )
-                }
-            },
+            contentWindowInsets = WindowInsets.navigationBars,
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding()),
-            ) {
+            Column(Modifier.fillMaxSize()) {
+                SearchBar(
+                    state = searchBarState,
+                    inputField = searchInputField,
+                    colors = SearchBarDefaults.containedColors(searchBarState),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(top = 8.dp, bottom = 8.dp),
+                )
+
                 if (!isOnline) {
                     NoNetworkState()
                 } else {
-                if (stations.isNotEmpty()) {
-                    StationControlRow(
-                        showFavoritesOnly = showFavoritesOnly,
-                        isGridView = isGridView,
-                        onToggleFavorites = { viewModel.toggleFavoritesFilter() },
-                        onSetGridView = { viewModel.setGridView(it) },
+                    HomeContent(
+                        stations = stations,
+                        currentStation = currentStation,
+                        isPlaying = isPlaying,
+                        isBuffering = isBuffering,
+                        monochromeLogos = monochromeLogos,
+                        bottomPadding = padding.calculateBottomPadding() + stationContentBottomPadding,
+                        onPlay = { viewModel.play(it) },
+                        onAddTapped = { scope.launch { searchBarState.animateToExpanded() } },
+                        onCategoryTap = { viewModel.playRandomFromCategory(it) },
                     )
-                }
-                if (filteredStations.isEmpty()) {
-                    if (stations.isEmpty() && searchQuery.isBlank() && !showFavoritesOnly) {
-                        NoStationsEmptyState(onGetStarted = onDiscover)
-                    } else {
-                        HomeEmptyState(
-                            text = when {
-                                searchQuery.isNotBlank() -> "No matching stations"
-                                showFavoritesOnly -> "No favorites yet"
-                                else -> "No stations yet"
-                            },
-                            supportingText = when {
-                                searchQuery.isNotBlank() -> "Try a different station name."
-                                showFavoritesOnly -> "Tap the heart on a station to find it here."
-                                else -> "Add a station to start listening."
-                            },
-                        )
-                    }
-                } else if (isGridView) {
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(
-                            top = 0.dp,
-                            bottom = padding.calculateBottomPadding() + stationContentBottomPadding,
-                            start = 8.dp,
-                            end = 8.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        gridItems(
-                            items = filteredStations,
-                            key = { it.id },
-                            contentType = { "station-card" },
-                        ) { station ->
-                            StationCard(
-                                station = station,
-                                isActive = currentStation?.id == station.id,
-                                isPlaying = isPlaying && currentStation?.id == station.id,
-                                isRecentlyAdded = recentlyAddedStationId == station.id,
-                                monochromeLogos = monochromeLogos,
-                                onClick = { viewModel.play(station) },
-                                onEdit = { onEditStation(station.id) },
-                                onDelete = { stationPendingDelete = station },
-                                onToggleFavorite = { viewModel.toggleFavorite(station) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = PaddingValues(
-                            top = 0.dp,
-                            bottom = padding.calculateBottomPadding() + stationContentBottomPadding,
-                        ),
-                    ) {
-                        items(
-                            items = filteredStations,
-                            key = { it.id },
-                            contentType = { "station-row" },
-                        ) { station ->
-                            val stationNowPlayingText = when {
-                                activeNowPlayingInfo?.track?.title != null -> activeNowPlayingInfo.track.title
-                                activeNowPlayingInfo?.programmeTitle != null -> activeNowPlayingInfo.programmeTitle
-                                else -> currentTrackTitle
-                            }
-                            StationItem(
-                                station = station,
-                                isActive = currentStation?.id == station.id,
-                                isPlaying = isPlaying && currentStation?.id == station.id,
-                                isBuffering = isBuffering && currentStation?.id == station.id,
-                                supportingText = if (currentStation?.id == station.id) {
-                                    playbackError
-                                        ?: stationNowPlayingText
-                                        ?: when {
-                                            isBuffering -> "Buffering"
-                                            isPlaying -> "Playing"
-                                            else -> "Paused"
-                                        }
-                                } else {
-                                    null
-                                },
-                                isRecentlyAdded = recentlyAddedStationId == station.id,
-                                monochromeLogos = monochromeLogos,
-                                onClick = { viewModel.play(station) },
-                                onEdit = { onEditStation(station.id) },
-                                onDelete = { stationPendingDelete = station },
-                                onToggleFavorite = { viewModel.toggleFavorite(station) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                }
                 }
             }
-        }
-
-        FloatingActionButtonMenu(
-            expanded = fabMenuExpanded,
-            button = {
-                ToggleFloatingActionButton(
-                    checked = fabMenuExpanded,
-                    onCheckedChange = { fabMenuExpanded = it },
-                ) {
-                    val iconColor = ToggleFloatingActionButtonDefaults.iconColor()
-                    val iconRotation by animateFloatAsState(
-                        targetValue = if (fabMenuExpanded) 45f else 0f,
-                        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
-                        label = "fabIconRotation",
-                    )
-
-                    Icon(
-                        imageVector = Icons.Rounded.Add,
-                        contentDescription = if (fabMenuExpanded) "Close menu" else "Add station",
-                        tint = iconColor(checkedProgress),
-                        modifier = Modifier.graphicsLayer { rotationZ = iconRotation },
-                    )
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(y = fabOffsetY)
-                .padding(end = 16.dp, bottom = fabBottomPadding),
-        ) {
-            FloatingActionButtonMenuItem(
-                onClick = { fabMenuExpanded = false; onAddStation() },
-                text = { Text("Add manually") },
-                icon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-            )
-            FloatingActionButtonMenuItem(
-                onClick = { fabMenuExpanded = false; onDiscover() },
-                text = { Text("Find a station") },
-                icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-            )
         }
 
         AnimatedVisibility(
@@ -674,7 +472,41 @@ fun MainScreen(
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
             }
         }
+
+        ExpandedFullScreenContainedSearchBar(
+            state = searchBarState,
+            inputField = searchInputField,
+        ) {
+            if (!isOnline) {
+                NoNetworkState()
+            } else if (searchQueryText.isBlank()) {
+                RecentSearches(
+                    searches = recentSearches,
+                    onSelect = { query ->
+                        textFieldState.edit { replace(0, length, query) }
+                        viewModel.searchRegistry(query)
+                    },
+                    onRemove = { viewModel.removeRecentSearch(it) },
+                )
+            } else {
+                RegistrySearchResults(
+                    results = registrySearchResults,
+                    savedStreamUrls = savedStreamUrls,
+                    onPlay = { station ->
+                        viewModel.saveRecentSearch(searchQueryText)
+                        viewModel.playFromRegistry(station)
+                        textFieldState.edit { replace(0, length, "") }
+                        viewModel.clearRegistrySearch()
+                        scope.launch { searchBarState.animateToCollapsed() }
+                    },
+                    onAdd = { viewModel.addFromRegistry(it) },
+                    onRemove = { viewModel.removeFromRegistry(it) },
+                    bottomPadding = 0.dp,
+                )
+            }
+        }
     }
+    } // end ModalNavigationDrawer
 
     stationPendingDelete?.let { station ->
         AlertDialog(
@@ -700,75 +532,139 @@ fun MainScreen(
     }
 }
 
+
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private fun StationControlRow(
-    showFavoritesOnly: Boolean,
-    isGridView: Boolean,
-    onToggleFavorites: () -> Unit,
-    onSetGridView: (Boolean) -> Unit,
+private fun RecentSearches(
+    searches: List<String>,
+    onSelect: (String) -> Unit,
+    onRemove: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ToggleButton(
-            checked = showFavoritesOnly,
-            onCheckedChange = { onToggleFavorites() },
-            colors = ToggleButtonDefaults.tonalToggleButtonColors(),
-        ) {
-            Icon(
-                imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-            Text("Favourites")
-        }
-        Spacer(Modifier.weight(1f))
-        ButtonGroup(
-            overflowIndicator = {},
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            customItem(
-                buttonGroupContent = {
-                    ToggleButton(
-                        checked = !isGridView,
-                        onCheckedChange = { if (it) onSetGridView(false) },
-                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                        colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+    if (searches.isEmpty()) return
+    LazyColumn {
+        items(items = searches, key = { it }) { query ->
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable { onSelect(query) },
+                leadingContent = {
+                    Icon(
+                        Icons.Rounded.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                headlineContent = {
+                    Text(query, style = MaterialTheme.typography.bodyLarge)
+                },
+                trailingContent = {
+                    IconButton(
+                        onClick = { onRemove(query) },
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ViewList,
-                            contentDescription = "List view",
-                            modifier = Modifier.size(18.dp),
-                        )
+                        Icon(Icons.Rounded.Close, contentDescription = "Remove", modifier = Modifier.size(18.dp))
                     }
                 },
-                menuContent = {},
-            )
-            customItem(
-                buttonGroupContent = {
-                    ToggleButton(
-                        checked = isGridView,
-                        onCheckedChange = { if (it) onSetGridView(true) },
-                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                        colors = ToggleButtonDefaults.tonalToggleButtonColors(),
-                    ) {
-                        Icon(
-                            Icons.Rounded.GridView,
-                            contentDescription = "Grid view",
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                },
-                menuContent = {},
             )
         }
     }
 }
+
+@Composable
+private fun RegistrySearchResults(
+    results: List<RegistryStation>,
+    savedStreamUrls: Set<String>,
+    onPlay: (RegistryStation) -> Unit,
+    onAdd: (RegistryStation) -> Unit,
+    onRemove: (RegistryStation) -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+) {
+    if (results.isEmpty()) {
+        HomeEmptyState(
+            text = "No stations found",
+            supportingText = "Try searching by name, country, or genre.",
+        )
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = bottomPadding),
+        ) {
+            items(
+                items = results,
+                key = { it.id },
+                contentType = { "registry-result" },
+            ) { station ->
+                val alreadySaved = station.streamUrl in savedStreamUrls
+                RegistryResultItem(
+                    station = station,
+                    alreadySaved = alreadySaved,
+                    onTap = { onPlay(station) },
+                    onAdd = { onAdd(station) },
+                    onRemove = { onRemove(station) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RegistryResultItem(
+    station: RegistryStation,
+    alreadySaved: Boolean,
+    onTap: () -> Unit,
+    onAdd: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    ListItem(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
+        leadingContent = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                if (station.logoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = station.logoUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            }
+        },
+        headlineContent = {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = if (station.country.isNotBlank()) {
+            { Text(station.country, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        } else null,
+        trailingContent = {
+            IconButton(
+                onClick = if (alreadySaved) onRemove else onAdd,
+                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+            ) {
+                Icon(
+                    imageVector = if (alreadySaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = if (alreadySaved) "Remove from favorites" else "Save to favorites",
+                    tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        },
+    )
+}
+
 
 @Composable
 private fun NoNetworkState() {
@@ -906,6 +802,220 @@ private fun HomeEmptyState(
 }
 
 
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun HomeContent(
+    stations: List<Station>,
+    currentStation: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    monochromeLogos: Boolean,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    onPlay: (Station) -> Unit,
+    onAddTapped: () -> Unit,
+    onCategoryTap: (String) -> Unit,
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
+    val onSecondary = MaterialTheme.colorScheme.onSecondary
+    val onTertiary = MaterialTheme.colorScheme.onTertiary
+    val tileColors = listOf(primary, secondary, tertiary)
+    val tileContentColors = listOf(onPrimary, onSecondary, onTertiary)
+
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+    ) {
+        item("tap-to-listen") {
+            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                Text(
+                    text = "Tap to listen",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                )
+                val totalTiles = stations.size + 1
+                val rows = (0 until totalTiles).toList().chunked(3)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                ) {
+                    rows.forEach { rowIndices ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            rowIndices.forEach { idx ->
+                                if (idx < stations.size) {
+                                    val station = stations[idx]
+                                    val colorIdx = (station.id % tileColors.size).toInt().coerceAtLeast(0)
+                                    StationTile(
+                                        station = station,
+                                        tileColor = tileColors[colorIdx],
+                                        contentColor = tileContentColors[colorIdx],
+                                        isActive = currentStation?.id == station.id,
+                                        isPlaying = isPlaying && currentStation?.id == station.id,
+                                        isBuffering = isBuffering && currentStation?.id == station.id,
+                                        onClick = { onPlay(station) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                } else {
+                                    AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
+                                }
+                            }
+                            repeat(3 - rowIndices.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item("just-listen-header") {
+            Text(
+                text = "Just listen",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+            )
+        }
+        item("just-listen-pills") {
+            CategoryPills(
+                onCategoryTap = onCategoryTap,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun StationTile(
+    station: Station,
+    tileColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
+    ) {
+        val logoModel = when {
+            station.logoPath.startsWith("http") -> station.logoPath
+            station.logoPath.isNotEmpty() -> File(station.logoPath)
+            else -> null
+        }
+        var logoFailed by remember(logoModel) { mutableStateOf(false) }
+
+        Surface(
+            onClick = onClick,
+            color = tileColor,
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                if (logoModel != null && !logoFailed) {
+                    AsyncImage(
+                        model = logoModel,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        onError = { logoFailed = true },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)),
+                    )
+                }
+                when {
+                    isBuffering -> CircularWavyProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        color = contentColor,
+                        trackColor = contentColor.copy(alpha = 0.3f),
+                    )
+                    isActive && isPlaying -> EqualizerBars(
+                        color = contentColor,
+                        modifier = Modifier.size(width = 26.dp, height = 20.dp),
+                        barCount = 3,
+                    )
+                    else -> Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = "Play ${station.name}",
+                        tint = contentColor,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
+    ) {
+        Surface(
+            onClick = onClick,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = MaterialTheme.shapes.extraLarge,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Find a station",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+        }
+        Text(
+            text = "Find one to listen to",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun CategoryPills(
+    onCategoryTap: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val categories = listOf("Pop", "News", "Dance", "Rock")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier,
+    ) {
+        categories.forEach { category ->
+            SuggestionChip(
+                onClick = { onCategoryTap(category) },
+                label = { Text(category) },
+            )
+        }
+    }
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
