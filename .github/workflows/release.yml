@@ -76,14 +76,14 @@ jobs:
           sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aerial-release-apk
           path: app/build/release-assets/*
           if-no-files-found: error
 
       - name: Upload Play artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aerial-play-aab
           path: app/build/play-assets/*
