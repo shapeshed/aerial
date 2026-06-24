@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -144,6 +145,9 @@ fun MainScreen(
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val bitrateKbps by viewModel.bitrateKbps.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
+    val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
+    val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
+    val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val isGridView by viewModel.isGridView.collectAsStateWithLifecycle()
     val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
@@ -153,7 +157,8 @@ fun MainScreen(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 
     val haptic = LocalHapticFeedback.current
-    var showNowPlaying by remember { mutableStateOf(false) }
+    val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
+
     var searching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var fabMenuExpanded by remember { mutableStateOf(false) }
@@ -180,8 +185,9 @@ fun MainScreen(
     )
     val stationContentBottomPadding =
         if (currentStation != null) 128.dp else 0.dp
+    val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
-    BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
+    BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
     BackHandler(enabled = searching) { searching = false; searchQuery = "" }
     BackHandler(enabled = fabMenuExpanded) { fabMenuExpanded = false }
     BackHandler(enabled = stationPendingDelete != null) { stationPendingDelete = null }
@@ -423,19 +429,27 @@ fun MainScreen(
                             key = { it.id },
                             contentType = { "station-row" },
                         ) { station ->
+                            val stationNowPlayingText = when {
+                                activeNowPlayingInfo?.track?.title != null -> activeNowPlayingInfo.track.title
+                                activeNowPlayingInfo?.programmeTitle != null -> activeNowPlayingInfo.programmeTitle
+                                else -> currentTrackTitle
+                            }
                             StationItem(
                                 station = station,
                                 isActive = currentStation?.id == station.id,
                                 isPlaying = isPlaying && currentStation?.id == station.id,
                                 isBuffering = isBuffering && currentStation?.id == station.id,
-                                supportingText = if (currentStation?.id == station.id)
-                                    playbackError ?: currentTrackTitle ?: when {
-                                        isBuffering -> "Buffering"
-                                        isPlaying -> "Playing"
-                                        else -> "Paused"
-                                    }
-                                else
-                                    null,
+                                supportingText = if (currentStation?.id == station.id) {
+                                    playbackError
+                                        ?: stationNowPlayingText
+                                        ?: when {
+                                            isBuffering -> "Buffering"
+                                            isPlaying -> "Playing"
+                                            else -> "Paused"
+                                        }
+                                } else {
+                                    null
+                                },
                                 isRecentlyAdded = recentlyAddedStationId == station.id,
                                 monochromeLogos = monochromeLogos,
                                 onClick = { viewModel.play(station) },
@@ -500,11 +514,20 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val statusText = playbackError
+                val miniPlayerTitle = activeNowPlayingInfo?.track?.artist
+                    ?: activeNowPlayingInfo?.programmeTitle
+                    ?: station.name
+                val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else currentTrackTitle
-                    ?: if (isPlaying) "Playing"
-                    else "Paused"
+                    else when {
+                        activeNowPlayingInfo?.track?.title != null &&
+                            activeNowPlayingInfo.track.title != miniPlayerTitle -> activeNowPlayingInfo.track.title
+                        activeNowPlayingInfo?.programmeSubtitle != null &&
+                            activeNowPlayingInfo.programmeSubtitle != miniPlayerTitle -> activeNowPlayingInfo.programmeSubtitle
+                        currentTrackTitle != null && currentTrackTitle != miniPlayerTitle -> currentTrackTitle
+                        isPlaying -> "Playing"
+                        else -> "Paused"
+                    }
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -520,7 +543,40 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                            val miniArtworkModel = with(activeNowPlayingInfo) {
+                                when {
+                                    this?.track?.artworkData != null -> this.track.artworkData
+                                    !this?.track?.artworkUrl.isNullOrBlank() -> this?.track?.artworkUrl
+                                    this?.artworkData != null -> this.artworkData
+                                    !this?.artworkUrl.isNullOrBlank() -> this?.artworkUrl
+                                    else -> null
+                                }
+                            }
+                            var miniArtworkFailed by remember(miniArtworkModel) { mutableStateOf(false) }
+                            AnimatedContent(
+                                targetState = if (miniArtworkFailed) null else miniArtworkModel,
+                                transitionSpec = {
+                                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
+                                },
+                                label = "miniPlayerArtwork",
+                            ) { model ->
+                                if (model != null) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        modifier = Modifier.size(52.dp),
+                                    ) {
+                                        AsyncImage(
+                                            model = model,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            onError = { miniArtworkFailed = true },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                } else {
+                                    StationAvatar(station = station, isActive = true, size = 52.dp, monochrome = monochromeLogos)
+                                }
+                            }
                         },
                         trailingContent = {
                             Surface(
@@ -567,18 +623,19 @@ fun MainScreen(
                         Column(
                             modifier = Modifier
                                 .width(columnWidth)
-                                .clickable { showNowPlaying = true }
+                                .clickable { viewModel.setShowNowPlaying(true) }
                                 .padding(horizontal = 14.dp),
                             verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                text = station.name,
+                                text = miniPlayerTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (miniPlayerSubtitle != null) {
                             Text(
-                                text = statusText,
+                                text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -587,27 +644,34 @@ fun MainScreen(
                     }
                 }
             }
+            }
         }
 
         AnimatedVisibility(
-            visible = showNowPlaying && currentStation != null,
+            visible = showNowPlaying,
             enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
         ) {
-            currentStation?.let { station ->
+            val station = currentStation
+            if (station != null) {
                 NowPlayingScreen(
                     station = station,
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
                     bitrateKbps = bitrateKbps,
                     showBitrate = showBitrate,
+                    nowPlayingInfo = activeNowPlayingInfo,
                     currentTrackTitle = currentTrackTitle,
+                    currentTrackArtworkData = currentTrackArtworkData,
+                    currentTrackArtworkUrl = currentTrackArtworkUrl,
                     monochromeLogos = monochromeLogos,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
-                    onDismiss = { showNowPlaying = false },
+                    onDismiss = { viewModel.setShowNowPlaying(false) },
                 )
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
             }
         }
     }

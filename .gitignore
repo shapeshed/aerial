@@ -22,6 +22,8 @@ workspace.xml
 /js/js.translator/testData/out-pir/
 .gradle/
 build/
+.idea/
+gradle/gradle-daemon-jvm.properties
 !**/src/**/build
 !**/test/**/build
 !**/tests-gen/**/build
