@@ -87,13 +87,10 @@ fun NowPlayingScreen(
     station: Station,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    bitrateKbps: Int?,
-    showBitrate: Boolean = false,
     nowPlayingInfo: NowPlayingInfo? = null,
     currentTrackTitle: String?,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
-    monochromeLogos: Boolean = false,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
@@ -132,7 +129,7 @@ fun NowPlayingScreen(
     }
     val trackArtworkModel = when {
         track?.artworkData != null -> track.artworkData
-        !track?.artworkUrl.isNullOrBlank() -> track!!.artworkUrl
+        track?.artworkUrl?.isNotBlank() == true -> track.artworkUrl
         currentTrackArtworkData != null -> currentTrackArtworkData
         !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null
@@ -141,12 +138,6 @@ fun NowPlayingScreen(
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
     LaunchedEffect(showTrackBlock) { if (!showTrackBlock) showTrackDetail = false }
-    val bitrateText = when {
-        bitrateKbps == null -> null
-        showBitrate -> "$bitrateKbps kbps"
-        bitrateKbps >= 128 -> "HD"
-        else -> null
-    }
 
     Scaffold(
         modifier = Modifier
@@ -223,7 +214,6 @@ fun NowPlayingScreen(
                                 station = station,
                                 isActive = true,
                                 size = 200.dp,
-                                monochrome = monochromeLogos,
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         }
@@ -245,7 +235,6 @@ fun NowPlayingScreen(
                                 station = station,
                                 isActive = false,
                                 size = 44.dp,
-                                monochrome = monochromeLogos,
                             )
                         }
                     }
@@ -280,20 +269,6 @@ fun NowPlayingScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.semantics { traversalIndex = 3f },
                 )
-            }
-            if (bitrateText != null) {
-                Spacer(Modifier.height(16.dp))
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Text(
-                        text = bitrateText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
             }
             Spacer(Modifier.height(44.dp))
             Row(
@@ -534,7 +509,6 @@ fun NowPlayingScreen(
                                 station = station,
                                 isActive = false,
                                 size = 96.dp,
-                                monochrome = monochromeLogos,
                             )
                         }
                     }

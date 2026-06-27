@@ -59,17 +59,15 @@ Before committing a release, run:
 scripts/prepare-release.sh
 ```
 
-This refreshes the bundled Radio Browser fallback cache, runs the Gradle release
+This refreshes the bundled Aerial registry cache, runs the Gradle release
 gate, validates the Fastlane changelog, and runs F-Droid metadata validation
-against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available. It also
-builds the Play AAB alongside the GitHub release APK.
+against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available.
 
-Then commit and tag. The developer reviews and signs commits/tags locally; do
-not bypass signing unless explicitly asked.
+Then commit when the local release candidate is ready. Do not tag, push, or
+upload to Google Play unless explicitly asked.
 
 ```sh
 git commit -S -m "chore(release): v0.1.1"
-git tag -s v0.1.1 -m "v0.1.1"
 ```
 
 ## Signing
@@ -102,11 +100,12 @@ Android device:
 scripts/capture-screenshots.sh
 ```
 
-The script captures the Mango flow in light and dark mode:
+The script captures a Mango-oriented product flow in light and dark mode:
 
-1. Search for `Mango`
-2. Home list view with Mango playing
-3. Expanded radio view with Mango playing
+1. Station discovery search for `Mango`
+2. Home favorites view with Mango playing
+3. Expanded now playing view with Mango playing
+4. Settings with playback detail and backup controls
 
 It updates:
 
@@ -117,11 +116,11 @@ fastlane/metadata/android/en-US/images/phoneScreenshots/
 
 ## Offline Station Cache
 
-The app bundles `app/src/main/res/raw/fallback_stations.json` for offline
-station discovery fallback. Refresh it before releases:
+The app bundles `app/src/main/assets/registry.json.gz` as the offline seed for
+the Aerial station registry. Refresh it before release candidates:
 
 ```sh
-scripts/refresh-radio-browser-cache.sh
+scripts/refresh-registry-cache.sh
 ```
 
 Do not move this fetch into Gradle. The checked-in JSON keeps GitHub and
@@ -197,10 +196,10 @@ https://gitlab.com/fdroid/fdroiddata/-/merge_requests/40759
   in the app rather than introducing custom interaction styles.
 - Use Material's default typography unless there is a strong reason to add a
   custom font; avoid bundling fonts for styling alone.
-- The add-station FAB uses Material 3 expressive `ToggleFloatingActionButton`.
-- The FAB moves off the bottom of the screen while scrolling and accounts for
-  the mini-player height.
-- List and grid content padding should both clear the mini-player when active.
+- The home screen favors direct tiles for favorites, featured stations, and
+  quick genre playback.
+- Add-station entry points should use clear language like `Add a station`.
+- Home content should clear the mini-player when active.
 
 ## Git Hygiene
 

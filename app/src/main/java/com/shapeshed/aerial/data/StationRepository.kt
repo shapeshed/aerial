@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 class StationRepository(private val dao: StationDao) {
     fun getAll(): Flow<List<Station>> = dao.getAll()
     suspend fun getById(id: Long): Station? = dao.getById(id)
+    suspend fun getByStreamUrl(streamUrl: String): Station? = dao.getByStreamUrl(streamUrl)
     suspend fun insert(station: Station): Long = dao.insert(station)
     suspend fun update(station: Station) = dao.update(station)
     suspend fun delete(station: Station) = dao.delete(station)
@@ -13,7 +14,6 @@ class StationRepository(private val dao: StationDao) {
         val existing = findExisting(station)
         if (existing != null) {
             val updated = existing.copy(
-                radioBrowserUuid = existing.radioBrowserUuid.ifBlank { station.radioBrowserUuid },
                 logoPath = existing.logoPath.ifBlank { station.logoPath },
             )
             if (updated != existing) dao.update(updated)
@@ -32,10 +32,25 @@ class StationRepository(private val dao: StationDao) {
         }
     }
 
+    suspend fun updateStreamUrlsFromRegistry(stations: List<RegistryStation>) {
+        stations.forEach { s ->
+            if (s.provider.isNotBlank() && s.providerId.isNotBlank()) {
+                dao.updateStreamUrlByProviderId(s.provider, s.providerId, s.streamUrl)
+            }
+        }
+    }
+
+    suspend fun saveAsFavorite(station: Station): Long {
+        val existing = findExisting(station)
+        return if (existing != null) {
+            if (!existing.isFavorite) dao.update(existing.copy(isFavorite = true))
+            existing.id
+        } else {
+            dao.insert(station.copy(id = 0, isFavorite = true))
+        }
+    }
+
     private suspend fun findExisting(station: Station): Station? {
-        return station.radioBrowserUuid
-            .takeIf { it.isNotBlank() }
-            ?.let { dao.getByRadioBrowserUuid(it) }
-            ?: dao.getByStreamUrl(station.streamUrl)
+        return dao.getByStreamUrl(station.streamUrl)
     }
 }

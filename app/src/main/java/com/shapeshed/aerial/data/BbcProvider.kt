@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 class BbcProvider : Provider {
-    override fun discoverStations() = discoverBbcStations()
     private var job: Job? = null
     private var transitionSignal = Channel<Unit>(Channel.CONFLATED)
     private var lastPublishedInfo: NowPlayingInfo? = null

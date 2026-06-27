@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-27
+
+### Added
+
+- Aerial station registry with featured stations, country and genre filters, and quick genre playback.
+- Home screen favorites tiles with a mini-player and expanded now playing flow.
+- `Show what's playing` setting for song, artist, and artwork details when stations provide them.
+- Repeatable quality task for compile, lint, and unit test checks.
+
+### Changed
+
+- Station discovery, home playback, now playing, and settings UI were simplified around the new tile-based experience.
+- Add-station entry points now use clearer `Add a station` language.
+- Store screenshots and metadata now showcase discovery, favorites playback, now playing, and settings.
+- Backup export/import now focuses on stations and saved logos.
+
+### Removed
+
+- Monochrome logo setting.
+- Bitrate display setting and user-facing bitrate/HD badges.
+- Legacy Radio Browser search, fallback cache, voting/click tracking, and bundled fallback JSON.
+- Debug-only provider station import flow and its provider discovery helpers.
+- Obsolete list/grid view state and unused resources left behind by the UI refactor.
+
 ### Fixed
 
 - Tapping media notification controls no longer creates a new activity when the app is already running.

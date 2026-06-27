@@ -1,12 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
-    <string name="add_station">Add station</string>
-    <string name="delete_station">Delete station</string>
-    <string name="station_name">Name</string>
-    <string name="stream_url">Stream URL</string>
-    <string name="action_add">Add</string>
-    <string name="action_cancel">Cancel</string>
-    <string name="action_play">Play</string>
-    <string name="action_pause">Pause</string>
 </resources>

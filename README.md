@@ -14,27 +14,30 @@ Light mode:
 
 <p>
   <img src="docs/screenshots/find-station-light.png" alt="Find a station in Aerial in light mode" width="220">
-  <img src="docs/screenshots/home-playing-light.png" alt="Aerial station list while playing in light mode" width="220">
+  <img src="docs/screenshots/home-playing-light.png" alt="Aerial favorites while playing in light mode" width="220">
   <img src="docs/screenshots/now-playing-light.png" alt="Aerial now playing view in light mode" width="220">
+  <img src="docs/screenshots/settings-light.png" alt="Aerial settings in light mode" width="220">
 </p>
 
 Dark mode:
 
 <p>
   <img src="docs/screenshots/find-station.png" alt="Find a station in Aerial" width="220">
-  <img src="docs/screenshots/home-playing.png" alt="Aerial station list while playing" width="220">
+  <img src="docs/screenshots/home-playing.png" alt="Aerial favorites while playing" width="220">
   <img src="docs/screenshots/now-playing.png" alt="Aerial now playing view" width="220">
+  <img src="docs/screenshots/settings.png" alt="Aerial settings" width="220">
 </p>
 
 ## Features
 
-- Search for stations using the [Radio Browser][1] API.
+- Search for stations from the bundled Aerial registry, refreshed from the Aerial service.
 - Add stations manually when a stream URL is known.
 - Play live streams with Android media controls.
 - Save favorite stations.
-- Switch between list and grid station views.
+- Browse favorite stations, featured stations, and quick genre shortcuts.
+- Show song, artist, and artwork when stations provide playback details.
 - Store station logos locally for faster loading.
-- Export and import stations, settings, and saved logos as a zip backup.
+- Export and import stations and saved logos as a zip backup.
 - Adaptive launcher icon with Android themed icon support.
 
 ## Data And Backup
@@ -56,5 +59,3 @@ for the full privacy policy.
 ## License
 
 Aerial is licensed under the Apache License, Version 2.0. See `LICENSE`.
-
-[1]: https://www.radio-browser.info/

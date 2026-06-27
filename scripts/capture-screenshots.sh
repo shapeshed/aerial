@@ -13,9 +13,10 @@ usage() {
 Capture repeatable Aerial screenshots from a connected Android device.
 
 The script captures:
-  1. Searching for "Mango"
-  2. Home list view with Mango playing
-  3. Expanded radio view with Mango playing
+  1. Station discovery search for "Mango"
+  2. Home favorites view with Mango playing
+  3. Expanded now playing view with Mango playing
+  4. Settings with backup and playback detail controls
 
 It captures the set in light mode and then dark mode, updating:
   docs/screenshots/
@@ -32,6 +33,8 @@ Before running:
   - Install a debug or release build on the device.
   - Unlock the device and keep it awake.
   - Be ready to manually navigate to each prompted screen.
+  - For the best store screenshots, add Mango as a favorite before capturing
+    the home and now playing screens.
 USAGE
 }
 
@@ -90,12 +93,14 @@ copy_fastlane_screenshots() {
   mkdir -p "$FASTLANE_DIR"
   find "$FASTLANE_DIR" -maxdepth 1 -type f -name '*.png' -delete
 
-  cp "$DOCS_DIR/find-station-light.png" "$FASTLANE_DIR/01-search-mango-light.png"
-  cp "$DOCS_DIR/home-playing-light.png" "$FASTLANE_DIR/02-home-playing-mango-light.png"
-  cp "$DOCS_DIR/now-playing-light.png" "$FASTLANE_DIR/03-radio-view-mango-light.png"
-  cp "$DOCS_DIR/find-station.png" "$FASTLANE_DIR/04-search-mango-dark.png"
-  cp "$DOCS_DIR/home-playing.png" "$FASTLANE_DIR/05-home-playing-mango-dark.png"
-  cp "$DOCS_DIR/now-playing.png" "$FASTLANE_DIR/06-radio-view-mango-dark.png"
+  cp "$DOCS_DIR/find-station-light.png" "$FASTLANE_DIR/01-discover-stations-light.png"
+  cp "$DOCS_DIR/home-playing-light.png" "$FASTLANE_DIR/02-home-favorites-playing-light.png"
+  cp "$DOCS_DIR/now-playing-light.png" "$FASTLANE_DIR/03-now-playing-light.png"
+  cp "$DOCS_DIR/settings-light.png" "$FASTLANE_DIR/04-settings-light.png"
+  cp "$DOCS_DIR/find-station.png" "$FASTLANE_DIR/05-discover-stations-dark.png"
+  cp "$DOCS_DIR/home-playing.png" "$FASTLANE_DIR/06-home-favorites-playing-dark.png"
+  cp "$DOCS_DIR/now-playing.png" "$FASTLANE_DIR/07-now-playing-dark.png"
+  cp "$DOCS_DIR/settings.png" "$FASTLANE_DIR/08-settings-dark.png"
 }
 
 capture_theme() {
@@ -108,15 +113,19 @@ capture_theme() {
 
   capture \
     "$DOCS_DIR/find-station${suffix}.png" \
-    "Open Add Station / Find a station and search for \"Mango\"."
+    "Open Add a station / Find a station and search for \"Mango\". Show search results."
 
   capture \
     "$DOCS_DIR/home-playing${suffix}.png" \
-    "Return to the home list view and start playing Mango."
+    "Return to Home. Make sure Mango is visible in favorites and playing from the mini player."
 
   capture \
     "$DOCS_DIR/now-playing${suffix}.png" \
-    "Open the expanded radio view by tapping the mini player while Mango is playing."
+    "Open the expanded now playing view while Mango is playing. If available, show artwork and track details."
+
+  capture \
+    "$DOCS_DIR/settings${suffix}.png" \
+    "Open Settings. Show \"Show what's playing\", Export backup, and Import backup."
 }
 
 main() {

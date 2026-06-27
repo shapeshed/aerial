@@ -28,7 +28,6 @@ interface Provider {
     fun stop()
     fun notifyTransition()
     fun onIcyTitle(rawTitle: String) {}
-    fun discoverStations(): List<DiscoveredStation> = emptyList()
 }
 
 object NowPlayingStore {

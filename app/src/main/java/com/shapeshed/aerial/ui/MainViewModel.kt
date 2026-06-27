@@ -4,26 +4,22 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
-import androidx.annotation.OptIn
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.json.JSONArray
+import org.json.JSONObject
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Tracks
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
@@ -31,7 +27,6 @@ import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
-import com.shapeshed.aerial.data.RadioBrowserApi
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
@@ -41,11 +36,14 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -53,8 +51,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
 private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
+private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
+private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
+private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 private const val MAX_RECENT_SEARCHES = 5
 
 class MainViewModel(
@@ -70,8 +70,11 @@ class MainViewModel(
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    private val _popularTags = MutableStateFlow<List<String>>(emptyList())
-    val popularTags: StateFlow<List<String>> = _popularTags.asStateFlow()
+    private val _allTags = MutableStateFlow<List<String>>(emptyList())
+    val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
+
+    private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -79,26 +82,31 @@ class MainViewModel(
             _isInitialized.value = true
         }
         viewModelScope.launch {
-            _popularTags.value = registryRepository.popularTags()
+            restoreLastPlayedStation()
+        }
+        viewModelScope.launch {
+            registryRepository.countAsFlow()
+                .filter { it > 0 }
+                .distinctUntilChanged()
+                .collect {
+                    _featuredStations.value = registryRepository.featuredStations()
+                    _availableCountries.value = registryRepository.availableCountryCodes()
+                    _allTags.value = registryRepository.availableTags()
+                }
+        }
+        viewModelScope.launch {
+            val prefs = dataStore.data.first()
+            _selectedCountries.value = prefs[SEARCH_COUNTRIES_KEY]
+                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            _selectedTags.value = prefs[SEARCH_TAGS_KEY]
+                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
         }
     }
-
-    val isGridView: StateFlow<Boolean> = dataStore.data
-        .map { prefs -> prefs[GRID_VIEW_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    private val _showFavoritesOnly = MutableStateFlow(false)
-    val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val stations: StateFlow<List<Station>> = combine(
-        _allStations,
-        _showFavoritesOnly,
-    ) { list, favOnly ->
-        if (favOnly) list.filter { it.isFavorite } else list
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val stations: StateFlow<List<Station>> = _allStations
 
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
@@ -118,9 +126,6 @@ class MainViewModel(
 
     private val _isBuffering = MutableStateFlow(false)
     val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
-
-    private val _bitrateKbps = MutableStateFlow<Int?>(null)
-    val bitrateKbps: StateFlow<Int?> = _bitrateKbps.asStateFlow()
 
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
@@ -149,14 +154,78 @@ class MainViewModel(
     private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
     val registrySearchResults: StateFlow<List<RegistryStation>> = _registrySearchResults.asStateFlow()
 
+    private val _selectedCountries = MutableStateFlow<Set<String>>(emptySet())
+    val selectedCountries: StateFlow<Set<String>> = _selectedCountries.asStateFlow()
+
+    private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTags: StateFlow<Set<String>> = _selectedTags.asStateFlow()
+
+
+
+    private val _availableCountries = MutableStateFlow<List<String>>(emptyList())
+    val availableCountries: StateFlow<List<String>> = _availableCountries.asStateFlow()
+
+    private var _lastSearchQuery = ""
+    private var searchJob: Job? = null
+
     fun searchRegistry(query: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _registrySearchResults.value = registryRepository.search(query)
+        _lastSearchQuery = query
+        runSearch(query)
+    }
+
+    fun toggleCountryFilter(country: String) {
+        _selectedCountries.value = _selectedCountries.value.let {
+            if (it.contains(country)) it - country else it + country
+        }
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun toggleTagFilter(tag: String) {
+        _selectedTags.value = _selectedTags.value.let {
+            if (it.contains(tag)) it - tag else it + tag
+        }
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun clearCountryFilter() {
+        _selectedCountries.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun clearTagFilter() {
+        _selectedTags.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    private fun persistFilters() {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[SEARCH_COUNTRIES_KEY] = _selectedCountries.value.joinToString(",")
+                prefs[SEARCH_TAGS_KEY] = _selectedTags.value.joinToString(",")
+            }
         }
     }
 
-    fun clearRegistrySearch() {
-        _registrySearchResults.value = emptyList()
+    private fun runSearch(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            _registrySearchResults.value = registryRepository.search(
+                query = query,
+                countryCodes = _selectedCountries.value,
+                tags = _selectedTags.value,
+            )
+        }
+    }
+
+    fun clearAllFilters() {
+        _selectedCountries.value = emptySet()
+        _selectedTags.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
     }
 
     fun playRandomFromCategory(tag: String) {
@@ -190,6 +259,8 @@ class MainViewModel(
                     streamUrl = registryStation.streamUrl,
                     logoPath = localLogoPath,
                     isFavorite = true,
+                    provider = registryStation.provider,
+                    providerId = registryStation.providerId,
                 ),
             )
             _recentlyAddedStationId.value = stationId
@@ -199,25 +270,6 @@ class MainViewModel(
     fun removeFromRegistry(registryStation: RegistryStation) {
         val station = _allStations.value.find { it.streamUrl == registryStation.streamUrl } ?: return
         deleteStation(station)
-    }
-
-    fun addAndPlayFromRegistry(registryStation: RegistryStation) {
-        viewModelScope.launch {
-            val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
-                withContext(Dispatchers.IO) { downloadLogo(registryStation.logoUrl) } ?: registryStation.logoUrl
-            } else {
-                ""
-            }
-            val station = Station(
-                name = registryStation.name,
-                streamUrl = registryStation.streamUrl,
-                logoPath = localLogoPath,
-                isFavorite = true,
-            )
-            val stationId = repository.insertOrGetExisting(station)
-            _recentlyAddedStationId.value = stationId
-            play(station.copy(id = stationId))
-        }
     }
 
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
@@ -267,14 +319,6 @@ class MainViewModel(
         }
     }
 
-    val monochromeLogos: StateFlow<Boolean> = dataStore.data
-        .map { it[MONOCHROME_LOGOS_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val showBitrate: StateFlow<Boolean> = dataStore.data
-        .map { it[SHOW_BITRATE_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
@@ -287,40 +331,37 @@ class MainViewModel(
             controller = controllerFuture?.get()
             controller?.addListener(playerListener)
             controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
-                if (_currentStationId.value == null) {
-                    _currentStationId.value = id
+                val station = _allStations.value.firstOrNull { it.id == id }
+                if (station != null) {
+                    _currentStationId.value = station.id
+                    if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+                        _ephemeralStation.value = null
+                    }
                     _isPlaying.value = controller?.isPlaying ?: false
                     controller?.mediaMetadata?.artist?.toString()?.trim()
                         ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
                         ?.let { _currentTrackTitle.value = it }
+                } else if (_currentStationId.value == null) {
+                    _isPlaying.value = controller?.isPlaying ?: false
                 }
             }
         }, ContextCompat.getMainExecutor(appContext))
     }
 
-    fun setGridView(gridView: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[GRID_VIEW_KEY] = gridView } }
-    }
-
-    fun toggleFavoritesFilter() {
-        _showFavoritesOnly.value = !_showFavoritesOnly.value
-    }
-
-    fun setFavoritesFilter(favOnly: Boolean) {
-        _showFavoritesOnly.value = favOnly
-    }
-
     fun toggleFavorite(station: Station) {
-        val nowFavorite = !station.isFavorite
         viewModelScope.launch {
-            repository.update(station.copy(isFavorite = nowFavorite))
-            if (nowFavorite && station.radioBrowserUuid.isNotEmpty()) {
-                launch(Dispatchers.IO) {
-                    runCatching {
-                        RadioBrowserApi.vote(station.radioBrowserUuid)
-                    }
-                }
+            if (station.id == 0L) {
+                // Ephemeral station (played without saving) — persist it as a favourite.
+                // Set currentStationId first, then wait for _allStations to contain the new
+                // row before clearing ephemeral, so currentStation never drops to null.
+                val id = repository.saveAsFavorite(station)
+                _currentStationId.value = id
+                _allStations.first { list -> list.any { it.id == id } }
+                _ephemeralStation.value = null
+                return@launch
             }
+            val nowFavorite = !station.isFavorite
+            repository.update(station.copy(isFavorite = nowFavorite))
         }
     }
 
@@ -352,18 +393,6 @@ class MainViewModel(
                 null
             }
         }
-        @OptIn(UnstableApi::class)
-        override fun onTracksChanged(tracks: Tracks) {
-            val bitrate = tracks.groups
-                .firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_AUDIO }
-                ?.let { group ->
-                    (0 until group.length)
-                        .firstOrNull { group.isTrackSelected(it) }
-                        ?.let { group.getTrackFormat(it).bitrate }
-                }
-                ?.takeIf { it > 0 }
-            _bitrateKbps.value = bitrate?.div(1000)
-        }
     }
 
     fun play(station: Station) {
@@ -377,15 +406,8 @@ class MainViewModel(
         _currentTrackTitle.value = null
         _currentTrackArtworkUrl.value = null
         _currentTrackArtworkData.value = null
-        _bitrateKbps.value = null
         _playbackError.value = null
-        if (station.radioBrowserUuid.isNotEmpty()) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching {
-                    RadioBrowserApi.registerClick(station.radioBrowserUuid)
-                }
-            }
-        }
+        persistLastPlayedStation(station)
         val artworkUri = station.logoPath
             .takeIf { it.startsWith("http") }
             ?.let { Uri.parse(it) }
@@ -432,10 +454,9 @@ class MainViewModel(
         }
     }
 
-    fun addStation(name: String, streamUrl: String, logoPath: String = "", radioBrowserUuid: String = "") {
+    fun addStation(name: String, streamUrl: String, logoPath: String = "") {
         val trimmedName = name.trim()
         val trimmedStreamUrl = streamUrl.trim()
-        val trimmedRadioBrowserUuid = radioBrowserUuid.trim()
         viewModelScope.launch {
             val localLogoPath = if (logoPath.startsWith("http")) {
                 withContext(Dispatchers.IO) { downloadLogo(logoPath) } ?: logoPath
@@ -447,7 +468,6 @@ class MainViewModel(
                     name = trimmedName,
                     streamUrl = trimmedStreamUrl,
                     logoPath = localLogoPath.trim(),
-                    radioBrowserUuid = trimmedRadioBrowserUuid,
                 ),
             )
             _recentlyAddedStationId.value = stationId
@@ -487,6 +507,10 @@ class MainViewModel(
                 controller?.stop()
                 _currentStationId.value = null
             }
+            if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+                _ephemeralStation.value = null
+            }
+            clearLastPlayedStationIfMatching(station)
             repository.delete(station)
             withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
         }
@@ -494,8 +518,62 @@ class MainViewModel(
 
     override fun onCleared() {
         controllerFuture?.let { MediaController.releaseFuture(it) }
-        super.onCleared()
     }
+
+    private suspend fun restoreLastPlayedStation() {
+        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::stationFromJson) ?: return
+        val savedStation = when {
+            snapshot.id > 0 -> repository.getById(snapshot.id)
+            else -> null
+        } ?: repository.getByStreamUrl(snapshot.streamUrl)
+
+        if (savedStation != null) {
+            _currentStationId.value = savedStation.id
+            _ephemeralStation.value = null
+        } else {
+            _ephemeralStation.value = snapshot
+        }
+    }
+
+    private fun persistLastPlayedStation(station: Station) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[LAST_PLAYED_STATION_KEY] = station.toJson().toString()
+            }
+        }
+    }
+
+    private fun clearLastPlayedStationIfMatching(station: Station) {
+        viewModelScope.launch {
+            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::stationFromJson) ?: return@launch
+            if (snapshot.id == station.id || snapshot.streamUrl == station.streamUrl) {
+                dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
+            }
+        }
+    }
+}
+
+private fun Station.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("streamUrl", streamUrl)
+        .put("logoPath", logoPath)
+        .put("isFavorite", isFavorite)
+        .put("provider", provider)
+        .put("providerId", providerId)
+
+private fun stationFromJson(json: String): Station {
+    val obj = JSONObject(json)
+    return Station(
+        id = obj.optLong("id"),
+        name = obj.optString("name"),
+        streamUrl = obj.optString("streamUrl"),
+        logoPath = obj.optString("logoPath"),
+        isFavorite = obj.optBoolean("isFavorite"),
+        provider = obj.optString("provider"),
+        providerId = obj.optString("providerId"),
+    )
 }
 
 private fun deleteLogoFiles(logoPath: String) {
