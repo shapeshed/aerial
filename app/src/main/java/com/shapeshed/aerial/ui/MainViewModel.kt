@@ -4,25 +4,22 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
-import androidx.annotation.OptIn
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Tracks
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
@@ -30,7 +27,8 @@ import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
-import com.shapeshed.aerial.data.RadioBrowserApi
+import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.bauerStreamUrl
@@ -38,23 +36,35 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-val GRID_VIEW_KEY = booleanPreferencesKey("grid_view")
-val LAST_STATION_ID_KEY = longPreferencesKey("last_station_id")
+private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
+private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
+private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
+private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
+private const val MAX_RECENT_SEARCHES = 5
+
+private data class LastPlayedStationSnapshot(
+    val station: Station,
+)
 
 class MainViewModel(
     application: Application,
     private val repository: StationRepository,
+    private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
@@ -64,52 +74,63 @@ class MainViewModel(
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
+    private val _allTags = MutableStateFlow<List<String>>(emptyList())
+    val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
+
+    private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.getAll().first()
             _isInitialized.value = true
         }
         viewModelScope.launch {
-            dataStore.data.map { it[LAST_STATION_ID_KEY] }.first()
-                ?.let { _currentStationId.value = it }
+            restoreLastPlayedStation()
+        }
+        viewModelScope.launch {
+            registryRepository.countAsFlow()
+                .filter { it > 0 }
+                .distinctUntilChanged()
+                .collect {
+                    _featuredStations.value = registryRepository.featuredStations()
+                    _availableCountries.value = registryRepository.availableCountryCodes()
+                    _allTags.value = registryRepository.availableTags()
+                }
+        }
+        viewModelScope.launch {
+            val prefs = dataStore.data.first()
+            _selectedCountries.value = prefs[SEARCH_COUNTRIES_KEY]
+                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            _selectedTags.value = prefs[SEARCH_TAGS_KEY]
+                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
         }
     }
-
-    val isGridView: StateFlow<Boolean> = dataStore.data
-        .map { prefs -> prefs[GRID_VIEW_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    private val _showFavoritesOnly = MutableStateFlow((application as AerialApp).showFavoritesOnly)
-    val showFavoritesOnly: StateFlow<Boolean> = _showFavoritesOnly.asStateFlow()
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val stations: StateFlow<List<Station>> = combine(
-        _allStations,
-        _showFavoritesOnly,
-    ) { list, favOnly ->
-        if (favOnly) list.filter { it.isFavorite } else list
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val stations: StateFlow<List<Station>> = _allStations
 
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
+    private val _ephemeralStation = MutableStateFlow<Station?>(null)
+    private var pendingRestoreStation: Station? = null
 
     val currentStation: StateFlow<Station?> = combine(
         _allStations,
         _currentStationId,
-    ) { list, id -> list.firstOrNull { it.id == id } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        _ephemeralStation,
+    ) { list, id, ephemeral ->
+        ephemeral ?: id?.let { i -> list.firstOrNull { s -> s.id == i } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
     private val _isBuffering = MutableStateFlow(false)
     val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
-
-    private val _bitrateKbps = MutableStateFlow<Int?>(null)
-    val bitrateKbps: StateFlow<Int?> = _bitrateKbps.asStateFlow()
 
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
@@ -135,21 +156,173 @@ class MainViewModel(
         getApplication<AerialApp>().showNowPlayingOnResume = value
     }
 
+    private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val registrySearchResults: StateFlow<List<RegistryStation>> = _registrySearchResults.asStateFlow()
+
+    private val _selectedCountries = MutableStateFlow<Set<String>>(emptySet())
+    val selectedCountries: StateFlow<Set<String>> = _selectedCountries.asStateFlow()
+
+    private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTags: StateFlow<Set<String>> = _selectedTags.asStateFlow()
+
+
+
+    private val _availableCountries = MutableStateFlow<List<String>>(emptyList())
+    val availableCountries: StateFlow<List<String>> = _availableCountries.asStateFlow()
+
+    private var _lastSearchQuery = ""
+    private var searchJob: Job? = null
+
+    fun searchRegistry(query: String) {
+        _lastSearchQuery = query
+        runSearch(query)
+    }
+
+    fun toggleCountryFilter(country: String) {
+        _selectedCountries.value = _selectedCountries.value.let {
+            if (it.contains(country)) it - country else it + country
+        }
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun toggleTagFilter(tag: String) {
+        _selectedTags.value = _selectedTags.value.let {
+            if (it.contains(tag)) it - tag else it + tag
+        }
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun clearCountryFilter() {
+        _selectedCountries.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun clearTagFilter() {
+        _selectedTags.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    private fun persistFilters() {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[SEARCH_COUNTRIES_KEY] = _selectedCountries.value.joinToString(",")
+                prefs[SEARCH_TAGS_KEY] = _selectedTags.value.joinToString(",")
+            }
+        }
+    }
+
+    private fun runSearch(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            _registrySearchResults.value = registryRepository.search(
+                query = query,
+                countryCodes = _selectedCountries.value,
+                tags = _selectedTags.value,
+            )
+        }
+    }
+
+    fun clearAllFilters() {
+        _selectedCountries.value = emptySet()
+        _selectedTags.value = emptySet()
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
+    fun playRandomFromCategory(tag: String) {
+        viewModelScope.launch {
+            val station = withContext(Dispatchers.IO) {
+                registryRepository.randomByCategory(tag.lowercase())
+            } ?: return@launch
+            playFromRegistry(station)
+        }
+    }
+
+    fun playFromRegistry(registryStation: RegistryStation) {
+        val station = Station(
+            name = registryStation.name,
+            streamUrl = registryStation.streamUrl,
+            logoPath = registryStation.logoUrl,
+        )
+        play(station)
+    }
+
+    fun addFromRegistry(registryStation: RegistryStation) {
+        viewModelScope.launch {
+            val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
+                withContext(Dispatchers.IO) { downloadLogo(registryStation.logoUrl) } ?: registryStation.logoUrl
+            } else {
+                ""
+            }
+            val stationId = repository.insertOrGetExisting(
+                Station(
+                    name = registryStation.name,
+                    streamUrl = registryStation.streamUrl,
+                    logoPath = localLogoPath,
+                    isFavorite = true,
+                    provider = registryStation.provider,
+                    providerId = registryStation.providerId,
+                ),
+            )
+            _recentlyAddedStationId.value = stationId
+        }
+    }
+
+    fun removeFromRegistry(registryStation: RegistryStation) {
+        val station = _allStations.value.find { it.streamUrl == registryStation.streamUrl } ?: return
+        deleteStation(station)
+    }
+
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
-    private val _showNowPlaying = MutableStateFlow((application as AerialApp).showNowPlaying)
-    val showNowPlaying: StateFlow<Boolean> = _showNowPlaying.asStateFlow()
-    fun openNowPlaying() { _showNowPlaying.value = true; (getApplication<AerialApp>()).showNowPlaying = true }
-    fun closeNowPlaying() { _showNowPlaying.value = false; (getApplication<AerialApp>()).showNowPlaying = false }
+    val recentSearches: StateFlow<List<String>> = dataStore.data
+        .map { prefs ->
+            prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                try {
+                    val arr = JSONArray(json)
+                    (0 until arr.length()).map { arr.getString(it) }
+                } catch (_: Exception) { emptyList() }
+            } ?: emptyList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val monochromeLogos: StateFlow<Boolean> = dataStore.data
-        .map { it[MONOCHROME_LOGOS_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    fun saveRecentSearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                    try {
+                        val arr = JSONArray(json)
+                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
+                    } catch (_: Exception) { mutableListOf() }
+                } ?: mutableListOf()
+                current.remove(trimmed)
+                current.add(0, trimmed)
+                prefs[RECENT_SEARCHES_KEY] = JSONArray(current.take(MAX_RECENT_SEARCHES)).toString()
+            }
+        }
+    }
 
-    val showBitrate: StateFlow<Boolean> = dataStore.data
-        .map { it[SHOW_BITRATE_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    fun removeRecentSearch(query: String) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
+                    try {
+                        val arr = JSONArray(json)
+                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
+                    } catch (_: Exception) { mutableListOf() }
+                } ?: mutableListOf()
+                current.remove(query)
+                prefs[RECENT_SEARCHES_KEY] = JSONArray(current).toString()
+            }
+        }
+    }
 
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -160,49 +333,55 @@ class MainViewModel(
         val token = SessionToken(appContext, ComponentName(appContext, PlayerService::class.java))
         controllerFuture = MediaController.Builder(appContext, token).buildAsync()
         controllerFuture?.addListener({
-            val ctrl = controllerFuture?.get() ?: return@addListener
-            controller = ctrl
-            ctrl.addListener(playerListener)
-            if (ctrl.currentMediaItem != null) {
-                if (_currentStationId.value == null) {
-                    ctrl.currentMediaItem?.mediaId?.toLongOrNull()
-                        ?.let { _currentStationId.value = it }
+            controller = controllerFuture?.get()
+            controller?.addListener(playerListener)
+            controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+                val station = _allStations.value.firstOrNull { it.id == id }
+                if (station != null) {
+                    _currentStationId.value = station.id
+                    if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+                        _ephemeralStation.value = null
+                    }
+                    _isPlaying.value = controller?.isPlaying ?: false
+                    controller?.mediaMetadata?.artist?.toString()?.trim()
+                        ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+                        ?.let { _currentTrackTitle.value = it }
+                } else if (_currentStationId.value == null) {
+                    _isPlaying.value = controller?.isPlaying ?: false
                 }
-                _isPlaying.value = ctrl.isPlaying
-                ctrl.mediaMetadata.artist?.toString()?.trim()
-                    ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
-                    ?.let { _currentTrackTitle.value = it }
+            }
+            if (controller?.currentMediaItem == null) {
+                pendingRestoreStation?.let { station ->
+                    pendingRestoreStation = null
+                    loadStationPaused(station)
+                }
             }
         }, ContextCompat.getMainExecutor(appContext))
     }
 
-    fun setGridView(gridView: Boolean) {
-        viewModelScope.launch { dataStore.edit { it[GRID_VIEW_KEY] = gridView } }
-    }
-
-    fun toggleFavoritesFilter() {
-        val v = !_showFavoritesOnly.value
-        _showFavoritesOnly.value = v
-        getApplication<AerialApp>().showFavoritesOnly = v
-    }
-
     fun toggleFavorite(station: Station) {
-        val nowFavorite = !station.isFavorite
         viewModelScope.launch {
-            repository.update(station.copy(isFavorite = nowFavorite))
-            if (nowFavorite && station.radioBrowserUuid.isNotEmpty()) {
-                launch(Dispatchers.IO) {
-                    runCatching {
-                        RadioBrowserApi.vote(station.radioBrowserUuid)
-                    }
-                }
+            if (station.id == 0L) {
+                // Ephemeral station (played without saving) — persist it as a favourite.
+                // Set currentStationId first, then wait for _allStations to contain the new
+                // row before clearing ephemeral, so currentStation never drops to null.
+                val id = repository.saveAsFavorite(station)
+                _currentStationId.value = id
+                _allStations.first { list -> list.any { it.id == id } }
+                _ephemeralStation.value = null
+                return@launch
             }
+            val nowFavorite = !station.isFavorite
+            repository.update(station.copy(isFavorite = nowFavorite))
         }
     }
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+            currentStation.value?.let { station ->
+                persistLastPlayedStation(station)
+            }
         }
         override fun onPlaybackStateChanged(state: Int) {
             _isBuffering.value = state == Player.STATE_BUFFERING
@@ -228,35 +407,21 @@ class MainViewModel(
                 null
             }
         }
-        @OptIn(UnstableApi::class)
-        override fun onTracksChanged(tracks: Tracks) {
-            val bitrate = tracks.groups
-                .firstOrNull { it.isSelected && it.type == C.TRACK_TYPE_AUDIO }
-                ?.let { group ->
-                    (0 until group.length)
-                        .firstOrNull { group.isTrackSelected(it) }
-                        ?.let { group.getTrackFormat(it).bitrate }
-                }
-                ?.takeIf { it > 0 }
-            _bitrateKbps.value = bitrate?.div(1000)
-        }
     }
 
     fun play(station: Station) {
-        _currentStationId.value = station.id
-        viewModelScope.launch { dataStore.edit { it[LAST_STATION_ID_KEY] = station.id } }
+        if (station.id == 0L) {
+            _ephemeralStation.value = station
+            _currentStationId.value = null
+        } else {
+            _ephemeralStation.value = null
+            _currentStationId.value = station.id
+        }
         _currentTrackTitle.value = null
         _currentTrackArtworkUrl.value = null
         _currentTrackArtworkData.value = null
-        _bitrateKbps.value = null
         _playbackError.value = null
-        if (station.radioBrowserUuid.isNotEmpty()) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching {
-                    RadioBrowserApi.registerClick(station.radioBrowserUuid)
-                }
-            }
-        }
+        persistLastPlayedStation(station)
         val artworkUri = station.logoPath
             .takeIf { it.startsWith("http") }
             ?.let { Uri.parse(it) }
@@ -293,23 +458,19 @@ class MainViewModel(
     }
 
     fun togglePlayback() {
-        val ctrl = controller ?: return
-        if (ctrl.isPlaying) {
-            ctrl.pause()
-        } else {
-            _playbackError.value = null
-            if (ctrl.currentMediaItem != null) {
-                ctrl.play()
+        controller?.let {
+            if (it.isPlaying) {
+                it.pause()
             } else {
-                _allStations.value.firstOrNull { it.id == _currentStationId.value }?.let { play(it) }
+                _playbackError.value = null
+                it.play()
             }
         }
     }
 
-    fun addStation(name: String, streamUrl: String, logoPath: String = "", radioBrowserUuid: String = "") {
+    fun addStation(name: String, streamUrl: String, logoPath: String = "") {
         val trimmedName = name.trim()
         val trimmedStreamUrl = streamUrl.trim()
-        val trimmedRadioBrowserUuid = radioBrowserUuid.trim()
         viewModelScope.launch {
             val localLogoPath = if (logoPath.startsWith("http")) {
                 withContext(Dispatchers.IO) { downloadLogo(logoPath) } ?: logoPath
@@ -321,7 +482,6 @@ class MainViewModel(
                     name = trimmedName,
                     streamUrl = trimmedStreamUrl,
                     logoPath = localLogoPath.trim(),
-                    radioBrowserUuid = trimmedRadioBrowserUuid,
                 ),
             )
             _recentlyAddedStationId.value = stationId
@@ -360,8 +520,11 @@ class MainViewModel(
             if (_currentStationId.value == station.id) {
                 controller?.stop()
                 _currentStationId.value = null
-                dataStore.edit { it.remove(LAST_STATION_ID_KEY) }
             }
+            if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+                _ephemeralStation.value = null
+            }
+            clearLastPlayedStationIfMatching(station)
             repository.delete(station)
             withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
         }
@@ -369,8 +532,88 @@ class MainViewModel(
 
     override fun onCleared() {
         controllerFuture?.let { MediaController.releaseFuture(it) }
-        super.onCleared()
     }
+
+    private suspend fun restoreLastPlayedStation() {
+        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return
+        val savedStation = when {
+            snapshot.station.id > 0 -> repository.getById(snapshot.station.id)
+            else -> null
+        } ?: repository.getByStreamUrl(snapshot.station.streamUrl)
+
+        if (savedStation != null) {
+            _currentStationId.value = savedStation.id
+            _ephemeralStation.value = null
+        } else {
+            _ephemeralStation.value = snapshot.station.toEphemeral()
+        }
+
+        pendingRestoreStation = savedStation ?: snapshot.station.toEphemeral()
+    }
+
+    private fun persistLastPlayedStation(station: Station) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[LAST_PLAYED_STATION_KEY] = station.toLastPlayedJson().toString()
+            }
+        }
+    }
+
+    private fun clearLastPlayedStationIfMatching(station: Station) {
+        viewModelScope.launch {
+            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return@launch
+            if (snapshot.station.id == station.id || snapshot.station.streamUrl == station.streamUrl) {
+                dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
+            }
+        }
+    }
+
+    private fun loadStationPaused(station: Station) {
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(station.id.toString())
+            .setUri(bauerStreamUrl(station))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(station.name)
+                    .setArtist("Live Radio")
+                    .setSubtitle("Live Radio")
+                    .build(),
+            )
+            .build()
+
+        controller?.apply {
+            setMediaItem(mediaItem)
+            prepare()
+            pause()
+        }
+    }
+}
+
+private fun Station.toEphemeral(): Station = copy(id = 0)
+
+private fun Station.toLastPlayedJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("streamUrl", streamUrl)
+        .put("logoPath", logoPath)
+        .put("isFavorite", isFavorite)
+        .put("provider", provider)
+        .put("providerId", providerId)
+
+private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
+    val obj = JSONObject(json)
+    return LastPlayedStationSnapshot(
+        station = Station(
+            id = obj.optLong("id"),
+            name = obj.optString("name"),
+            streamUrl = obj.optString("streamUrl"),
+            logoPath = obj.optString("logoPath"),
+            isFavorite = obj.optBoolean("isFavorite"),
+            provider = obj.optString("provider"),
+            providerId = obj.optString("providerId"),
+        ),
+    )
 }
 
 private fun deleteLogoFiles(logoPath: String) {
@@ -400,10 +643,11 @@ private fun PlaybackException.userMessage(): String {
 class MainViewModelFactory(
     private val application: Application,
     private val repository: StationRepository,
+    private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
 ) : ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         @Suppress("UNCHECKED_CAST")
-        return MainViewModel(application, repository, dataStore, extras.createSavedStateHandle()) as T
+        return MainViewModel(application, repository, registryRepository, dataStore, extras.createSavedStateHandle()) as T
     }
 }

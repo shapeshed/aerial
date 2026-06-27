@@ -21,7 +21,7 @@ class StationRepositoryTest {
     }
 
     @Test
-    fun insertOrGetExistingReturnsExistingRadioBrowserStation() = runBlocking {
+    fun insertOrGetExistingReturnsExistingStreamUrlStation() = runBlocking {
         val existing = station(id = 7L, logoPath = "/logos/existing.png")
         val dao = FakeStationDao(existing)
         val repository = StationRepository(dao)
@@ -29,7 +29,6 @@ class StationRepositoryTest {
         val id = repository.insertOrGetExisting(
             station(
                 name = "Duplicate",
-                streamUrl = "https://different.example.com/live",
                 logoPath = "/logos/new.png",
             )
         )
@@ -40,16 +39,16 @@ class StationRepositoryTest {
     }
 
     @Test
-    fun insertOrGetExistingMatchesByStreamUrlAndStoresMissingRadioBrowserId() = runBlocking {
-        val existing = station(id = 4L, radioBrowserUuid = "")
+    fun insertOrGetExistingMatchesByStreamUrl() = runBlocking {
+        val existing = station(id = 4L)
         val dao = FakeStationDao(existing)
         val repository = StationRepository(dao)
 
-        val id = repository.insertOrGetExisting(station(radioBrowserUuid = "radio-browser-id"))
+        val id = repository.insertOrGetExisting(station())
 
         assertEquals(4L, id)
         assertEquals(0, dao.insertCount)
-        assertEquals("radio-browser-id", dao.stations.single().radioBrowserUuid)
+        assertEquals(existing, dao.stations.single())
     }
 
     @Test
@@ -68,13 +67,11 @@ class StationRepositoryTest {
         name: String = "Mango",
         streamUrl: String = "https://stream.example.com/mango",
         logoPath: String = "",
-        radioBrowserUuid: String = "mango-id",
     ) = Station(
         id = id,
         name = name,
         streamUrl = streamUrl,
         logoPath = logoPath,
-        radioBrowserUuid = radioBrowserUuid,
     )
 
     private class FakeStationDao(vararg initialStations: Station) : StationDao {
@@ -88,12 +85,18 @@ class StationRepositoryTest {
             return stations.firstOrNull { it.id == id }
         }
 
-        override suspend fun getByRadioBrowserUuid(uuid: String): Station? {
-            return stations.firstOrNull { it.radioBrowserUuid == uuid && it.radioBrowserUuid.isNotBlank() }
-        }
-
         override suspend fun getByStreamUrl(streamUrl: String): Station? {
             return stations.firstOrNull { it.streamUrl == streamUrl }
+        }
+
+        override suspend fun updateStreamUrlByProviderId(provider: String, providerId: String, streamUrl: String) {
+            stations.replaceAll {
+                if (it.provider == provider && it.providerId == providerId && it.streamUrl != streamUrl) {
+                    it.copy(streamUrl = streamUrl)
+                } else {
+                    it
+                }
+            }
         }
 
         override suspend fun insert(station: Station): Long {

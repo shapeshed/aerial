@@ -15,11 +15,11 @@ interface StationDao {
     @Query("SELECT * FROM stations WHERE id = :id")
     suspend fun getById(id: Long): Station?
 
-    @Query("SELECT * FROM stations WHERE radioBrowserUuid = :uuid AND radioBrowserUuid != '' LIMIT 1")
-    suspend fun getByRadioBrowserUuid(uuid: String): Station?
-
     @Query("SELECT * FROM stations WHERE streamUrl = :streamUrl LIMIT 1")
     suspend fun getByStreamUrl(streamUrl: String): Station?
+
+    @Query("UPDATE stations SET streamUrl = :streamUrl WHERE provider = :provider AND providerId = :providerId AND streamUrl != :streamUrl")
+    suspend fun updateStreamUrlByProviderId(provider: String, providerId: String, streamUrl: String)
 
     @Insert
     suspend fun insert(station: Station): Long

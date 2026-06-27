@@ -15,7 +15,6 @@ import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
 class GlobalPlayerProvider : Provider {
-    override fun discoverStations() = discoverGlobalStations()
     private var job: Job? = null
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient.Builder()
@@ -42,17 +41,17 @@ class GlobalPlayerProvider : Provider {
                 .build()
 
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
-                override fun onOpen(ws: WebSocket, response: Response) {
-                    ws.send("""{"actions":[{"type":"subscribe","service":"$heraldId"}]}""")
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send("""{"actions":[{"type":"subscribe","service":"$heraldId"}]}""")
                 }
-                override fun onMessage(ws: WebSocket, text: String) {
+                override fun onMessage(webSocket: WebSocket, text: String) {
                     messages.trySend(text)
                 }
-                override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     Log.w(TAG, "WebSocket failure: ${t.message}")
                     messages.close(t)
                 }
-                override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     messages.close()
                 }
             })

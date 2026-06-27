@@ -35,11 +35,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Run unit tests
-        run: ./gradlew test
-
-      - name: Run Android lint
-        run: ./gradlew lint
+      - name: Run quality gate
+        run: ./gradlew quality
 
       - name: Build debug APK
         run: ./gradlew assembleDebug

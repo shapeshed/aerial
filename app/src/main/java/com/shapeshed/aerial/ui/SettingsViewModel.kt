@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.REGISTRY_LAST_SYNC_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream
@@ -26,7 +27,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -35,8 +35,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-val MONOCHROME_LOGOS_KEY = booleanPreferencesKey("monochrome_logos")
-val SHOW_BITRATE_KEY = booleanPreferencesKey("show_bitrate")
 val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 
 class SettingsViewModel(
@@ -45,32 +43,12 @@ class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
 ) : AndroidViewModel(application) {
 
-    val monochromeLogos: StateFlow<Boolean> = dataStore.data
-        .map { it[MONOCHROME_LOGOS_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val showBitrate: StateFlow<Boolean> = dataStore.data
-        .map { it[SHOW_BITRATE_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val enrichMetadata: StateFlow<Boolean> = dataStore.data
+    val enrichMetadata = dataStore.data
         .map { it[ENRICH_METADATA_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
-
-    fun setMonochromeLogos(enabled: Boolean) {
-        viewModelScope.launch {
-            dataStore.edit { it[MONOCHROME_LOGOS_KEY] = enabled }
-        }
-    }
-
-    fun setShowBitrate(enabled: Boolean) {
-        viewModelScope.launch {
-            dataStore.edit { it[SHOW_BITRATE_KEY] = enabled }
-        }
-    }
 
     fun setEnrichMetadata(enabled: Boolean) {
         viewModelScope.launch {
@@ -78,26 +56,17 @@ class SettingsViewModel(
         }
     }
 
-    fun importDiscoveredStations() {
+    fun refreshRegistry() {
         viewModelScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    val discovered = getApplication<AerialApp>().providers
-                        .flatMap { it.discoverStations() }
-                    discovered.forEach { d ->
-                        repository.upsertImported(
-                            Station(name = d.name, streamUrl = d.streamUrl, logoPath = d.logoUrl),
-                        )
-                    }
-                    discovered.size
-                }
+            val app = getApplication<AerialApp>()
+            val stations = runCatching {
+                withContext(Dispatchers.IO) { app.registryRepository.syncFromNetwork() }
+            }.getOrNull()
+            if (stations != null) {
+                withContext(Dispatchers.IO) { app.repository.updateStreamUrlsFromRegistry(stations) }
+                dataStore.edit { it[REGISTRY_LAST_SYNC_KEY] = System.currentTimeMillis() }
             }
-            _messages.emit(
-                result.fold(
-                    onSuccess = { "Imported $it stations from all providers" },
-                    onFailure = { "Import failed: ${it.message ?: "unknown error"}" },
-                ),
-            )
+            _messages.emit(if (stations != null) "Registry refreshed" else "Registry refresh failed")
         }
     }
 
@@ -138,7 +107,6 @@ class SettingsViewModel(
     }
 
     private suspend fun writeBackup(context: Context, output: OutputStream) {
-        val prefs = dataStore.data.first()
         val stations = repository.getAll().first()
         val stationArray = JSONArray()
 
@@ -148,7 +116,6 @@ class SettingsViewModel(
                     .put("name", station.name)
                     .put("streamUrl", station.streamUrl)
                     .put("isFavorite", station.isFavorite)
-                    .put("radioBrowserUuid", station.radioBrowserUuid)
 
                 val logoFile = station.logoPath
                     .takeIf { it.isNotBlank() && !it.startsWith("http") }
@@ -171,10 +138,7 @@ class SettingsViewModel(
             val manifest = JSONObject()
                 .put("version", 1)
                 .put("app", "Aerial")
-                .put("settings", JSONObject()
-                    .put("monochromeLogos", prefs[MONOCHROME_LOGOS_KEY] ?: false)
-                    .put("gridView", prefs[GRID_VIEW_KEY] ?: false)
-                )
+                .put("settings", JSONObject())
                 .put("stations", stationArray)
 
             zip.putNextEntry(ZipEntry("backup.json"))
@@ -217,17 +181,6 @@ class SettingsViewModel(
             error("Unsupported backup version")
         }
 
-        manifest.optJSONObject("settings")?.let { settings ->
-            dataStore.edit { prefs ->
-                if (settings.has("monochromeLogos")) {
-                    prefs[MONOCHROME_LOGOS_KEY] = settings.optBoolean("monochromeLogos")
-                }
-                if (settings.has("gridView")) {
-                    prefs[GRID_VIEW_KEY] = settings.optBoolean("gridView")
-                }
-            }
-        }
-
         val stations = manifest.optJSONArray("stations") ?: JSONArray()
         for (index in 0 until stations.length()) {
             val item = stations.getJSONObject(index)
@@ -242,7 +195,6 @@ class SettingsViewModel(
                     streamUrl = item.getString("streamUrl").trim(),
                     logoPath = logoPath.trim(),
                     isFavorite = item.optBoolean("isFavorite"),
-                    radioBrowserUuid = item.optString("radioBrowserUuid").trim(),
                 )
             )
         }

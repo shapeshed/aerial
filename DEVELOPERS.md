@@ -75,21 +75,21 @@ fastlane/metadata/android/en-US/images/phoneScreenshots/
 
 ## Offline Station Cache
 
-Aerial bundles a Radio Browser station cache for offline discovery fallback.
-Refresh it before release commits:
+Aerial bundles a gzipped Aerial station registry as the offline seed for station
+discovery. Refresh it before release candidate commits:
 
 ```sh
-scripts/refresh-radio-browser-cache.sh
+scripts/refresh-registry-cache.sh
 ```
 
-The script discovers live Radio Browser servers, fetches top-voted non-broken
-stations, validates the JSON with `jq`, and updates:
+The script downloads the registry from the Aerial service, validates the
+decompressed JSON with `jq`, and updates:
 
 ```text
-app/src/main/res/raw/fallback_stations.json
+app/src/main/assets/registry.json.gz
 ```
 
-Do not fetch this cache from Gradle. The checked-in JSON keeps F-Droid and
+Do not fetch this cache from Gradle. The checked-in asset keeps F-Droid and
 release builds offline and reproducible.
 
 ## Release Process
@@ -98,9 +98,8 @@ GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs unit
 tests, Android lint, and a debug APK build.
 
 The release workflow runs when a version tag is pushed and can also be started
-manually from GitHub Actions. It builds the release APK for GitHub, the AAB for
-Google Play, uploads both as workflow artifacts, and creates a draft GitHub
-release for tag pushes.
+manually from GitHub Actions. Local release preparation does not tag, push, or
+upload to Google Play.
 
 For release changes:
 
@@ -121,7 +120,7 @@ scripts/bump-version.sh 0.1.2
 scripts/prepare-release.sh
 ```
 
-The release preparation script refreshes the Radio Browser offline cache, runs
+The release preparation script refreshes the Aerial registry cache, runs
 `test lint assembleRelease bundleRelease`, validates the Fastlane changelog, copies
 `.fdroid.yml` to the local fdroiddata checkout, and runs:
 
@@ -130,8 +129,8 @@ fdroid rewritemeta com.shapeshed.aerial
 fdroid lint com.shapeshed.aerial
 ```
 
-7. Merge the release commit to `main`.
-8. Tag the release commit with a signed version tag, for example:
+7. Commit the local release candidate when ready.
+8. Only when explicitly ready to publish, tag the release commit with a signed version tag, for example:
 
 ```sh
 git tag -s v0.1.0 -m "v0.1.0"

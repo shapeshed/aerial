@@ -1,12 +1,19 @@
 package com.shapeshed.aerial.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -41,11 +49,14 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +77,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.Station
 
@@ -75,13 +87,10 @@ fun NowPlayingScreen(
     station: Station,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    bitrateKbps: Int?,
-    showBitrate: Boolean = false,
     nowPlayingInfo: NowPlayingInfo? = null,
     currentTrackTitle: String?,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
-    monochromeLogos: Boolean = false,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
@@ -89,6 +98,7 @@ fun NowPlayingScreen(
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var showTrackDetail by remember { mutableStateOf(false) }
     val artworkShape = RoundedCornerShape(
         topStart = 28.dp,
         topEnd = 28.dp,
@@ -119,7 +129,7 @@ fun NowPlayingScreen(
     }
     val trackArtworkModel = when {
         track?.artworkData != null -> track.artworkData
-        !track?.artworkUrl.isNullOrBlank() -> track!!.artworkUrl
+        track?.artworkUrl?.isNotBlank() == true -> track.artworkUrl
         currentTrackArtworkData != null -> currentTrackArtworkData
         !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null
@@ -127,12 +137,7 @@ fun NowPlayingScreen(
     var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
-    val bitrateText = when {
-        bitrateKbps == null -> null
-        showBitrate -> "$bitrateKbps kbps"
-        bitrateKbps >= 128 -> "HD"
-        else -> null
-    }
+    LaunchedEffect(showTrackBlock) { if (!showTrackBlock) showTrackDetail = false }
 
     Scaffold(
         modifier = Modifier
@@ -209,7 +214,6 @@ fun NowPlayingScreen(
                                 station = station,
                                 isActive = true,
                                 size = 200.dp,
-                                monochrome = monochromeLogos,
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         }
@@ -231,7 +235,6 @@ fun NowPlayingScreen(
                                 station = station,
                                 isActive = false,
                                 size = 44.dp,
-                                monochrome = monochromeLogos,
                             )
                         }
                     }
@@ -266,20 +269,6 @@ fun NowPlayingScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.semantics { traversalIndex = 3f },
                 )
-            }
-            if (bitrateText != null) {
-                Spacer(Modifier.height(16.dp))
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Text(
-                        text = bitrateText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
             }
             Spacer(Modifier.height(44.dp))
             Row(
@@ -378,7 +367,9 @@ fun NowPlayingScreen(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     tonalElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showTrackDetail = true },
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -434,6 +425,143 @@ fun NowPlayingScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = "Copy track info",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showTrackDetail) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val copyText = buildString {
+            if (!trackArtist.isNullOrBlank()) append(trackArtist)
+            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
+            if (!trackTitle.isNullOrBlank()) append(trackTitle)
+        }
+        // Staggered entry states
+        var artworkReady by remember { mutableStateOf(false) }
+        var artistReady by remember { mutableStateOf(false) }
+        var titleReady by remember { mutableStateOf(false) }
+        var actionsReady by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            artworkReady = true
+            delay(80)
+            artistReady = true
+            delay(60)
+            titleReady = true
+            delay(50)
+            actionsReady = true
+        }
+
+        val artworkScale by animateFloatAsState(
+            targetValue = if (artworkReady) 1f else 0.82f,
+            label = "artworkScale",
+        )
+        val artworkAlpha by animateFloatAsState(
+            targetValue = if (artworkReady) 1f else 0f,
+            label = "artworkAlpha",
+        )
+
+        ModalBottomSheet(
+            onDismissRequest = { showTrackDetail = false },
+            sheetState = sheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 4.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .graphicsLayer {
+                            scaleX = artworkScale
+                            scaleY = artworkScale
+                            alpha = artworkAlpha
+                        },
+                ) {
+                    if (trackArtworkModel != null && !trackArtworkFailed) {
+                        AsyncImage(
+                            model = trackArtworkModel,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            onError = { trackArtworkFailed = true },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            StationAvatar(
+                                station = station,
+                                isActive = false,
+                                size = 96.dp,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        AnimatedVisibility(
+                            visible = artistReady,
+                            enter = fadeIn() + slideInVertically { it / 3 },
+                        ) {
+                            Text(
+                                text = trackArtist ?: trackTitle.orEmpty(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            AnimatedVisibility(
+                                visible = titleReady,
+                                enter = fadeIn() + slideInVertically { it / 3 },
+                            ) {
+                                Text(
+                                    text = trackTitle,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    AnimatedVisibility(
+                        visible = actionsReady,
+                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
+                            },
+                            shapes = IconButtonShapes(
+                                IconButtonDefaults.smallRoundShape,
+                                IconButtonDefaults.smallPressedShape,
+                            ),
+                        ) {
+                            Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy track info")
                         }
                     }
                 }

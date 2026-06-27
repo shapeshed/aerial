@@ -1,0 +1,5 @@
+- New station registry discovery with featured stations, filters, and quick genre playback.
+- Redesigned home favorites, mini-player, and now playing experience.
+- Clearer settings copy for showing song, artist, and artwork when available.
+- Removed monochrome logos, bitrate display controls, legacy Radio Browser search, and debug provider import tools.
+- Refreshed store screenshot flow for the new product experience.

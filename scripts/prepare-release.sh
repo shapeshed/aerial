@@ -7,14 +7,14 @@ APP_ID="com.shapeshed.aerial"
 
 usage() {
   cat <<'USAGE'
-Prepare Aerial for a release.
+Prepare a local Aerial release candidate.
 
 Usage:
   scripts/prepare-release.sh [--draft] [--skip-cache] [--skip-fdroid]
 
 Runs:
-  - Radio Browser offline cache refresh
-  - Gradle test/lint/release build
+  - Aerial registry cache refresh
+  - Gradle test/lint/release builds
   - Fastlane changelog/version checks
   - F-Droid metadata sync and validation
 
@@ -64,9 +64,9 @@ trap 'rm -f "$NOTES_FILE"' EXIT
 echo "Preparing Aerial $VERSION_NAME (versionCode $VERSION_CODE)..."
 
 if [[ "$skip_cache" == false ]]; then
-  "$ROOT_DIR/scripts/refresh-radio-browser-cache.sh"
+  "$ROOT_DIR/scripts/refresh-registry-cache.sh"
 else
-  echo "Skipping Radio Browser cache refresh."
+  echo "Skipping Aerial registry cache refresh."
 fi
 
 if [[ ! -f "$FASTLANE_CHANGELOG" ]]; then
@@ -82,10 +82,10 @@ fi
 if [[ ! -s "$NOTES_FILE" ]]; then
   if [[ "$draft" == true ]]; then
     echo "Draft mode: CHANGELOG.md does not yet contain a section for $VERSION_NAME."
-    echo "Move relevant entries from [Unreleased] before tagging."
+    echo "Move relevant entries from [Unreleased] before final release."
   else
     echo "CHANGELOG.md does not contain a section for $VERSION_NAME." >&2
-    echo "Move relevant entries from [Unreleased] before tagging, or run with --draft." >&2
+    echo "Move relevant entries from [Unreleased] before final release, or run with --draft." >&2
     exit 1
   fi
 fi
@@ -125,10 +125,8 @@ fi
 echo
 echo "Next manual steps:"
 echo "  git status --short"
-echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/res/raw/fallback_stations.json"
+echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/assets/registry.json.gz"
 echo "  git add docs/screenshots fastlane/metadata/android/en-US/images/phoneScreenshots"
 echo "  git commit -S -m \"chore(release): v${VERSION_NAME}\""
-echo "  git tag -s v${VERSION_NAME} -m \"v${VERSION_NAME}\""
-echo "  git push origin main"
-echo "  git push origin v${VERSION_NAME}"
-echo "  upload app/build/outputs/bundle/release/app-release.aab to Google Play"
+echo
+echo "This script does not tag, push, or upload to Google Play."

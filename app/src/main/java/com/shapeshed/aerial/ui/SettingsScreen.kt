@@ -26,7 +26,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,8 +44,6 @@ fun SettingsScreen(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val monochromeLogos by viewModel.monochromeLogos.collectAsStateWithLifecycle()
-    val showBitrate by viewModel.showBitrate.collectAsStateWithLifecycle()
     val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
     val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
@@ -86,51 +83,11 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            item(contentType = "section") {
-                Text(
-                    text = "Display",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                item(contentType = "setting") {
-                    ListItem(
-                        modifier = Modifier.clickable {
-                            viewModel.setMonochromeLogos(!monochromeLogos)
-                        },
-                        headlineContent = { Text("Monochrome logos") },
-                        supportingContent = { Text("Show station logos in monochrome") },
-                        trailingContent = {
-                            Switch(
-                                checked = monochromeLogos,
-                                onCheckedChange = { viewModel.setMonochromeLogos(it) },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                }
-            }
-            item(contentType = "setting") {
-                ListItem(
-                    modifier = Modifier.clickable { viewModel.setShowBitrate(!showBitrate) },
-                    headlineContent = { Text("Show bitrate") },
-                    supportingContent = { Text("Show exact bitrate instead of HD/SD quality badge") },
-                    trailingContent = {
-                        Switch(
-                            checked = showBitrate,
-                            onCheckedChange = { viewModel.setShowBitrate(it) },
-                        )
-                    },
-                )
-                HorizontalDivider()
-            }
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
-                    headlineContent = { Text("Enrich stream metadata") },
-                    supportingContent = { Text("Show track info and artwork for supported streams") },
+                    headlineContent = { Text("Show what's playing") },
+                    supportingContent = { Text("Display song, artist, and artwork when available") },
                     trailingContent = {
                         Switch(
                             checked = enrichMetadata,
@@ -174,12 +131,6 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
-            item(contentType = "info") {
-                ListItem(
-                    headlineContent = { Text("Radio Browser") },
-                    supportingContent = { Text("Station discovery powered by radio-browser.info") },
-                )
-            }
             if (BuildConfig.DEBUG) {
                 item(contentType = "section") {
                     Text(
@@ -191,9 +142,9 @@ fun SettingsScreen(
                 }
                 item(contentType = "action") {
                     ListItem(
-                        modifier = Modifier.clickable { viewModel.importDiscoveredStations() },
-                        headlineContent = { Text("Import all provider stations") },
-                        supportingContent = { Text("Seed BBC, Bauer, Global, and Wireless stations with logos") },
+                        modifier = Modifier.clickable { viewModel.refreshRegistry() },
+                        headlineContent = { Text("Refresh registry") },
+                        supportingContent = { Text("Force fetch latest station registry from network") },
                     )
                 }
             }
