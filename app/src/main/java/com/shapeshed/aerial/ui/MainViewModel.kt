@@ -57,6 +57,10 @@ private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 private const val MAX_RECENT_SEARCHES = 5
 
+private data class LastPlayedStationSnapshot(
+    val station: Station,
+)
+
 class MainViewModel(
     application: Application,
     private val repository: StationRepository,
@@ -112,6 +116,7 @@ class MainViewModel(
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
     private val _ephemeralStation = MutableStateFlow<Station?>(null)
+    private var pendingRestoreStation: Station? = null
 
     val currentStation: StateFlow<Station?> = combine(
         _allStations,
@@ -345,6 +350,12 @@ class MainViewModel(
                     _isPlaying.value = controller?.isPlaying ?: false
                 }
             }
+            if (controller?.currentMediaItem == null) {
+                pendingRestoreStation?.let { station ->
+                    pendingRestoreStation = null
+                    loadStationPaused(station)
+                }
+            }
         }, ContextCompat.getMainExecutor(appContext))
     }
 
@@ -368,6 +379,9 @@ class MainViewModel(
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+            currentStation.value?.let { station ->
+                persistLastPlayedStation(station)
+            }
         }
         override fun onPlaybackStateChanged(state: Int) {
             _isBuffering.value = state == Player.STATE_BUFFERING
@@ -521,39 +535,63 @@ class MainViewModel(
     }
 
     private suspend fun restoreLastPlayedStation() {
-        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::stationFromJson) ?: return
+        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return
         val savedStation = when {
-            snapshot.id > 0 -> repository.getById(snapshot.id)
+            snapshot.station.id > 0 -> repository.getById(snapshot.station.id)
             else -> null
-        } ?: repository.getByStreamUrl(snapshot.streamUrl)
+        } ?: repository.getByStreamUrl(snapshot.station.streamUrl)
 
         if (savedStation != null) {
             _currentStationId.value = savedStation.id
             _ephemeralStation.value = null
         } else {
-            _ephemeralStation.value = snapshot
+            _ephemeralStation.value = snapshot.station.toEphemeral()
         }
+
+        pendingRestoreStation = savedStation ?: snapshot.station.toEphemeral()
     }
 
     private fun persistLastPlayedStation(station: Station) {
         viewModelScope.launch {
             dataStore.edit { prefs ->
-                prefs[LAST_PLAYED_STATION_KEY] = station.toJson().toString()
+                prefs[LAST_PLAYED_STATION_KEY] = station.toLastPlayedJson().toString()
             }
         }
     }
 
     private fun clearLastPlayedStationIfMatching(station: Station) {
         viewModelScope.launch {
-            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::stationFromJson) ?: return@launch
-            if (snapshot.id == station.id || snapshot.streamUrl == station.streamUrl) {
+            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return@launch
+            if (snapshot.station.id == station.id || snapshot.station.streamUrl == station.streamUrl) {
                 dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
             }
         }
     }
+
+    private fun loadStationPaused(station: Station) {
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(station.id.toString())
+            .setUri(bauerStreamUrl(station))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(station.name)
+                    .setArtist("Live Radio")
+                    .setSubtitle("Live Radio")
+                    .build(),
+            )
+            .build()
+
+        controller?.apply {
+            setMediaItem(mediaItem)
+            prepare()
+            pause()
+        }
+    }
 }
 
-private fun Station.toJson(): JSONObject =
+private fun Station.toEphemeral(): Station = copy(id = 0)
+
+private fun Station.toLastPlayedJson(): JSONObject =
     JSONObject()
         .put("id", id)
         .put("name", name)
@@ -563,16 +601,18 @@ private fun Station.toJson(): JSONObject =
         .put("provider", provider)
         .put("providerId", providerId)
 
-private fun stationFromJson(json: String): Station {
+private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     val obj = JSONObject(json)
-    return Station(
-        id = obj.optLong("id"),
-        name = obj.optString("name"),
-        streamUrl = obj.optString("streamUrl"),
-        logoPath = obj.optString("logoPath"),
-        isFavorite = obj.optBoolean("isFavorite"),
-        provider = obj.optString("provider"),
-        providerId = obj.optString("providerId"),
+    return LastPlayedStationSnapshot(
+        station = Station(
+            id = obj.optLong("id"),
+            name = obj.optString("name"),
+            streamUrl = obj.optString("streamUrl"),
+            logoPath = obj.optString("logoPath"),
+            isFavorite = obj.optBoolean("isFavorite"),
+            provider = obj.optString("provider"),
+            providerId = obj.optString("providerId"),
+        ),
     )
 }
 
