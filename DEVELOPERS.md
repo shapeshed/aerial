@@ -73,6 +73,12 @@ docs/screenshots/
 fastlane/metadata/android/en-US/images/phoneScreenshots/
 ```
 
+## Data and Backup
+
+Aerial stores stations in Room, preferences in DataStore, and downloaded station logos in internal app storage under `logos/`.
+
+The in-app export/import feature is the supported way to move user data between installs. Android system backup excludes the internal logo cache to avoid large or stale auto-backups.
+
 ## Offline Station Cache
 
 Aerial bundles a gzipped Aerial station registry as the offline seed for station
