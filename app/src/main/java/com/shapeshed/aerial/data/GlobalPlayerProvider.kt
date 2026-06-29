@@ -14,10 +14,10 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
-class GlobalPlayerProvider : Provider {
+class GlobalPlayerProvider(okHttpClient: OkHttpClient) : Provider {
     private var job: Job? = null
     private var webSocket: WebSocket? = null
-    private val client = OkHttpClient.Builder()
+    private val client = okHttpClient.newBuilder()
         .pingInterval(30, TimeUnit.SECONDS)
         .build()
 

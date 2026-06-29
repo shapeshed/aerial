@@ -5,13 +5,13 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import com.shapeshed.aerial.REGISTRY_LAST_SYNC_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
@@ -34,8 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-
-val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 
 class SettingsViewModel(
     application: Application,

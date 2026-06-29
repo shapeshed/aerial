@@ -30,7 +30,7 @@ import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
-import com.shapeshed.aerial.ui.ENRICH_METADATA_KEY
+import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,7 +52,6 @@ class PlayerService : MediaSessionService() {
     private lateinit var repository: StationRepository
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
-    private var icyMetadataGeneration: Int = 0
     private var activeEnricher: Provider? = null
     private var lastAppliedNowPlayingSignature: String? = null
     private var enrichMetadataEnabled = false
@@ -132,7 +131,7 @@ class PlayerService : MediaSessionService() {
                 stationForMediaItem(mediaItem)?.let { station ->
                     val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
                     activeEnricher = enricher
-                    enricher?.start(station, serviceScope)
+                    if (player.isPlaying) enricher?.start(station, serviceScope)
                 }
             }
             updateFavoriteButton()
@@ -149,7 +148,6 @@ class PlayerService : MediaSessionService() {
                     if (title.isNullOrEmpty()) return
                     if (title == lastIcyTitle) return
                     lastIcyTitle = title
-                    icyMetadataGeneration += 1
                     val item = player.currentMediaItem ?: return
                     val station = currentStation()
                     val stationName = station?.name ?: item.mediaMetadata.title?.toString().orEmpty()

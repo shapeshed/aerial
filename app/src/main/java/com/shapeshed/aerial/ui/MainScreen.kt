@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +40,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
@@ -45,7 +51,6 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WifiOff
@@ -74,19 +79,24 @@ import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -95,11 +105,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberContainedSearchBarState
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -109,7 +120,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -128,14 +141,33 @@ import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// Lazily memoised so Locale.Builder is not called on every LazyColumn row recomposition.
+private val countryNameCache = mutableMapOf<String, String>()
 private fun countryName(code: String): String =
-    java.util.Locale.Builder().setRegion(code).build().getDisplayCountry().ifBlank { code }
+    countryNameCache.getOrPut(code) {
+        java.util.Locale.Builder().setRegion(code).build().getDisplayCountry().ifBlank { code }
+    }
+
+// Fixed tag→icon map — hoisted to avoid allocating a new Map on every CategoryGrid recomposition.
+private val CATEGORY_ICONS = mapOf(
+    "News" to Icons.AutoMirrored.Rounded.Article,
+    "Sport" to Icons.Rounded.SportsSoccer,
+    "Pop" to Icons.Rounded.Star,
+    "Rock" to Icons.Rounded.ElectricBolt,
+    "Jazz" to Icons.Rounded.Piano,
+    "Classical" to Icons.Rounded.LibraryMusic,
+    "Dance" to Icons.Rounded.Nightlife,
+    "Soul" to Icons.Rounded.Spa,
+    "Country" to Icons.Rounded.Landscape,
+    "Electronic" to Icons.Rounded.GraphicEq,
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
     onAddStation: () -> Unit,
+    onEditStation: (Long) -> Unit = {},
     onSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -165,25 +197,28 @@ fun MainScreen(
     val searchBarState = rememberContainedSearchBarState()
     val isSearchExpanded by remember { derivedStateOf { searchBarState.currentValue == SearchBarValue.Expanded } }
     val searchQueryText by remember { derivedStateOf { textFieldState.text.toString() } }
-    var activeFilterPicker by remember { mutableStateOf<FilterPickerType?>(null) }
+    var showCountrySheet by remember { mutableStateOf(false) }
+    var showGenreSheet by remember { mutableStateOf(false) }
+    var contextStation by remember { mutableStateOf<Station?>(null) }
+    var stationToDelete by remember { mutableStateOf<Station?>(null) }
+    val countrySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val genreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var countryFilterQuery by remember { mutableStateOf("") }
     var genreFilterQuery by remember { mutableStateOf("") }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
 
-    val stationContentBottomPadding = if (currentStation != null) 128.dp else 0.dp
+    var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
     val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
 
     BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
-    BackHandler(enabled = isSearchExpanded && activeFilterPicker == null) {
+    BackHandler(enabled = isSearchExpanded && !showCountrySheet && !showGenreSheet) {
         textFieldState.edit { replace(0, length, "") }
         scope.launch { searchBarState.animateToCollapsed() }
-    }
-    BackHandler(enabled = activeFilterPicker != null) {
-        activeFilterPicker = null
     }
     LaunchedEffect(Unit) { viewModel.connect(context) }
     LaunchedEffect(searchQueryText) {
@@ -219,83 +254,32 @@ fun MainScreen(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 } else {
-                    IconButton(
-                        onClick = { scope.launch { drawerState.open() } },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                    ) {
-                        Icon(Icons.Rounded.Menu, contentDescription = "Menu")
-                    }
+                    Icon(Icons.Rounded.Search, contentDescription = null)
                 }
             },
             trailingIcon = {
-                if (isSearchExpanded && searchQueryText.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            textFieldState.edit { replace(0, length, "") }
-                        },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                    ) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                when {
+                    isSearchExpanded && searchQueryText.isNotEmpty() -> {
+                        IconButton(
+                            onClick = { textFieldState.edit { replace(0, length, "") } },
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        ) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                        }
+                    }
+                    !isSearchExpanded -> {
+                        IconButton(
+                            onClick = onSettings,
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        ) {
+                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                        }
                     }
                 }
             },
         )
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                val appIconBitmap = remember {
-                    val drawable = context.packageManager.getApplicationIcon(context.packageName)
-                    android.graphics.Bitmap.createBitmap(
-                        drawable.intrinsicWidth.coerceAtLeast(1),
-                        drawable.intrinsicHeight.coerceAtLeast(1),
-                        android.graphics.Bitmap.Config.ARGB_8888,
-                    ).also { bmp ->
-                        val canvas = android.graphics.Canvas(bmp)
-                        drawable.setBounds(0, 0, canvas.width, canvas.height)
-                        drawable.draw(canvas)
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(28.dp),
-                ) {
-                    androidx.compose.foundation.Image(
-                        bitmap = appIconBitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape),
-                    )
-                    Text(
-                        text = "Aerial",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                    label = { Text("Add a station") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onAddStation()
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
-                    label = { Text("Settings") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onSettings()
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                )
-            }
-        },
-    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -330,6 +314,7 @@ fun MainScreen(
                         bottomPadding = padding.calculateBottomPadding() + stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
                         onAddTapped = ::openRegistrySearch,
+                        onStationLongPress = { contextStation = it },
                         onCategoryTap = { viewModel.playRandomFromCategory(it) },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it) },
                     )
@@ -337,13 +322,16 @@ fun MainScreen(
             }
         }
 
+        val miniPlayerState = remember { MutableTransitionState(currentStation != null) }
+        miniPlayerState.targetState = currentStation != null
         AnimatedVisibility(
-            visible = currentStation != null,
+            visibleState = miniPlayerState,
             enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .semantics { traversalIndex = 1f }
+                .onSizeChanged { miniPlayerHeightPx = it.height }
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
@@ -376,7 +364,7 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            val miniArtworkModel = with(activeNowPlayingInfo) {
+                            val miniArtworkModel = if (!isPlaying) null else with(activeNowPlayingInfo) {
                                 when {
                                     this?.track?.artworkData != null -> this.track.artworkData
                                     this?.track?.artworkUrl?.isNotBlank() == true -> this.track.artworkUrl
@@ -511,49 +499,13 @@ fun MainScreen(
         ) {
             if (!isOnline) {
                 NoNetworkState()
-            } else if (activeFilterPicker != null) {
-                AnimatedContent(
-                    targetState = activeFilterPicker,
-                    transitionSpec = {
-                        slideInVertically { it }.togetherWith(slideOutVertically { it })
-                    },
-                    label = "filterPicker",
-                ) { picker ->
-                    when (picker) {
-                        FilterPickerType.Country -> FilterPickerScreen(
-                            title = "Country",
-                            searchLabel = "Search countries",
-                            query = countryFilterQuery,
-                            onQueryChange = { countryFilterQuery = it },
-                            items = availableCountries,
-                            selectedItems = selectedCountries,
-                            displayName = ::countryName,
-                            onToggle = { viewModel.toggleCountryFilter(it) },
-                            onClear = { viewModel.clearCountryFilter() },
-                            onBack = { activeFilterPicker = null },
-                        )
-                        FilterPickerType.Genre -> FilterPickerScreen(
-                            title = "Genre",
-                            searchLabel = "Search genres",
-                            query = genreFilterQuery,
-                            onQueryChange = { genreFilterQuery = it },
-                            items = allTags,
-                            selectedItems = selectedTags,
-                            displayName = { it },
-                            onToggle = { viewModel.toggleTagFilter(it) },
-                            onClear = { viewModel.clearTagFilter() },
-                            onBack = { activeFilterPicker = null },
-                        )
-                        null -> Unit
-                    }
-                }
             } else {
                 val hasFilters = selectedCountries.isNotEmpty() || selectedTags.isNotEmpty()
                 SearchFilterRow(
                     selectedCountries = selectedCountries,
                     selectedTags = selectedTags,
-                    onCountryClick = { activeFilterPicker = FilterPickerType.Country },
-                    onGenreClick = { activeFilterPicker = FilterPickerType.Genre },
+                    onCountryClick = { showCountrySheet = true },
+                    onGenreClick = { showGenreSheet = true },
                     onClearAll = { viewModel.clearAllFilters() },
                     hasFilters = hasFilters,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -575,18 +527,103 @@ fun MainScreen(
                             viewModel.saveRecentSearch(searchQueryText)
                             viewModel.playFromRegistry(station)
                             textFieldState.edit { replace(0, length, "") }
-                            viewModel.clearAllFilters()
                             scope.launch { searchBarState.animateToCollapsed() }
                         },
                         onAdd = { viewModel.addFromRegistry(it) },
                         onRemove = { viewModel.removeFromRegistry(it) },
                         bottomPadding = 0.dp,
+                        onAddManually = {
+                            scope.launch { searchBarState.animateToCollapsed() }
+                            onAddStation()
+                        },
                     )
                 }
             }
         }
+
+        if (showCountrySheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showCountrySheet = false
+                    countryFilterQuery = ""
+                },
+                sheetState = countrySheetState,
+            ) {
+                FilterPickerSheetContent(
+                    title = "Country",
+                    searchLabel = "Search countries",
+                    query = countryFilterQuery,
+                    onQueryChange = { countryFilterQuery = it },
+                    items = availableCountries,
+                    selectedItems = selectedCountries,
+                    displayName = ::countryName,
+                    onToggle = { viewModel.toggleCountryFilter(it) },
+                    onClear = { viewModel.clearCountryFilter() },
+                )
+            }
+        }
+
+        if (showGenreSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showGenreSheet = false
+                    genreFilterQuery = ""
+                },
+                sheetState = genreSheetState,
+            ) {
+                FilterPickerSheetContent(
+                    title = "Genre",
+                    searchLabel = "Search genres",
+                    query = genreFilterQuery,
+                    onQueryChange = { genreFilterQuery = it },
+                    items = allTags,
+                    selectedItems = selectedTags,
+                    displayName = { it },
+                    onToggle = { viewModel.toggleTagFilter(it) },
+                    onClear = { viewModel.clearTagFilter() },
+                )
+            }
+        }
+
+        contextStation?.let { station ->
+            ModalBottomSheet(
+                onDismissRequest = { contextStation = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+            ) {
+                StationContextSheet(
+                    station = station,
+                    onEdit = {
+                        contextStation = null
+                        onEditStation(station.id)
+                    },
+                    onDelete = {
+                        stationToDelete = station
+                        contextStation = null
+                    },
+                )
+            }
+        }
+
+        stationToDelete?.let { station ->
+            AlertDialog(
+                onDismissRequest = { stationToDelete = null },
+                title = { Text("Remove station?") },
+                text = { Text("\"${station.name}\" will be removed from your favorites.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteStation(station)
+                        stationToDelete = null
+                    }) {
+                        Text("Remove", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { stationToDelete = null }) { Text("Cancel") }
+                },
+            )
+        }
     }
-    } // end ModalNavigationDrawer
 
 }
 
@@ -633,12 +670,57 @@ private fun RegistrySearchResults(
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp,
+    onAddManually: (() -> Unit)? = null,
 ) {
     if (results.isEmpty()) {
-        HomeEmptyState(
-            text = "No stations found",
-            supportingText = "Try searching by name, country, or genre.",
-        )
+        Box(
+            modifier = androidx.compose.ui.Modifier.fillMaxSize().padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = androidx.compose.ui.Modifier.size(88.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = Icons.Rounded.Radio,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = androidx.compose.ui.Modifier.size(36.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = "No stations found",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Try a different search, or add a station using its stream URL.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                if (onAddManually != null) {
+                    Spacer(androidx.compose.ui.Modifier.height(4.dp))
+                    Button(onClick = onAddManually) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = null,
+                            modifier = androidx.compose.ui.Modifier.size(18.dp),
+                        )
+                        Spacer(androidx.compose.ui.Modifier.width(8.dp))
+                        Text("Add your own station")
+                    }
+                }
+            }
+        }
     } else {
         LazyColumn(
             contentPadding = PaddingValues(bottom = bottomPadding),
@@ -825,6 +907,7 @@ private fun HomeContent(
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onAddTapped: () -> Unit,
+    onStationLongPress: (Station) -> Unit,
     onCategoryTap: (String) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
 ) {
@@ -834,44 +917,45 @@ private fun HomeContent(
     LazyColumn(
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
     ) {
-        item("tap-to-listen") {
-            Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                Text(
-                    text = "Your favorites",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-                )
-                val totalTiles = stations.size + 1
-                val rows = (0 until totalTiles).toList().chunked(3)
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                ) {
-                    rows.forEach { rowIndices ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            rowIndices.forEach { idx ->
-                                if (idx < stations.size) {
-                                    val station = stations[idx]
-                                    StationTile(
-                                        station = station,
-                                        tileColor = tileColor,
-                                        contentColor = tileContentColor,
-                                        isActive = currentStation?.id == station.id,
-                                        isPlaying = isPlaying && currentStation?.id == station.id,
-                                        isBuffering = isBuffering && currentStation?.id == station.id,
-                                        onClick = { onPlay(station) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                } else {
-                                    AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
-                                }
-                            }
-                            repeat(3 - rowIndices.size) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
+        item("favorites-header") {
+            Text(
+                text = "Your favorites",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+            )
+        }
+        val totalTiles = stations.size + 1
+        val rows = (0 until totalTiles).toList().chunked(3)
+        items(rows, key = { it.first() }) { rowIndices ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = if (rowIndices == rows.last()) 8.dp else 12.dp,
+                ),
+            ) {
+                rowIndices.forEach { idx ->
+                    if (idx < stations.size) {
+                        val station = stations[idx]
+                        StationTile(
+                            station = station,
+                            tileColor = tileColor,
+                            contentColor = tileContentColor,
+                            isActive = currentStation?.id == station.id,
+                            isPlaying = isPlaying && currentStation?.id == station.id,
+                            isBuffering = isBuffering && currentStation?.id == station.id,
+                            onClick = { onPlay(station) },
+                            onLongClick = { onStationLongPress(station) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
                     }
+                }
+                repeat(3 - rowIndices.size) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -928,8 +1012,10 @@ private fun StationTile(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val haptic = LocalHapticFeedback.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
@@ -942,10 +1028,18 @@ private fun StationTile(
         var logoFailed by remember(logoModel) { mutableStateOf(false) }
 
         Surface(
-            onClick = onClick,
             color = tileColor,
             shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                ),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 if (logoModel != null && !logoFailed) {
@@ -956,11 +1050,13 @@ private fun StationTile(
                         onError = { logoFailed = true },
                         modifier = Modifier.fillMaxSize().padding(14.dp),
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)),
-                    )
+                    if (isActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)),
+                        )
+                    }
                 }
                 val indicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
                 when {
@@ -1030,18 +1126,6 @@ private fun CategoryGrid(
     modifier: Modifier = Modifier,
 ) {
     if (tags.isEmpty()) return
-    val tagIcons = mapOf(
-        "News" to Icons.AutoMirrored.Rounded.Article,
-        "Sport" to Icons.Rounded.SportsSoccer,
-        "Pop" to Icons.Rounded.Star,
-        "Rock" to Icons.Rounded.ElectricBolt,
-        "Jazz" to Icons.Rounded.Piano,
-        "Classical" to Icons.Rounded.LibraryMusic,
-        "Dance" to Icons.Rounded.Nightlife,
-        "Soul" to Icons.Rounded.Spa,
-        "Country" to Icons.Rounded.Landscape,
-        "Electronic" to Icons.Rounded.GraphicEq,
-    )
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
@@ -1066,7 +1150,7 @@ private fun CategoryGrid(
                             modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
                         ) {
                             Icon(
-                                imageVector = tagIcons[tag] ?: Icons.Rounded.MusicNote,
+                                imageVector = CATEGORY_ICONS[tag] ?: Icons.Rounded.MusicNote,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -1105,12 +1189,18 @@ private fun SearchFilterRow(
             selected = selectedCountries.isNotEmpty(),
             onClick = onCountryClick,
             label = { Text(chipLabel(selectedCountries, "Country", ::countryName)) },
+            leadingIcon = if (selectedCountries.isNotEmpty()) {
+                { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+            } else null,
             trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
         FilterChip(
             selected = selectedTags.isNotEmpty(),
             onClick = onGenreClick,
             label = { Text(chipLabel(selectedTags, "Genre")) },
+            leadingIcon = if (selectedTags.isNotEmpty()) {
+                { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+            } else null,
             trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
         if (hasFilters) {
@@ -1119,10 +1209,52 @@ private fun SearchFilterRow(
     }
 }
 
-private enum class FilterPickerType { Country, Genre }
+@Composable
+private fun StationContextSheet(
+    station: Station,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+    ) {
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+        )
+        HorizontalDivider()
+        if (station.provider.isBlank()) {
+            ListItem(
+                headlineContent = { Text("Edit") },
+                leadingContent = {
+                    Icon(Icons.Rounded.Edit, contentDescription = null)
+                },
+                modifier = Modifier.clickable(onClick = onEdit),
+            )
+        }
+        ListItem(
+            headlineContent = {
+                Text("Remove", color = MaterialTheme.colorScheme.error)
+            },
+            leadingContent = {
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            },
+            modifier = Modifier.clickable(onClick = onDelete),
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+}
 
 @Composable
-private fun FilterPickerScreen(
+private fun FilterPickerSheetContent(
     title: String,
     searchLabel: String,
     query: String,
@@ -1132,7 +1264,6 @@ private fun FilterPickerScreen(
     displayName: (String) -> String,
     onToggle: (String) -> Unit,
     onClear: () -> Unit,
-    onBack: () -> Unit,
 ) {
     val normalizedQuery = query.trim()
     val filteredItems = remember(items, selectedItems, normalizedQuery) {
@@ -1146,19 +1277,15 @@ private fun FilterPickerScreen(
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .fillMaxHeight(0.8f)
+            .navigationBarsPadding()
             .imePadding(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, bottom = 4.dp),
         ) {
-            IconButton(
-                onClick = onBack,
-                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-            ) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-            }
             Text(
                 title,
                 style = MaterialTheme.typography.titleLarge,
@@ -1172,7 +1299,7 @@ private fun FilterPickerScreen(
             value = query,
             onValueChange = onQueryChange,
             singleLine = true,
-            label = { Text(searchLabel) },
+            placeholder = { Text(searchLabel) },
             leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
@@ -1196,9 +1323,8 @@ private fun FilterPickerScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(bottom = 24.dp),
-            )
-            {
+                contentPadding = PaddingValues(bottom = 8.dp),
+            ) {
                 items(filteredItems, key = { it }) { item ->
                     val checked = item in selectedItems
                     ListItem(
@@ -1225,7 +1351,8 @@ private fun FeaturedStationCard(
         Surface(
             onClick = onClick,
             shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.primaryContainer,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {

@@ -1,10 +1,8 @@
 package com.shapeshed.aerial.data
 
 import android.util.LruCache
-import com.shapeshed.aerial.BuildConfig
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -23,6 +21,7 @@ internal data class GlobalMetadataContent(
 )
 
 private val heraldIdCache = ConcurrentHashMap<String, Int>()
+private val heraldCachePopulated = AtomicBoolean(false)
 private val globalArtworkCache = object : LruCache<String, ByteArray>(4 * 1024 * 1024) {
     override fun sizeOf(key: String, value: ByteArray) = value.size
 }
@@ -35,8 +34,11 @@ internal fun resolveGlobalHeraldId(station: Station): Int? {
 }
 
 private fun populateHeraldIdCache() {
-    if (heraldIdCache.isNotEmpty()) return
-    val json = requestGlobalJson("https://bff-web-guacamole.musicradio.com/stations/") ?: return
+    if (!heraldCachePopulated.compareAndSet(false, true)) return
+    val json = requestGlobalJson("https://bff-web-guacamole.musicradio.com/stations/") ?: run {
+        heraldCachePopulated.set(false) // allow retry if the fetch failed
+        return
+    }
     try {
         val arr = JSONArray(json)
         for (i in 0 until arr.length()) {
@@ -51,7 +53,9 @@ private fun populateHeraldIdCache() {
                 }
             }
         }
-    } catch (_: Exception) {}
+    } catch (_: Exception) {
+        heraldCachePopulated.set(false)
+    }
 }
 
 private fun normaliseGlobalUrl(url: String): String = url.substringBefore('?').trimEnd('/')
@@ -100,33 +104,6 @@ internal fun parseGlobalNowPlaying(json: String): GlobalMetadataContent? {
     } catch (_: Exception) { null }
 }
 
-private fun requestGlobalJson(url: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) { null }
-}
+private fun requestGlobalJson(url: String): String? = httpGetJson(url)
 
-internal fun fetchGlobalBytes(url: String): ByteArray? {
-    globalArtworkCache[url]?.let { return it }
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.use { it.readBytes().also { bytes -> globalArtworkCache.put(url, bytes) } }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) { null }
-}
+internal fun fetchGlobalBytes(url: String): ByteArray? = httpFetchBytes(url, globalArtworkCache)

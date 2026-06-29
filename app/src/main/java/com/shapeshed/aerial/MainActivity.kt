@@ -17,9 +17,11 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.shapeshed.aerial.ui.MainScreen
 import com.shapeshed.aerial.ui.MainViewModel
 import com.shapeshed.aerial.ui.MainViewModelFactory
@@ -30,11 +32,24 @@ import com.shapeshed.aerial.ui.StationEditViewModel
 import com.shapeshed.aerial.ui.StationEditViewModelFactory
 import com.shapeshed.aerial.ui.theme.AerialTheme
 
+object Routes {
+    const val MAIN = "main"
+    const val SETTINGS = "settings"
+    const val STATION_ADD = "station/manual"
+    const val STATION_EDIT = "station/{stationId}"
+    fun stationEdit(id: Long) = "station/$id"
+}
+
 class MainActivity : ComponentActivity() {
 
     private val mainViewModel: MainViewModel by viewModels {
         val app = application as AerialApp
         MainViewModelFactory(app, app.repository, app.registryRepository, app.settingsDataStore)
+    }
+
+    private val settingsViewModel: com.shapeshed.aerial.ui.SettingsViewModel by viewModels {
+        val app = application as AerialApp
+        com.shapeshed.aerial.ui.SettingsViewModelFactory(app, app.repository, app.settingsDataStore)
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -51,7 +66,7 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = "main",
+                    startDestination = Routes.MAIN,
                     modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                     enterTransition = {
                         fadeIn(motionScheme.defaultEffectsSpec()) +
@@ -68,14 +83,15 @@ class MainActivity : ComponentActivity() {
                             slideOutHorizontally(motionScheme.defaultSpatialSpec()) { (it * 0.15f).toInt() }
                     },
                 ) {
-                    composable("main") {
+                    composable(Routes.MAIN) {
                         MainScreen(
                             viewModel = mainViewModel,
-                            onAddStation = { navController.navigate("station/manual") },
-                            onSettings = { navController.navigate("settings") },
+                            onAddStation = { navController.navigate(Routes.STATION_ADD) },
+                            onEditStation = { stationId -> navController.navigate(Routes.stationEdit(stationId)) },
+                            onSettings = { navController.navigate(Routes.SETTINGS) },
                         )
                     }
-                    composable("station/manual") {
+                    composable(Routes.STATION_ADD) {
                         val vm: StationEditViewModel = viewModel(
                             factory = StationEditViewModelFactory(repository, null)
                         )
@@ -84,13 +100,22 @@ class MainActivity : ComponentActivity() {
                             onDismiss = { navController.popBackStack() },
                         )
                     }
-                    composable("settings") {
-                        val app = application as AerialApp
-                        val vm: com.shapeshed.aerial.ui.SettingsViewModel = viewModel(
-                            factory = SettingsViewModelFactory(app, app.repository, app.settingsDataStore)
+                    composable(
+                        route = Routes.STATION_EDIT,
+                        arguments = listOf(navArgument("stationId") { type = NavType.LongType }),
+                    ) { backStackEntry ->
+                        val stationId = backStackEntry.arguments?.getLong("stationId")
+                        val vm: StationEditViewModel = viewModel(
+                            factory = StationEditViewModelFactory(repository, stationId)
                         )
-                        SettingsScreen(
+                        StationEditScreen(
                             viewModel = vm,
+                            onDismiss = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.SETTINGS) {
+                        SettingsScreen(
+                            viewModel = settingsViewModel,
                             onDismiss = { navController.popBackStack() },
                         )
                     }

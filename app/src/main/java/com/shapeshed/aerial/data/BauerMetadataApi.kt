@@ -1,10 +1,8 @@
 package com.shapeshed.aerial.data
 
 import android.util.LruCache
-import com.shapeshed.aerial.BuildConfig
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -59,6 +57,8 @@ internal suspend fun fetchBauerMetadata(station: Station): BauerMetadataContent?
 // Cache: country → (normalised stream URL → station code)
 // Populated lazily per country; only cached on a successful non-empty fetch.
 private val countryStationMap = ConcurrentHashMap<String, Map<String, String>>()
+// Per-country gate: prevents concurrent duplicate fetches for the same country.
+private val countryFetching = ConcurrentHashMap<String, AtomicBoolean>()
 
 private val BAUER_COUNTRIES = listOf("GB", "IE", "AU")
 
@@ -82,26 +82,32 @@ internal fun resolveBauerStationCode(station: Station): Pair<String, String>? {
 
 private fun getStationsForCountry(country: String): Map<String, String> {
     countryStationMap[country]?.let { return it }
-    val json = requestBauerJson("https://listenapi.planetradio.co.uk/api9.2/stations/$country")
-        ?: return emptyMap()
-    val result = mutableMapOf<String, String>()
+    val gate = countryFetching.computeIfAbsent(country) { AtomicBoolean(false) }
+    if (!gate.compareAndSet(false, true)) return countryStationMap[country] ?: emptyMap()
     try {
-        val arr = JSONArray(json)
-        for (i in 0 until arr.length()) {
-            val obj = arr.optJSONObject(i) ?: continue
-            val code = obj.optString("stationCode").trim().takeIf { it.isNotBlank() } ?: continue
-            val streams = obj.optJSONArray("stationStreams") ?: continue
-            for (j in 0 until streams.length()) {
-                val streamUrl = streams.optJSONObject(j)
-                    ?.optString("streamUrl")?.trim()?.takeIf { it.isNotBlank() } ?: continue
-                result[normaliseStreamUrl(streamUrl)] = code
+        val json = requestBauerJson("https://listenapi.planetradio.co.uk/api9.2/stations/$country")
+            ?: return emptyMap()
+        val result = mutableMapOf<String, String>()
+        try {
+            val arr = JSONArray(json)
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val code = obj.optString("stationCode").trim().takeIf { it.isNotBlank() } ?: continue
+                val streams = obj.optJSONArray("stationStreams") ?: continue
+                for (j in 0 until streams.length()) {
+                    val streamUrl = streams.optJSONObject(j)
+                        ?.optString("streamUrl")?.trim()?.takeIf { it.isNotBlank() } ?: continue
+                    result[normaliseStreamUrl(streamUrl)] = code
+                }
             }
+        } catch (_: Exception) {
+            return emptyMap()
         }
-    } catch (_: Exception) {
-        return emptyMap()
+        if (result.isNotEmpty()) countryStationMap[country] = result
+        return result
+    } finally {
+        if (!countryStationMap.containsKey(country)) gate.set(false) // allow retry on failure
     }
-    if (result.isNotEmpty()) countryStationMap[country] = result
-    return result
 }
 
 // Strips query string so "https://stream.foo.com/radio.aac?direct=true&skey=123"
@@ -138,40 +144,9 @@ private fun parseNowPlayingEntry(json: String, stationCode: String): BauerNowPla
     }
 }
 
-private fun requestBauerJson(url: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
+private fun requestBauerJson(url: String): String? = httpGetJson(url)
 
-private fun fetchBauerBytes(url: String): ByteArray? {
-    bauerArtworkCache[url]?.let { return it }
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.use { it.readBytes().also { bytes -> bauerArtworkCache.put(url, bytes) } }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
+private fun fetchBauerBytes(url: String): ByteArray? = httpFetchBytes(url, bauerArtworkCache)
 
 private val bauerArtworkCache = object : LruCache<String, ByteArray>(4 * 1024 * 1024) {
     override fun sizeOf(key: String, value: ByteArray) = value.size

@@ -34,8 +34,8 @@ class BauerProvider : Provider {
                         NowPlayingStore.set(info)
                     }
                 }
-                val delayMs = REFRESH_STEPS_MS.getOrElse(stepIndex) { REFRESH_STEADY_MS }
-                stepIndex = minOf(stepIndex + 1, REFRESH_STEPS_MS.size)
+                val delayMs = Provider.REFRESH_STEPS_MS.getOrElse(stepIndex) { Provider.REFRESH_STEADY_MS }
+                stepIndex = minOf(stepIndex + 1, Provider.REFRESH_STEPS_MS.size)
                 Log.d(TAG, "Bauer polling delay=${delayMs}ms station=${station.name}")
                 withTimeoutOrNull(delayMs) { transitionSignal.receive() }
             }
@@ -56,8 +56,6 @@ class BauerProvider : Provider {
 
     companion object {
         private const val TAG = "BauerStationProvider"
-        private val REFRESH_STEPS_MS = longArrayOf(5_000L, 10_000L)
-        private const val REFRESH_STEADY_MS = 30_000L
     }
 }
 
