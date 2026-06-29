@@ -5,7 +5,7 @@ Aerial is a lightweight Android radio player.
 ## Install
 
 <p>
-<a href="https://f-droid.org/packages/com.shapeshed.aerial/"><img src="docs/badges/get-it-on-fdroid.png" alt="Get it on F-Droid" height="60"></a><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.shapeshed.aerial%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fshapeshed%2Faerial%22%2C%22author%22%3A%22shapeshed%22%2C%22name%22%3A%22Aerial%22%2C%22supportFixedAPKURL%22%3Afalse%7D"><img src="docs/badges/get-it-on-obtainium.png" alt="Get it on Obtainium" height="60"></a>
+<a href="https://f-droid.org/packages/com.shapeshed.aerial/"><img src="docs/badges/get-it-on-fdroid.png" alt="Get it on F-Droid" height="80"></a><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.shapeshed.aerial%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fshapeshed%2Faerial%22%2C%22author%22%3A%22shapeshed%22%2C%22name%22%3A%22Aerial%22%2C%22supportFixedAPKURL%22%3Afalse%7D"><img src="docs/badges/get-it-on-obtainium.png" alt="Get it on Obtainium" height="80"></a>
 </p>
 
 ## Screenshots
