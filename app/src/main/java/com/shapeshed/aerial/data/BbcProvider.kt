@@ -34,8 +34,8 @@ class BbcProvider : Provider {
                         NowPlayingStore.set(info)
                     }
                 }
-                val delayMs = REFRESH_STEPS_MS.getOrElse(stepIndex) { REFRESH_STEADY_MS }
-                stepIndex = minOf(stepIndex + 1, REFRESH_STEPS_MS.size)
+                val delayMs = Provider.REFRESH_STEPS_MS.getOrElse(stepIndex) { Provider.REFRESH_STEADY_MS }
+                stepIndex = minOf(stepIndex + 1, Provider.REFRESH_STEPS_MS.size)
                 Log.d(TAG, "BBC polling delay=${delayMs}ms station=${station.name}")
                 withTimeoutOrNull(delayMs) { transitionSignal.receive() }
             }
@@ -56,11 +56,6 @@ class BbcProvider : Provider {
 
     companion object {
         private const val TAG = "BbcStationProvider"
-        // Poll at t=0 (immediately), then after 5s, 10s, then every 30s steady-state.
-        // BBC exposes a 30s polling hint on the live endpoints, so we keep the transition
-        // path snappy but back off once the station settles.
-        private val REFRESH_STEPS_MS = longArrayOf(5_000L, 10_000L)
-        private const val REFRESH_STEADY_MS = 30_000L
     }
 }
 

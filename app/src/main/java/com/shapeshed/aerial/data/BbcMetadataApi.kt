@@ -1,9 +1,6 @@
 package com.shapeshed.aerial.data
 
 import android.util.LruCache
-import com.shapeshed.aerial.BuildConfig
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -170,42 +167,9 @@ private fun parseBbcBroadcastItemPayload(root: JSONObject, now: Instant): BbcBro
 
 private fun parseInstantOrNull(value: String): Instant? = runCatching { Instant.parse(value) }.getOrNull()
 
-private fun requestBbcJson(url: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
+private fun requestBbcJson(url: String): String? = httpGetJson(url)
 
-private fun fetchBbcBytes(url: String): ByteArray? {
-    artworkCache[url]?.let { return it }
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.use { input ->
-                input.readBytes().also { bytes -> artworkCache.put(url, bytes) }
-            }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
+private fun fetchBbcBytes(url: String): ByteArray? = httpFetchBytes(url, artworkCache)
 
 private val artworkCache = object : LruCache<String, ByteArray>(4 * 1024 * 1024) {
     override fun sizeOf(key: String, value: ByteArray) = value.size

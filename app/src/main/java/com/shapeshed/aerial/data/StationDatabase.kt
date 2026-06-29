@@ -18,6 +18,9 @@ abstract class StationDatabase : RoomDatabase() {
         fun get(context: Context): StationDatabase =
             instance ?: synchronized(this) {
                 Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
+                    // Explicit migrations cover versions 6–9 → 10.
+                    // Any user still on v5 or below will have their data wiped by the fallback.
+                    // Future version bumps MUST add an explicit Migration before relying on this fallback.
                     .addMigrations(MIGRATION_6_10, MIGRATION_7_10, MIGRATION_8_10, MIGRATION_9_10)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

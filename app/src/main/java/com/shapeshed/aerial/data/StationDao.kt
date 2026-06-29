@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StationDao {
-    @Query("SELECT * FROM stations ORDER BY name ASC")
+    @Query("SELECT * FROM stations ORDER BY name COLLATE NOCASE ASC")
     fun getAll(): Flow<List<Station>>
 
     @Query("SELECT * FROM stations WHERE id = :id")

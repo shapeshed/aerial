@@ -11,14 +11,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-private val MB_USER_AGENT get() = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
+private val MB_USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
 private const val TAG = "MusicBrainzProvider"
-
-fun parseIcyTitle(raw: String): Pair<String?, String> {
-    val idx = raw.indexOf(" - ")
-    return if (idx > 0) Pair(raw.substring(0, idx).trim(), raw.substring(idx + 3).trim())
-    else Pair(null, raw.trim())
-}
 
 class MusicBrainzProvider : Provider {
     private var station: Station? = null
@@ -98,30 +92,12 @@ class MusicBrainzProvider : Provider {
         val enc = "UTF-8"
         val query = "recording:%22${URLEncoder.encode(title, enc)}%22+artist:%22${URLEncoder.encode(artist, enc)}%22"
         val url = "https://musicbrainz.org/ws/2/recording/?query=$query&limit=1&fmt=json"
-        val json = requestMbJson(url) ?: return null
+        val json = httpGetJson(url, extraHeaders = mapOf("Accept" to "application/json")) ?: return null
         return try {
             JSONObject(json).optJSONArray("recordings")?.optJSONObject(0)
         } catch (_: Exception) {
             null
         }
-    }
-}
-
-private fun requestMbJson(url: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", MB_USER_AGENT)
-        conn.setRequestProperty("Accept", "application/json")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
     }
 }
 

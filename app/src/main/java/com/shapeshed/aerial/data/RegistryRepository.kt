@@ -23,9 +23,7 @@ private val CURATED_TAG_ORDER = listOf(
     "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic"
 )
 
-class RegistryRepository(private val dao: RegistryDao) {
-
-    private val httpClient = OkHttpClient()
+class RegistryRepository(private val dao: RegistryDao, private val httpClient: OkHttpClient) {
 
     fun countAsFlow(): Flow<Int> = dao.countAsFlow()
 
@@ -93,11 +91,16 @@ class RegistryRepository(private val dao: RegistryDao) {
         val candidates = if (hasQuery) {
             val normalized = NumberNormalizer.normalize(query.trim())
             val words = normalized.lowercase().split(" ").filter { it.isNotBlank() }
-            val raw = dao.search(normalized)
+            // For multi-word queries pass only the first word to the DB so the LIKE
+            // clause searches a single token; Kotlin does the per-word narrowing below.
+            val raw = dao.search(words.first())
             if (words.size > 1) {
+                val completeWords = words.dropLast(1)
+                val prefix = words.last()
                 raw.filter { station ->
                     val haystack = " ${station.searchText.lowercase()} ${station.country.lowercase()} ${station.countryCode.lowercase()} "
-                    words.all { word -> haystack.contains(" $word ") }
+                    completeWords.all { word -> haystack.contains(" $word ") } &&
+                        haystack.contains(" $prefix")
                 }
             } else raw
         } else if (countryCodes.isNotEmpty() && tags.isEmpty()) {

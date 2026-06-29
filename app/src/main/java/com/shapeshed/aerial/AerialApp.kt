@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.shapeshed.aerial.data.BauerProvider
@@ -17,24 +18,27 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.WirelessProvider
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val REGISTRY_LAST_SYNC_KEY = longPreferencesKey("registry_last_network_sync")
+val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 private const val REGISTRY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000L
 
 class AerialApp : Application() {
+    val okHttpClient: OkHttpClient = OkHttpClient()
     private val db by lazy { StationDatabase.get(this) }
     val repository by lazy { StationRepository(db.stationDao()) }
-    val registryRepository by lazy { RegistryRepository(db.registryDao()) }
+    val registryRepository by lazy { RegistryRepository(db.registryDao(), okHttpClient) }
     val settingsDataStore get() = dataStore
-    var showNowPlayingOnResume: Boolean = false
     val networkMonitor by lazy { NetworkMonitor(this) }
-    val providers: List<Provider> = listOf(BbcProvider(), BauerProvider(), GlobalPlayerProvider(), WirelessProvider(), MusicBrainzProvider())
+    val providers: List<Provider> = listOf(BbcProvider(), BauerProvider(), GlobalPlayerProvider(okHttpClient), WirelessProvider(), MusicBrainzProvider())
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,6 +57,8 @@ class AerialApp : Application() {
                         dataStore.edit { it[REGISTRY_LAST_SYNC_KEY] = System.currentTimeMillis() }
                     }
                 }
+            }.onFailure { e ->
+                Log.e("AerialApp", "Registry bootstrap failed", e)
             }
         }
     }

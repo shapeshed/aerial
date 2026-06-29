@@ -1,9 +1,6 @@
 package com.shapeshed.aerial.data
 
 import android.util.LruCache
-import com.shapeshed.aerial.BuildConfig
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
@@ -71,6 +68,7 @@ private fun getToken(): String? {
 
 internal fun fetchWirelessMetadata(stationId: String): WirelessMetadataContent? {
     val token = getToken() ?: return null
+    // stationId is an opaque enum string from the Wireless stations API — no special chars.
     val body = """{"query":"query { onAirNow(stationId: $stationId) { title images { url width metadata } } recentlyPlayed(stationId: $stationId) { title artist endTime } }"}"""
     val json = postWirelessJson("https://api.news.co.uk/audio/v1/graph", body, token) ?: return null
     return try {
@@ -126,53 +124,9 @@ private fun pickBestArtworkUrl(images: JSONArray?): String? {
     return thumbnailUrl ?: fallbackUrl
 }
 
-private fun requestWirelessJson(url: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) { null }
-}
+private fun requestWirelessJson(url: String): String? = httpGetJson(url)
 
-private fun postWirelessJson(url: String, body: String, token: String): String? {
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.doOutput = true
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            conn.outputStream.use { it.write(body.toByteArray()) }
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) { null }
-}
+private fun postWirelessJson(url: String, body: String, token: String): String? =
+    httpPostJson(url, body, extraHeaders = mapOf("Authorization" to "Bearer $token"))
 
-internal fun fetchWirelessBytes(url: String): ByteArray? {
-    wirelessArtworkCache[url]?.let { return it }
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.use { it.readBytes().also { bytes -> wirelessArtworkCache.put(url, bytes) } }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) { null }
-}
+internal fun fetchWirelessBytes(url: String): ByteArray? = httpFetchBytes(url, wirelessArtworkCache)

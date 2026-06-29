@@ -35,6 +35,7 @@ import com.shapeshed.aerial.data.bauerStreamUrl
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -111,12 +112,16 @@ class MainViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val stations: StateFlow<List<Station>> = _allStations
+        .map { list -> list.sortedWith(compareBy { stationSortKey(it.name) }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
     private val _ephemeralStation = MutableStateFlow<Station?>(null)
-    private var pendingRestoreStation: Station? = null
+    // Carries the last-played station to loadStationPaused() once the MediaController connects.
+    // CompletableDeferred ensures the handoff is safe regardless of which side wins the race.
+    private val pendingRestoreStation = CompletableDeferred<Station?>()
 
     val currentStation: StateFlow<Station?> = combine(
         _allStations,
@@ -147,13 +152,9 @@ class MainViewModel(
     val nowPlayingInfo: StateFlow<NowPlayingInfo?> = NowPlayingStore.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow(
-        "showNowPlaying",
-        getApplication<AerialApp>().showNowPlayingOnResume,
-    )
+    val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow("showNowPlaying", false)
     fun setShowNowPlaying(value: Boolean) {
         savedStateHandle["showNowPlaying"] = value
-        getApplication<AerialApp>().showNowPlayingOnResume = value
     }
 
     private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
@@ -296,12 +297,7 @@ class MainViewModel(
         if (trimmed.isBlank()) return
         viewModelScope.launch {
             dataStore.edit { prefs ->
-                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
-                    try {
-                        val arr = JSONArray(json)
-                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
-                    } catch (_: Exception) { mutableListOf() }
-                } ?: mutableListOf()
+                val current = prefs.recentSearches()
                 current.remove(trimmed)
                 current.add(0, trimmed)
                 prefs[RECENT_SEARCHES_KEY] = JSONArray(current.take(MAX_RECENT_SEARCHES)).toString()
@@ -312,17 +308,20 @@ class MainViewModel(
     fun removeRecentSearch(query: String) {
         viewModelScope.launch {
             dataStore.edit { prefs ->
-                val current = prefs[RECENT_SEARCHES_KEY]?.let { json ->
-                    try {
-                        val arr = JSONArray(json)
-                        (0 until arr.length()).map { arr.getString(it) }.toMutableList()
-                    } catch (_: Exception) { mutableListOf() }
-                } ?: mutableListOf()
+                val current = prefs.recentSearches()
                 current.remove(query)
                 prefs[RECENT_SEARCHES_KEY] = JSONArray(current).toString()
             }
         }
     }
+
+    private fun Preferences.recentSearches(): MutableList<String> =
+        get(RECENT_SEARCHES_KEY)?.let { json ->
+            try {
+                val arr = JSONArray(json)
+                (0 until arr.length()).map { arr.getString(it) }.toMutableList()
+            } catch (_: Exception) { mutableListOf() }
+        } ?: mutableListOf()
 
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -351,9 +350,8 @@ class MainViewModel(
                 }
             }
             if (controller?.currentMediaItem == null) {
-                pendingRestoreStation?.let { station ->
-                    pendingRestoreStation = null
-                    loadStationPaused(station)
+                viewModelScope.launch {
+                    pendingRestoreStation.await()?.let { loadStationPaused(it) }
                 }
             }
         }, ContextCompat.getMainExecutor(appContext))
@@ -384,7 +382,9 @@ class MainViewModel(
             }
         }
         override fun onPlaybackStateChanged(state: Int) {
-            _isBuffering.value = state == Player.STATE_BUFFERING
+            // Only show buffering when the user intends to play; suppress the transient
+            // STATE_BUFFERING that fires during prepare() when restoring a paused station.
+            _isBuffering.value = state == Player.STATE_BUFFERING && controller?.playWhenReady == true
         }
         override fun onPlayerError(error: PlaybackException) {
             _isBuffering.value = false
@@ -468,26 +468,6 @@ class MainViewModel(
         }
     }
 
-    fun addStation(name: String, streamUrl: String, logoPath: String = "") {
-        val trimmedName = name.trim()
-        val trimmedStreamUrl = streamUrl.trim()
-        viewModelScope.launch {
-            val localLogoPath = if (logoPath.startsWith("http")) {
-                withContext(Dispatchers.IO) { downloadLogo(logoPath) } ?: logoPath
-            } else {
-                logoPath
-            }
-            val stationId = repository.insertOrGetExisting(
-                Station(
-                    name = trimmedName,
-                    streamUrl = trimmedStreamUrl,
-                    logoPath = localLogoPath.trim(),
-                ),
-            )
-            _recentlyAddedStationId.value = stationId
-        }
-    }
-
     fun clearRecentlyAddedStation(stationId: Long) {
         if (_recentlyAddedStationId.value == stationId) {
             _recentlyAddedStationId.value = null
@@ -535,7 +515,11 @@ class MainViewModel(
     }
 
     private suspend fun restoreLastPlayedStation() {
-        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return
+        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
+        if (snapshot == null) {
+            pendingRestoreStation.complete(null)
+            return
+        }
         val savedStation = when {
             snapshot.station.id > 0 -> repository.getById(snapshot.station.id)
             else -> null
@@ -548,7 +532,7 @@ class MainViewModel(
             _ephemeralStation.value = snapshot.station.toEphemeral()
         }
 
-        pendingRestoreStation = savedStation ?: snapshot.station.toEphemeral()
+        pendingRestoreStation.complete(savedStation ?: snapshot.station.toEphemeral())
     }
 
     private fun persistLastPlayedStation(station: Station) {
@@ -622,6 +606,21 @@ private fun deleteLogoFiles(logoPath: String) {
     file.delete()
     java.io.File(file.parentFile, "${file.nameWithoutExtension}_media.png").delete()
 }
+
+// Maps English number words and digit strings to zero-padded numbers so that
+// "BBC Radio One", "BBC Radio Two" … sort in numeric order rather than alphabetically.
+private val NUMBER_WORDS = mapOf(
+    "zero" to 0, "one" to 1, "two" to 2, "three" to 3, "four" to 4,
+    "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9,
+    "ten" to 10, "eleven" to 11, "twelve" to 12,
+)
+
+private fun stationSortKey(name: String): String =
+    name.split(Regex("\\s+")).joinToString(" ") { token ->
+        NUMBER_WORDS[token.lowercase()]?.let { "%03d".format(it) }
+            ?: token.toIntOrNull()?.let { "%03d".format(it) }
+            ?: token.lowercase()
+    }
 
 private fun PlaybackException.userMessage(): String {
     return when (errorCode) {
