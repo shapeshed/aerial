@@ -48,8 +48,10 @@ maintained.
 
 <p>
   <a href="https://buymeacoffee.com/shapeshed"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="45"></a>
-  <a href="https://ko-fi.com/shapeshed"><img src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support Aerial on Ko-fi" height="45"></a>
-  <a href="https://www.paypal.com/donate/?hosted_button_id=MZVB3E2RYYWV8"><img src="https://www.paypalobjects.com/en_GB/i/btn/btn_donate_SM.gif" alt="Donate with PayPal" height="45"></a>
+  &nbsp;&nbsp;
+  <a href="https://ko-fi.com/shapeshed"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Aerial on Ko-fi" height="45"></a>
+  &nbsp;&nbsp;
+  <a href="https://www.paypal.com/donate/?hosted_button_id=MZVB3E2RYYWV8"><img src="docs/badges/paypal-donate.png" alt="Donate with PayPal" height="45"></a>
 </p>
 
 ## Development
