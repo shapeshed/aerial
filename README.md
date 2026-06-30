@@ -5,7 +5,7 @@ Aerial is a lightweight Android radio player.
 ## Install
 
 <p>
-<a href="https://f-droid.org/packages/com.shapeshed.aerial/"><img src="docs/badges/get-it-on-fdroid.png" alt="Get it on F-Droid" height="80"></a><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.shapeshed.aerial%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fshapeshed%2Faerial%22%2C%22author%22%3A%22shapeshed%22%2C%22name%22%3A%22Aerial%22%2C%22supportFixedAPKURL%22%3Afalse%7D"><img src="docs/badges/get-it-on-obtainium.png" alt="Get it on Obtainium" height="80"></a>
+<a href="https://f-droid.org/packages/com.shapeshed.aerial"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
 </p>
 
 ## Screenshots
@@ -38,6 +38,19 @@ Dark mode:
 - Store station logos locally for faster loading.
 - Export and import stations and saved logos as a zip backup.
 - Adaptive launcher icon with Android themed icon support.
+
+## Support
+
+Enjoying Aerial? If you would like to support the project, you can buy me a
+coffee or send a small contribution through Ko-fi or PayPal. Support is
+optional, but it helps with the time and costs involved in keeping Aerial
+maintained.
+
+<p>
+  <a href="https://buymeacoffee.com/shapeshed"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="45"></a>
+  <a href="https://ko-fi.com/shapeshed"><img src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support Aerial on Ko-fi" height="45"></a>
+  <a href="https://www.paypal.com/donate/?hosted_button_id=MZVB3E2RYYWV8"><img src="https://www.paypalobjects.com/en_GB/i/btn/btn_donate_SM.gif" alt="Donate with PayPal" height="45"></a>
+</p>
 
 ## Development
 
