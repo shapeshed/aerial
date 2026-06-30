@@ -37,23 +37,20 @@ Aerial can also import a backup file that you select.
 
 Aerial uses network access for radio playback and station discovery:
 
-- When you search for stations, Aerial contacts the Radio Browser API.
+- Aerial may download the Aerial station registry so you can discover stations.
 - When you play a station, Aerial connects to that station's stream URL.
 - When a station has a logo URL, Aerial may download the logo and store it
   locally.
-- When you favorite a station discovered through Radio Browser, Aerial may send
-  a vote request to Radio Browser.
-- When you play a station discovered through Radio Browser, Aerial may send a
-  click request to Radio Browser.
 
-These services are operated by third parties. They may receive technical
-information such as your IP address, request time, device network details, and
-the station or stream URL requested. Their handling of that information is
-governed by their own policies.
+The Aerial station registry is operated by the app developer and is available
+at:
 
-Radio Browser is available at:
+https://aerial.shapeshed.com/registry.json.gz
 
-https://www.radio-browser.info/
+Individual radio streams and logo URLs are operated by third parties. They may
+receive technical information such as your IP address, request time, device
+network details, and the station, stream, or logo URL requested. Their handling
+of that information is governed by their own policies.
 
 ## Notifications And Media Controls
 
@@ -68,8 +65,8 @@ Aerial does not send your saved station list, favorites, settings, or backup
 files to the developer.
 
 The app shares data only when needed for features you use, such as contacting
-Radio Browser, connecting to a stream URL, downloading station logos, or using
-Android's share sheet when you choose to share a station.
+the Aerial station registry, connecting to a stream URL, downloading station
+logos, or using Android's share sheet when you choose to share a station.
 
 ## Children
 
