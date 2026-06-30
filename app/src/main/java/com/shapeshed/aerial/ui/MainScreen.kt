@@ -912,7 +912,8 @@ private fun HomeContent(
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
 ) {
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val tileContentColor = MaterialTheme.colorScheme.primary
+    val activeTileColor = MaterialTheme.colorScheme.primaryContainer
+    val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
 
     LazyColumn(
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
@@ -939,13 +940,14 @@ private fun HomeContent(
                 rowIndices.forEach { idx ->
                     if (idx < stations.size) {
                         val station = stations[idx]
+                        val isActive = currentStation?.id == station.id
                         StationTile(
                             station = station,
-                            tileColor = tileColor,
+                            tileColor = if (isActive) activeTileColor else tileColor,
                             contentColor = tileContentColor,
-                            isActive = currentStation?.id == station.id,
-                            isPlaying = isPlaying && currentStation?.id == station.id,
-                            isBuffering = isBuffering && currentStation?.id == station.id,
+                            isActive = isActive,
+                            isPlaying = isPlaying && isActive,
+                            isBuffering = isBuffering && isActive,
                             onClick = { onPlay(station) },
                             onLongClick = { onStationLongPress(station) },
                             modifier = Modifier.weight(1f),
@@ -1076,7 +1078,7 @@ private fun StationTile(
         Text(
             text = station.name,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
