@@ -19,7 +19,21 @@ abstract class RegistryDao {
     open suspend fun clearAndInsertAll(stations: List<RegistryStation>) {
         clear()
         insertAll(stations)
+        // External-content FTS isn't auto-maintained; rebuild the index after a bulk import.
+        rebuildFts()
     }
+
+    @Query("INSERT INTO registry_stations_fts(registry_stations_fts) VALUES('rebuild')")
+    abstract suspend fun rebuildFts()
+
+    // Full-text search over name+tags (via searchText), description, and country. The join maps
+    // FTS rowids back to the content rows. MATCH does the accent-folded, tokenized matching.
+    @Query(
+        "SELECT rs.* FROM registry_stations rs " +
+            "JOIN registry_stations_fts fts ON rs.id = fts.rowid " +
+            "WHERE registry_stations_fts MATCH :match ORDER BY rs.name LIMIT 200",
+    )
+    abstract suspend fun searchFts(match: String): List<RegistryStation>
 
     @Query("SELECT COUNT(*) FROM registry_stations")
     abstract fun countAsFlow(): Flow<Int>
@@ -29,9 +43,6 @@ abstract class RegistryDao {
 
     @Query("SELECT * FROM registry_stations WHERE LOWER(tags) LIKE '%' || LOWER(:tag) || '%' ORDER BY RANDOM() LIMIT 1")
     abstract suspend fun randomStationByTag(tag: String): RegistryStation?
-
-    @Query("SELECT * FROM registry_stations WHERE LOWER(searchText) LIKE '%' || LOWER(:query) || '%' OR LOWER(country) LIKE '%' || LOWER(:query) || '%' OR LOWER(countryCode) LIKE '%' || LOWER(:query) || '%' ORDER BY name LIMIT 200")
-    abstract suspend fun search(query: String): List<RegistryStation>
 
     @Query("SELECT * FROM registry_stations WHERE providerId IN (:ids)")
     abstract suspend fun getByProviderIds(ids: List<String>): List<RegistryStation>

@@ -28,6 +28,15 @@ private val CURATED_TAG_ORDER = listOf(
     "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic"
 )
 
+// Turn a normalised query into an FTS4 MATCH expression: split into tokens (which also drops FTS
+// operator characters, avoiding syntax errors) and prefix-match each so search-as-you-type works.
+// e.g. "radio jazz" -> "radio* jazz*". Accent folding is handled by the tokenizer, not here.
+internal fun toFtsMatchQuery(normalized: String): String =
+    normalized.lowercase()
+        .split(Regex("[^\\p{L}\\p{N}]+"))
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { "$it*" }
+
 class RegistryRepository(private val dao: RegistryDao, private val httpClient: OkHttpClient) {
 
     fun countAsFlow(): Flow<Int> = dao.countAsFlow()
@@ -95,20 +104,10 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
         if (!hasQuery && !hasFilter) return emptyList()
 
         val candidates = if (hasQuery) {
-            val normalized = NumberNormalizer.normalize(query.trim())
-            val words = normalized.lowercase().split(" ").filter { it.isNotBlank() }
-            // For multi-word queries pass only the first word to the DB so the LIKE
-            // clause searches a single token; Kotlin does the per-word narrowing below.
-            val raw = dao.search(words.first())
-            if (words.size > 1) {
-                val completeWords = words.dropLast(1)
-                val prefix = words.last()
-                raw.filter { station ->
-                    val haystack = " ${station.searchText.lowercase()} ${station.country.lowercase()} ${station.countryCode.lowercase()} "
-                    completeWords.all { word -> haystack.contains(" $word ") } &&
-                        haystack.contains(" $prefix")
-                }
-            } else raw
+            // Tokenised, accent-folded FTS4 match (see RegistryStationFts). Number-word
+            // normalisation is applied first so "radio 1" still matches "Radio One".
+            val match = toFtsMatchQuery(NumberNormalizer.normalize(query.trim()))
+            if (match.isBlank()) emptyList() else dao.searchFts(match)
         } else if (countryCodes.isNotEmpty() && tags.isEmpty()) {
             dao.filterByCountryCodes(countryCodes.map { it.lowercase() })
         } else {
@@ -155,6 +154,8 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
                     tags = tags,
                     provider = obj.optString("provider").trim(),
                     providerId = obj.optString("provider_id").trim(),
+                    // Optional: absent in the current registry, so it defaults to "".
+                    description = obj.optString("description").trim(),
                     searchText = NumberNormalizer.normalize("$name $tags"),
                 )
             }

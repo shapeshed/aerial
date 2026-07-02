@@ -14,5 +14,6 @@ data class RegistryStation(
     val tags: String = "",
     val provider: String = "",
     val providerId: String = "",
+    val description: String = "",
     val searchText: String = "",
 )
