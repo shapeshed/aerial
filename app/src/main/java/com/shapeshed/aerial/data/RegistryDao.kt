@@ -47,4 +47,7 @@ abstract class RegistryDao {
 
     @Query("SELECT * FROM registry_stations ORDER BY name")
     abstract suspend fun all(): List<RegistryStation>
+
+    @Query("SELECT * FROM registry_stations ORDER BY name LIMIT :limit")
+    abstract suspend fun browse(limit: Int): List<RegistryStation>
 }
