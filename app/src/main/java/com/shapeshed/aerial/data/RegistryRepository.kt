@@ -151,7 +151,6 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
                     tags = tags,
                     provider = obj.optString("provider").trim(),
                     providerId = obj.optString("provider_id").trim(),
-                    livemetaId = obj.optInt("livemeta_id", 0),
                     searchText = NumberNormalizer.normalize("$name $tags"),
                 )
             }

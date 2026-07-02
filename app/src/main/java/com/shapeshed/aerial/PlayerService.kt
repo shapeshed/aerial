@@ -285,7 +285,6 @@ class PlayerService : MediaSessionService() {
             streamUrl = streamUrl,
             provider = extras.getString("provider") ?: "",
             providerId = extras.getString("providerId") ?: "",
-            livemetaId = extras.getInt("livemetaId", 0),
         )
     }
 

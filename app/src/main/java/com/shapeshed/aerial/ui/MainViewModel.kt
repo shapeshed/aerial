@@ -251,7 +251,6 @@ class MainViewModel(
             logoPath = registryStation.logoUrl,
             provider = registryStation.provider,
             providerId = registryStation.providerId,
-            livemetaId = registryStation.livemetaId,
         )
         play(station)
     }
@@ -271,7 +270,6 @@ class MainViewModel(
                     isFavorite = true,
                     provider = registryStation.provider,
                     providerId = registryStation.providerId,
-                    livemetaId = registryStation.livemetaId,
                 ),
             )
             _recentlyAddedStationId.value = stationId
@@ -455,7 +453,6 @@ class MainViewModel(
                     .setExtras(Bundle().apply {
                         putString("provider", station.provider)
                         putString("providerId", station.providerId)
-                        putInt("livemetaId", station.livemetaId)
                         putString("streamUrl", station.streamUrl)
                     })
                     .build()
@@ -595,7 +592,6 @@ private fun Station.toLastPlayedJson(): JSONObject =
         .put("isFavorite", isFavorite)
         .put("provider", provider)
         .put("providerId", providerId)
-        .put("livemetaId", livemetaId)
 
 private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     val obj = JSONObject(json)
@@ -608,7 +604,6 @@ private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
             isFavorite = obj.optBoolean("isFavorite"),
             provider = obj.optString("provider"),
             providerId = obj.optString("providerId"),
-            livemetaId = obj.optInt("livemetaId", 0),
         ),
     )
 }

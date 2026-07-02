@@ -12,5 +12,4 @@ data class Station(
     val isFavorite: Boolean = false,
     val provider: String = "",
     val providerId: String = "",
-    val livemetaId: Int = 0,
 )
