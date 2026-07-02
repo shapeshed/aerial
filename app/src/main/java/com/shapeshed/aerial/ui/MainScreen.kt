@@ -176,9 +176,11 @@ fun MainScreen(
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
+    val currentTrackArtist by viewModel.currentTrackArtist.collectAsStateWithLifecycle()
     val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
     val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
     val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
+    val nowPlayingDisplay by viewModel.nowPlayingDisplay.collectAsStateWithLifecycle()
     val sleepTimer by viewModel.sleepTimer.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
@@ -337,24 +339,9 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val hasSong = activeNowPlayingInfo?.track != null
-                val miniPlayerTitle = if (hasSong) {
-                    activeNowPlayingInfo!!.track!!.artist.takeIf { it.isNotBlank() }
-                        ?: activeNowPlayingInfo.programmeTitle
-                        ?: station.name
-                } else {
-                    station.name
-                }
+                val miniPlayerTitle = nowPlayingDisplay.title.ifBlank { station.name }
                 val miniPlayerSubtitle = playbackError
-                    ?: if (isBuffering) "Buffering…"
-                    else if (hasSong) {
-                        activeNowPlayingInfo?.track?.title?.takeIf { it != miniPlayerTitle }
-                            ?: currentTrackTitle?.takeIf { it != miniPlayerTitle }
-                            ?: if (isPlaying) "Playing" else "Paused"
-                    } else {
-                        activeNowPlayingInfo?.programmeTitle?.takeIf { it != station.name }
-                            ?: if (isPlaying) "Playing" else "Paused"
-                    }
+                    ?: if (isBuffering) "Buffering…" else nowPlayingDisplay.subtitle
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -488,6 +475,7 @@ fun MainScreen(
                     isBuffering = isBuffering,
                     nowPlayingInfo = activeNowPlayingInfo,
                     currentTrackTitle = currentTrackTitle,
+                    currentTrackArtist = currentTrackArtist,
                     currentTrackArtworkData = currentTrackArtworkData,
                     currentTrackArtworkUrl = currentTrackArtworkUrl,
                     sleepTimer = sleepTimer,
