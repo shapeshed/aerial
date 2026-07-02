@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">戻る</string>
+    <string name="action_remove">削除</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_clear">クリア</string>
+    <string name="action_save">保存</string>
+    <string name="action_edit">編集</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">放送局を検索</string>
+    <string name="clear_search">検索をクリア</string>
+    <string name="settings">設定</string>
+    <string name="buffering">バッファ中…</string>
+    <string name="play">再生</string>
+    <string name="pause">一時停止</string>
+    <string name="filter_country">国</string>
+    <string name="filter_genre">ジャンル</string>
+    <string name="search_countries">国を検索</string>
+    <string name="search_genres">ジャンルを検索</string>
+    <string name="clear_all">すべてクリア</string>
+    <string name="remove_station_title">放送局を削除しますか？</string>
+    <string name="remove_station_message">「%1$s」をお気に入りから削除します。</string>
+    <string name="no_stations_found">放送局が見つかりません</string>
+    <string name="no_stations_found_desc">別のキーワードで検索するか、ストリームURLを使って放送局を追加してください。</string>
+    <string name="add_your_own_station">自分の放送局を追加</string>
+    <string name="save_to_favorites">お気に入りに保存</string>
+    <string name="remove_from_favorites">お気に入りから削除</string>
+    <string name="no_internet_title">インターネットに接続されていません</string>
+    <string name="no_internet_desc">ラジオのストリーミングには有効なインターネット接続が必要です。</string>
+    <string name="favorites_header">お気に入り</string>
+    <string name="get_started">はじめる</string>
+    <string name="just_listen">ただ聴くだけ</string>
+    <string name="find_a_station">放送局を探す</string>
+    <string name="find_one_to_listen">聴きたい放送局を見つけよう</string>
+    <string name="no_matches">一致するものがありません</string>
+    <string name="no_matches_desc">別のキーワードで検索してください。</string>
+
+    <!-- Now playing -->
+    <string name="close_player">プレーヤーを閉じる</string>
+    <string name="add_to_favorites">お気に入りに追加</string>
+    <string name="share_station">放送局を共有</string>
+    <string name="copy_track_info">曲情報をコピー</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">再生中の曲を表示</string>
+    <string name="show_whats_playing_desc">利用可能な場合、曲名・アーティスト・アートワークを表示</string>
+    <string name="section_data">データ</string>
+    <string name="export_backup">バックアップを書き出す</string>
+    <string name="export_backup_desc">放送局、設定、ローカルのロゴを保存</string>
+    <string name="import_backup">バックアップを読み込む</string>
+    <string name="import_backup_desc">放送局を統合し、バックアップから設定を復元</string>
+    <string name="section_debug">デバッグ</string>
+    <string name="refresh_registry">レジストリを更新</string>
+    <string name="refresh_registry_desc">最新の放送局レジストリをネットワークから強制取得</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">言語</string>
+    <string name="language_system_default">システムのデフォルト</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">放送局を編集</string>
+    <string name="add_station">放送局を追加</string>
+    <string name="change_station_logo">放送局のロゴを変更</string>
+    <string name="choose_station_logo">放送局のロゴを選択</string>
+    <string name="remove_icon">アイコンを削除</string>
+    <string name="remove_icon_title">アイコンを削除しますか？</string>
+    <string name="remove_icon_message">放送局のアイコンを削除します。</string>
+    <string name="field_name">名前</string>
+    <string name="field_stream_url">ストリームURL</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">スリープタイマー</string>
+    <string name="sleep_add_15">+15分</string>
+    <string name="sleep_set_new_duration">新しい時間を設定</string>
+    <string name="sleep_preset_seconds">%1$d秒</string>
+    <string name="sleep_preset_minutes">%1$d分</string>
+    <string name="sleep_preset_hours">%1$d時間</string>
+    <string name="sleep_preset_hours_minutes">%1$d時間%2$d分</string>
+    <string name="live_radio">ライブラジオ</string>
+    <string name="tag_news">ニュース</string>
+    <string name="tag_sport">スポーツ</string>
+    <string name="tag_pop">ポップ</string>
+    <string name="tag_rock">ロック</string>
+    <string name="tag_jazz">ジャズ</string>
+    <string name="tag_classical">クラシック</string>
+    <string name="tag_dance">ダンス</string>
+    <string name="tag_soul">ソウル</string>
+    <string name="tag_country">カントリー</string>
+    <string name="tag_electronic">エレクトロニック</string>
+</resources>

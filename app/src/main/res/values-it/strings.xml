@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Indietro</string>
+    <string name="action_remove">Rimuovi</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="action_clear">Cancella</string>
+    <string name="action_save">Salva</string>
+    <string name="action_edit">Modifica</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">Cerca stazioni</string>
+    <string name="clear_search">Cancella ricerca</string>
+    <string name="settings">Impostazioni</string>
+    <string name="buffering">Buffering…</string>
+    <string name="play">Riproduci</string>
+    <string name="pause">Pausa</string>
+    <string name="filter_country">Paese</string>
+    <string name="filter_genre">Genere</string>
+    <string name="search_countries">Cerca paesi</string>
+    <string name="search_genres">Cerca generi</string>
+    <string name="clear_all">Cancella tutto</string>
+    <string name="remove_station_title">Rimuovere la stazione?</string>
+    <string name="remove_station_message">\"%1$s\" verrà rimossa dai tuoi preferiti.</string>
+    <string name="no_stations_found">Nessuna stazione trovata</string>
+    <string name="no_stations_found_desc">Prova un\'altra ricerca oppure aggiungi una stazione tramite il suo URL di streaming.</string>
+    <string name="add_your_own_station">Aggiungi la tua stazione</string>
+    <string name="save_to_favorites">Salva nei preferiti</string>
+    <string name="remove_from_favorites">Rimuovi dai preferiti</string>
+    <string name="no_internet_title">Nessuna connessione a internet</string>
+    <string name="no_internet_desc">Gli stream radio richiedono una connessione a internet attiva.</string>
+    <string name="favorites_header">I tuoi preferiti</string>
+    <string name="get_started">Inizia</string>
+    <string name="just_listen">Ascolta e basta</string>
+    <string name="find_a_station">Trova una stazione</string>
+    <string name="find_one_to_listen">Trovane una da ascoltare</string>
+    <string name="no_matches">Nessun risultato</string>
+    <string name="no_matches_desc">Prova un\'altra ricerca.</string>
+
+    <!-- Now playing -->
+    <string name="close_player">Chiudi player</string>
+    <string name="add_to_favorites">Aggiungi ai preferiti</string>
+    <string name="share_station">Condividi stazione</string>
+    <string name="copy_track_info">Copia info brano</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">Mostra cosa è in onda</string>
+    <string name="show_whats_playing_desc">Mostra brano, artista e copertina quando disponibili</string>
+    <string name="section_data">Dati</string>
+    <string name="export_backup">Esporta backup</string>
+    <string name="export_backup_desc">Salva stazioni, impostazioni e loghi locali</string>
+    <string name="import_backup">Importa backup</string>
+    <string name="import_backup_desc">Unisce le stazioni e ripristina le impostazioni da un backup</string>
+    <string name="section_debug">Debug</string>
+    <string name="refresh_registry">Aggiorna registro</string>
+    <string name="refresh_registry_desc">Forza il download dell\'ultimo registro delle stazioni dalla rete</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">Lingua</string>
+    <string name="language_system_default">Predefinita di sistema</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">Modifica stazione</string>
+    <string name="add_station">Aggiungi stazione</string>
+    <string name="change_station_logo">Cambia logo stazione</string>
+    <string name="choose_station_logo">Scegli logo stazione</string>
+    <string name="remove_icon">Rimuovi icona</string>
+    <string name="remove_icon_title">Rimuovere l\'icona?</string>
+    <string name="remove_icon_message">L\'icona della stazione verrà rimossa.</string>
+    <string name="field_name">Nome</string>
+    <string name="field_stream_url">URL streaming</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">Timer di spegnimento</string>
+    <string name="sleep_add_15">+15 min</string>
+    <string name="sleep_set_new_duration">Imposta una nuova durata</string>
+    <string name="sleep_preset_seconds">%1$d sec</string>
+    <string name="sleep_preset_minutes">%1$d min</string>
+    <string name="sleep_preset_hours">%1$d h</string>
+    <string name="sleep_preset_hours_minutes">%1$d h %2$d min</string>
+    <string name="live_radio">Radio in diretta</string>
+    <string name="tag_news">Notizie</string>
+    <string name="tag_sport">Sport</string>
+    <string name="tag_pop">Pop</string>
+    <string name="tag_rock">Rock</string>
+    <string name="tag_jazz">Jazz</string>
+    <string name="tag_classical">Classica</string>
+    <string name="tag_dance">Dance</string>
+    <string name="tag_soul">Soul</string>
+    <string name="tag_country">Country</string>
+    <string name="tag_electronic">Elettronica</string>
+</resources>

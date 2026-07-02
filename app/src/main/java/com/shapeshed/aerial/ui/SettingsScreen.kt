@@ -32,10 +32,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.os.Build
 import com.shapeshed.aerial.BuildConfig
+import com.shapeshed.aerial.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -66,13 +69,13 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -86,8 +89,8 @@ fun SettingsScreen(
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
-                    headlineContent = { Text("Show what's playing") },
-                    supportingContent = { Text("Display song, artist, and artwork when available") },
+                    headlineContent = { Text(stringResource(R.string.show_whats_playing)) },
+                    supportingContent = { Text(stringResource(R.string.show_whats_playing_desc)) },
                     trailingContent = {
                         Switch(
                             checked = enrichMetadata,
@@ -97,9 +100,16 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
+            // In-app language picker only for pre-Android-13; 13+ uses the system per-app setting.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                item(contentType = "setting") {
+                    LanguageSettingRow()
+                    HorizontalDivider()
+                }
+            }
             item(contentType = "section") {
                 Text(
-                    text = "Data",
+                    text = stringResource(R.string.section_data),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -113,8 +123,8 @@ fun SettingsScreen(
                     leadingContent = {
                         Icon(Icons.Rounded.FileDownload, contentDescription = null)
                     },
-                    headlineContent = { Text("Export backup") },
-                    supportingContent = { Text("Save stations, settings, and local logos") },
+                    headlineContent = { Text(stringResource(R.string.export_backup)) },
+                    supportingContent = { Text(stringResource(R.string.export_backup_desc)) },
                 )
                 HorizontalDivider()
             }
@@ -126,15 +136,15 @@ fun SettingsScreen(
                     leadingContent = {
                         Icon(Icons.Rounded.FileUpload, contentDescription = null)
                     },
-                    headlineContent = { Text("Import backup") },
-                    supportingContent = { Text("Merge stations and restore settings from a backup") },
+                    headlineContent = { Text(stringResource(R.string.import_backup)) },
+                    supportingContent = { Text(stringResource(R.string.import_backup_desc)) },
                 )
                 HorizontalDivider()
             }
             if (BuildConfig.DEBUG) {
                 item(contentType = "section") {
                     Text(
-                        text = "Debug",
+                        text = stringResource(R.string.section_debug),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -143,14 +153,14 @@ fun SettingsScreen(
                 item(contentType = "action") {
                     ListItem(
                         modifier = Modifier.clickable { viewModel.refreshRegistry() },
-                        headlineContent = { Text("Refresh registry") },
-                        supportingContent = { Text("Force fetch latest station registry from network") },
+                        headlineContent = { Text(stringResource(R.string.refresh_registry)) },
+                        supportingContent = { Text(stringResource(R.string.refresh_registry_desc)) },
                     )
                 }
             }
             item(contentType = "footer") {
                 Text(
-                    text = "Aerial $versionName",
+                    text = stringResource(R.string.version_format, versionName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

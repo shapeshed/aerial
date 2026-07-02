@@ -1,7 +1,7 @@
 package com.shapeshed.aerial
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -40,7 +40,7 @@ object Routes {
     fun stationEdit(id: Long) = "station/$id"
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val mainViewModel: MainViewModel by viewModels {
         val app = application as AerialApp

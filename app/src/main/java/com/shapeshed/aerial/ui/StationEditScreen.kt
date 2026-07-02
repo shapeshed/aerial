@@ -1,5 +1,8 @@
 package com.shapeshed.aerial.ui
 
+import androidx.compose.ui.res.stringResource
+import com.shapeshed.aerial.R
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -72,13 +75,13 @@ fun StationEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditing) "Edit station" else "Add station") },
+                title = { Text(stringResource(if (viewModel.isEditing) R.string.edit_station else R.string.add_station)) },
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -86,7 +89,7 @@ fun StationEditScreen(
                         onClick = { viewModel.save(onDismiss) },
                         enabled = name.isNotBlank() && streamUrl.isNotBlank(),
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
             )
@@ -103,6 +106,9 @@ fun StationEditScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
+            // Hoisted: stringResource can't be called inside the semantics {} lambda.
+            val changeLogoLabel = stringResource(R.string.change_station_logo)
+            val chooseLogoLabel = stringResource(R.string.choose_station_logo)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.size(120.dp),
@@ -115,8 +121,8 @@ fun StationEditScreen(
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .semantics {
                             role = Role.Button
-                            contentDescription = "Change station logo"
-                            onClick("Choose station logo") { true }
+                            contentDescription = changeLogoLabel
+                            onClick(chooseLogoLabel) { true }
                         }
                         .clickable { imagePicker.launch(arrayOf("image/*")) },
                 ) {
@@ -155,26 +161,26 @@ fun StationEditScreen(
 
             if (logoPath.isNotEmpty()) {
                 TextButton(onClick = { showRemoveLogoConfirm = true }) {
-                    Text("Remove icon")
+                    Text(stringResource(R.string.remove_icon))
                 }
             }
 
             if (showRemoveLogoConfirm) {
                 AlertDialog(
                     onDismissRequest = { showRemoveLogoConfirm = false },
-                    title = { Text("Remove icon?") },
-                    text = { Text("The station icon will be removed.") },
+                    title = { Text(stringResource(R.string.remove_icon_title)) },
+                    text = { Text(stringResource(R.string.remove_icon_message)) },
                     confirmButton = {
                         TextButton(onClick = {
                             viewModel.removeLogo()
                             showRemoveLogoConfirm = false
                         }) {
-                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showRemoveLogoConfirm = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.action_cancel))
                         }
                     },
                 )
@@ -183,14 +189,14 @@ fun StationEditScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { viewModel.onNameChange(it) },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.field_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = streamUrl,
                 onValueChange = { viewModel.onStreamUrlChange(it) },
-                label = { Text("Stream URL") },
+                label = { Text(stringResource(R.string.field_stream_url)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

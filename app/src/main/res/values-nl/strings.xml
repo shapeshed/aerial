@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Terug</string>
+    <string name="action_remove">Verwijderen</string>
+    <string name="action_cancel">Annuleren</string>
+    <string name="action_clear">Wissen</string>
+    <string name="action_save">Opslaan</string>
+    <string name="action_edit">Bewerken</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">Zenders zoeken</string>
+    <string name="clear_search">Zoekopdracht wissen</string>
+    <string name="settings">Instellingen</string>
+    <string name="buffering">Bufferen…</string>
+    <string name="play">Afspelen</string>
+    <string name="pause">Pauzeren</string>
+    <string name="filter_country">Land</string>
+    <string name="filter_genre">Genre</string>
+    <string name="search_countries">Landen zoeken</string>
+    <string name="search_genres">Genres zoeken</string>
+    <string name="clear_all">Alles wissen</string>
+    <string name="remove_station_title">Zender verwijderen?</string>
+    <string name="remove_station_message">\"%1$s\" wordt uit je favorieten verwijderd.</string>
+    <string name="no_stations_found">Geen zenders gevonden</string>
+    <string name="no_stations_found_desc">Probeer een andere zoekopdracht of voeg een zender toe met de stream-URL.</string>
+    <string name="add_your_own_station">Voeg je eigen zender toe</string>
+    <string name="save_to_favorites">Opslaan in favorieten</string>
+    <string name="remove_from_favorites">Uit favorieten verwijderen</string>
+    <string name="no_internet_title">Geen internetverbinding</string>
+    <string name="no_internet_desc">Radiostreams vereisen een actieve internetverbinding.</string>
+    <string name="favorites_header">Je favorieten</string>
+    <string name="get_started">Aan de slag</string>
+    <string name="just_listen">Gewoon luisteren</string>
+    <string name="find_a_station">Zoek een zender</string>
+    <string name="find_one_to_listen">Zoek er een om naar te luisteren</string>
+    <string name="no_matches">Geen resultaten</string>
+    <string name="no_matches_desc">Probeer een andere zoekopdracht.</string>
+
+    <!-- Now playing -->
+    <string name="close_player">Speler sluiten</string>
+    <string name="add_to_favorites">Aan favorieten toevoegen</string>
+    <string name="share_station">Zender delen</string>
+    <string name="copy_track_info">Nummerinfo kopiëren</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">Toon wat er speelt</string>
+    <string name="show_whats_playing_desc">Toont nummer, artiest en albumhoes indien beschikbaar</string>
+    <string name="section_data">Gegevens</string>
+    <string name="export_backup">Back-up exporteren</string>
+    <string name="export_backup_desc">Slaat zenders, instellingen en lokale logo\'s op</string>
+    <string name="import_backup">Back-up importeren</string>
+    <string name="import_backup_desc">Voegt zenders samen en herstelt instellingen uit een back-up</string>
+    <string name="section_debug">Foutopsporing</string>
+    <string name="refresh_registry">Register vernieuwen</string>
+    <string name="refresh_registry_desc">Forceer het ophalen van het nieuwste zenderregister uit het netwerk</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">Taal</string>
+    <string name="language_system_default">Systeemstandaard</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">Zender bewerken</string>
+    <string name="add_station">Zender toevoegen</string>
+    <string name="change_station_logo">Zenderlogo wijzigen</string>
+    <string name="choose_station_logo">Zenderlogo kiezen</string>
+    <string name="remove_icon">Pictogram verwijderen</string>
+    <string name="remove_icon_title">Pictogram verwijderen?</string>
+    <string name="remove_icon_message">Het zenderpictogram wordt verwijderd.</string>
+    <string name="field_name">Naam</string>
+    <string name="field_stream_url">Stream-URL</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">Slaaptimer</string>
+    <string name="sleep_add_15">+15 min</string>
+    <string name="sleep_set_new_duration">Nieuwe duur instellen</string>
+    <string name="sleep_preset_seconds">%1$d sec</string>
+    <string name="sleep_preset_minutes">%1$d min</string>
+    <string name="sleep_preset_hours">%1$d u</string>
+    <string name="sleep_preset_hours_minutes">%1$d u %2$d min</string>
+    <string name="live_radio">Live radio</string>
+    <string name="tag_news">Nieuws</string>
+    <string name="tag_sport">Sport</string>
+    <string name="tag_pop">Pop</string>
+    <string name="tag_rock">Rock</string>
+    <string name="tag_jazz">Jazz</string>
+    <string name="tag_classical">Klassiek</string>
+    <string name="tag_dance">Dance</string>
+    <string name="tag_soul">Soul</string>
+    <string name="tag_country">Country</string>
+    <string name="tag_electronic">Elektronisch</string>
+</resources>
