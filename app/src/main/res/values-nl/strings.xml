@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">Forceer het ophalen van het nieuwste zenderregister uit het netwerk</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Taal</string>
-    <string name="language_desc">Kies de taal van de app</string>
     <string name="language_system_default">Systeemstandaard</string>
 
     <!-- Station edit -->

@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">네트워크에서 최신 방송국 레지스트리를 강제로 가져오기</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">언어</string>
-    <string name="language_desc">앱 언어 선택</string>
     <string name="language_system_default">시스템 기본값</string>
 
     <!-- Station edit -->

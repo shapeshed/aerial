@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">最新の放送局レジストリをネットワークから強制取得</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">言語</string>
-    <string name="language_desc">アプリの言語を選択</string>
     <string name="language_system_default">システムのデフォルト</string>
 
     <!-- Station edit -->

@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">Forza il download dell\'ultimo registro delle stazioni dalla rete</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Lingua</string>
-    <string name="language_desc">Scegli la lingua dell\'app</string>
     <string name="language_system_default">Predefinita di sistema</string>
 
     <!-- Station edit -->

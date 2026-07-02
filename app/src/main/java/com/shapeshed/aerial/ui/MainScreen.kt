@@ -814,6 +814,10 @@ private fun RegistryResultItem(
     onAdd: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    // Localize the country from its ISO code (falling back to the registry's own name).
+    val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+        ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
+        ?: station.country
     ListItem(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
@@ -849,8 +853,8 @@ private fun RegistryResultItem(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        supportingContent = if (station.country.isNotBlank()) {
-            { Text(station.country, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        supportingContent = if (countryLabel.isNotBlank()) {
+            { Text(countryLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else null,
         trailingContent = {
             IconButton(
