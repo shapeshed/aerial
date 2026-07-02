@@ -22,14 +22,20 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
+import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
+import com.shapeshed.aerial.data.SleepTimerState
+import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.bauerStreamUrl
@@ -152,6 +158,22 @@ class MainViewModel(
 
     val nowPlayingInfo: StateFlow<NowPlayingInfo?> = NowPlayingStore.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val sleepTimer: StateFlow<SleepTimerState?> = SleepTimerStore.state
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun setSleepTimer(durationMs: Long) {
+        val ctrl = controller ?: return
+        ctrl.sendCustomCommand(
+            SessionCommand(ACTION_SLEEP_TIMER_SET, Bundle.EMPTY),
+            Bundle().apply { putLong(SLEEP_TIMER_DURATION_MS, durationMs) },
+        )
+    }
+
+    fun cancelSleepTimer() {
+        val ctrl = controller ?: return
+        ctrl.sendCustomCommand(SessionCommand(ACTION_SLEEP_TIMER_CANCEL, Bundle.EMPTY), Bundle.EMPTY)
+    }
 
     val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow("showNowPlaying", false)
     fun setShowNowPlaying(value: Boolean) {

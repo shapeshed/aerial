@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import com.shapeshed.aerial.data.NowPlayingInfo
+import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -91,14 +92,18 @@ fun NowPlayingScreen(
     currentTrackTitle: String?,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
+    sleepTimer: SleepTimerState? = null,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onSetSleepTimer: (Long) -> Unit = {},
+    onCancelSleepTimer: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var showTrackDetail by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
     val artworkShape = RoundedCornerShape(
         topStart = 28.dp,
         topEnd = 28.dp,
@@ -138,6 +143,9 @@ fun NowPlayingScreen(
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
     LaunchedEffect(showTrackBlock) { if (!showTrackBlock) showTrackDetail = false }
+    // When the timer clears (it expired, or was cancelled), close the picker too. Keyed on the
+    // active->inactive transition so a picker opened with no timer running stays open.
+    LaunchedEffect(sleepTimer == null) { if (sleepTimer == null) showSleepTimer = false }
 
     Scaffold(
         modifier = Modifier
@@ -175,6 +183,9 @@ fun NowPlayingScreen(
                     ) {
                         Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close player")
                     }
+                },
+                actions = {
+                    SleepTimerAction(active = sleepTimer, onClick = { showSleepTimer = true })
                 },
             )
         },
@@ -437,6 +448,15 @@ fun NowPlayingScreen(
                 }
             }
         }
+    }
+
+    if (showSleepTimer) {
+        SleepTimerSheet(
+            active = sleepTimer,
+            onSet = onSetSleepTimer,
+            onCancel = onCancelSleepTimer,
+            onDismiss = { showSleepTimer = false },
+        )
     }
 
     if (showTrackDetail) {

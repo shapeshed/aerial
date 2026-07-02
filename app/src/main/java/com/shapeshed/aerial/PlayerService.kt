@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -26,20 +27,28 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
+import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
+import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
+import com.shapeshed.aerial.data.SleepTimerState
+import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -48,6 +57,9 @@ class PlayerService : MediaSessionService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
+    private val sleepTimerSetCommand = SessionCommand(ACTION_SLEEP_TIMER_SET, Bundle.EMPTY)
+    private val sleepTimerCancelCommand = SessionCommand(ACTION_SLEEP_TIMER_CANCEL, Bundle.EMPTY)
+    private var sleepTimerJob: Job? = null
 
     private lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaSession
@@ -226,6 +238,8 @@ class PlayerService : MediaSessionService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                         .buildUpon()
                         .add(favoriteCommand)
+                        .add(sleepTimerSetCommand)
+                        .add(sleepTimerCancelCommand)
                         .build()
                 )
                 .build()
@@ -237,20 +251,30 @@ class PlayerService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
-            if (customCommand.customAction != ACTION_TOGGLE_FAVORITE) {
-                return super.onCustomCommand(session, controller, customCommand, args)
-            }
-            val station = currentStation()
-                ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
-            serviceScope.launch {
-                val updatedStation = station.copy(isFavorite = !station.isFavorite)
-                withContext(Dispatchers.IO) {
-                    repository.update(updatedStation)
+            when (customCommand.customAction) {
+                ACTION_SLEEP_TIMER_SET -> {
+                    startSleepTimer(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
-                stations = stations.map { if (it.id == updatedStation.id) updatedStation else it }
-                updateFavoriteButton()
+                ACTION_SLEEP_TIMER_CANCEL -> {
+                    cancelSleepTimer()
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                ACTION_TOGGLE_FAVORITE -> {
+                    val station = currentStation()
+                        ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
+                    serviceScope.launch {
+                        val updatedStation = station.copy(isFavorite = !station.isFavorite)
+                        withContext(Dispatchers.IO) {
+                            repository.update(updatedStation)
+                        }
+                        stations = stations.map { if (it.id == updatedStation.id) updatedStation else it }
+                        updateFavoriteButton()
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
-            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
     }
 
@@ -269,6 +293,48 @@ class PlayerService : MediaSessionService() {
             .setEnabled(station != null)
             .setSessionCommand(favoriteCommand)
             .build()
+    }
+
+    private fun startSleepTimer(durationMs: Long) {
+        sleepTimerJob?.cancel()
+        if (durationMs <= 0L) {
+            cancelSleepTimer()
+            return
+        }
+        player.volume = 1f // clear any leftover fade from a previous timer
+        val endAt = SystemClock.elapsedRealtime() + durationMs
+        sleepTimerJob = serviceScope.launch {
+            while (isActive) {
+                val remaining = endAt - SystemClock.elapsedRealtime()
+                if (remaining <= 0L) break
+                SleepTimerStore.set(SleepTimerState(totalMs = durationMs, remainingMs = remaining))
+                delay(remaining.coerceAtMost(1_000L))
+            }
+            fadeOutAndPause()
+        }
+    }
+
+    private fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        player.volume = 1f // undo any in-progress fade
+        SleepTimerStore.set(null)
+    }
+
+    // Ease the volume down over ~4s so the timer doesn't cut playback off abruptly, then pause.
+    // Volume is restored so the next play() isn't silent. Cancellation mid-fade is handled by
+    // cancelSleepTimer(), which resets the volume.
+    private suspend fun fadeOutAndPause() {
+        val startVolume = player.volume
+        val steps = 20
+        for (i in 1..steps) {
+            player.volume = startVolume * (1f - i / steps.toFloat())
+            delay(FADE_STEP_MS)
+        }
+        player.pause()
+        player.volume = 1f
+        sleepTimerJob = null
+        SleepTimerStore.set(null)
     }
 
     private fun currentStation(): Station? = stationForMediaItem(player.currentMediaItem)
@@ -368,6 +434,7 @@ class PlayerService : MediaSessionService() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        SleepTimerStore.set(null)
         activeEnricher?.stop()
         activeEnricher = null
         player.removeListener(icyListener)
@@ -391,5 +458,6 @@ class PlayerService : MediaSessionService() {
     private companion object {
         const val TAG = "AerialPlayerService"
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
+        const val FADE_STEP_MS = 200L
     }
 }
