@@ -121,6 +121,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -135,18 +136,37 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import androidx.compose.ui.res.stringResource
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Lazily memoised so Locale.Builder is not called on every LazyColumn row recomposition.
+// Localized country name from the stored ISO code via ICU, in the app's current locale.
+// Cached per (code, language) so Locale.Builder isn't called on every row recomposition.
 private val countryNameCache = mutableMapOf<String, String>()
-private fun countryName(code: String): String =
-    countryNameCache.getOrPut(code) {
-        java.util.Locale.Builder().setRegion(code).build().getDisplayCountry().ifBlank { code }
+private fun countryName(code: String, locale: java.util.Locale): String =
+    countryNameCache.getOrPut("$code|${locale.language}") {
+        java.util.Locale.Builder().setRegion(code).build().getDisplayCountry(locale).ifBlank { code }
     }
+
+// The curated genre tags are a fixed set, so their display is localized while the English tag
+// stays the matching key. Unknown tags fall back to their raw value.
+@Composable
+private fun rememberTagLabels(): Map<String, String> = mapOf(
+    "News" to stringResource(R.string.tag_news),
+    "Sport" to stringResource(R.string.tag_sport),
+    "Pop" to stringResource(R.string.tag_pop),
+    "Rock" to stringResource(R.string.tag_rock),
+    "Jazz" to stringResource(R.string.tag_jazz),
+    "Classical" to stringResource(R.string.tag_classical),
+    "Dance" to stringResource(R.string.tag_dance),
+    "Soul" to stringResource(R.string.tag_soul),
+    "Country" to stringResource(R.string.tag_country),
+    "Electronic" to stringResource(R.string.tag_electronic),
+)
 
 // Fixed tag→icon map — hoisted to avoid allocating a new Map on every CategoryGrid recomposition.
 private val CATEGORY_ICONS = mapOf(
@@ -196,6 +216,8 @@ fun MainScreen(
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
     val availableCountries: List<String> by viewModel.availableCountries.collectAsStateWithLifecycle()
+    val appLocale = LocalConfiguration.current.locales[0]
+    val tagLabels = rememberTagLabels()
 
     val textFieldState = rememberTextFieldState()
     val searchBarState = rememberContainedSearchBarState()
@@ -245,7 +267,7 @@ fun MainScreen(
             textFieldState = textFieldState,
             searchBarState = searchBarState,
             onSearch = { viewModel.saveRecentSearch(it) },
-            placeholder = { Text("Search stations") },
+            placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = {
                 if (isSearchExpanded) {
                     IconButton(
@@ -255,7 +277,7 @@ fun MainScreen(
                         },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 } else {
                     Icon(Icons.Rounded.Search, contentDescription = null)
@@ -268,7 +290,7 @@ fun MainScreen(
                             onClick = { textFieldState.edit { replace(0, length, "") } },
                             shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         ) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_search))
                         }
                     }
                     !isSearchExpanded -> {
@@ -276,7 +298,7 @@ fun MainScreen(
                             onClick = onSettings,
                             shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         ) {
-                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                            Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings))
                         }
                     }
                 }
@@ -341,7 +363,7 @@ fun MainScreen(
             currentStation?.let { station ->
                 val miniPlayerTitle = nowPlayingDisplay.title.ifBlank { station.name }
                 val miniPlayerSubtitle = playbackError
-                    ?: if (isBuffering) "Buffering…" else nowPlayingDisplay.subtitle
+                    ?: if (isBuffering) stringResource(R.string.buffering) else nowPlayingDisplay.subtitle
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -424,7 +446,7 @@ fun MainScreen(
                                         } else {
                                             Icon(
                                                 imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                                contentDescription = if (playing) "Pause" else "Play",
+                                                contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                                                 tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(30.dp),
                                             )
@@ -563,13 +585,13 @@ fun MainScreen(
                 sheetState = countrySheetState,
             ) {
                 FilterPickerSheetContent(
-                    title = "Country",
-                    searchLabel = "Search countries",
+                    title = stringResource(R.string.filter_country),
+                    searchLabel = stringResource(R.string.search_countries),
                     query = countryFilterQuery,
                     onQueryChange = { countryFilterQuery = it },
                     items = availableCountries,
                     selectedItems = selectedCountries,
-                    displayName = ::countryName,
+                    displayName = { countryName(it, appLocale) },
                     onToggle = { viewModel.toggleCountryFilter(it) },
                     onClear = { viewModel.clearCountryFilter() },
                 )
@@ -585,13 +607,13 @@ fun MainScreen(
                 sheetState = genreSheetState,
             ) {
                 FilterPickerSheetContent(
-                    title = "Genre",
-                    searchLabel = "Search genres",
+                    title = stringResource(R.string.filter_genre),
+                    searchLabel = stringResource(R.string.search_genres),
                     query = genreFilterQuery,
                     onQueryChange = { genreFilterQuery = it },
                     items = allTags,
                     selectedItems = selectedTags,
-                    displayName = { it },
+                    displayName = { tagLabels[it] ?: it },
                     onToggle = { viewModel.toggleTagFilter(it) },
                     onClear = { viewModel.clearTagFilter() },
                 )
@@ -621,18 +643,18 @@ fun MainScreen(
         stationToDelete?.let { station ->
             AlertDialog(
                 onDismissRequest = { stationToDelete = null },
-                title = { Text("Remove station?") },
-                text = { Text("\"${station.name}\" will be removed from your favorites.") },
+                title = { Text(stringResource(R.string.remove_station_title)) },
+                text = { Text(stringResource(R.string.remove_station_message, station.name)) },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.deleteStation(station)
                         stationToDelete = null
                     }) {
-                        Text("Remove", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { stationToDelete = null }) { Text("Cancel") }
+                    TextButton(onClick = { stationToDelete = null }) { Text(stringResource(R.string.action_cancel)) }
                 },
             )
         }
@@ -695,7 +717,7 @@ private fun RecentSearches(
                         onClick = { onRemove(query) },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     ) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Remove", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_remove), modifier = Modifier.size(18.dp))
                     }
                 },
             )
@@ -737,13 +759,13 @@ private fun RegistrySearchResults(
                     }
                 }
                 Text(
-                    text = "No stations found",
+                    text = stringResource(R.string.no_stations_found),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "Try a different search, or add a station using its stream URL.",
+                    text = stringResource(R.string.no_stations_found_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -757,7 +779,7 @@ private fun RegistrySearchResults(
                             modifier = androidx.compose.ui.Modifier.size(18.dp),
                         )
                         Spacer(androidx.compose.ui.Modifier.width(8.dp))
-                        Text("Add your own station")
+                        Text(stringResource(R.string.add_your_own_station))
                     }
                 }
             }
@@ -837,7 +859,7 @@ private fun RegistryResultItem(
             ) {
                 Icon(
                     imageVector = if (alreadySaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = if (alreadySaved) "Remove from favorites" else "Save to favorites",
+                    contentDescription = stringResource(if (alreadySaved) R.string.remove_from_favorites else R.string.save_to_favorites),
                     tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
@@ -874,13 +896,13 @@ private fun NoNetworkState() {
                 }
             }
             Text(
-                text = "No internet connection",
+                text = stringResource(R.string.no_internet_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "Radio streams require an active internet connection.",
+                text = stringResource(R.string.no_internet_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -961,7 +983,7 @@ private fun HomeContent(
     ) {
         item("favorites-header") {
             Text(
-                text = "Your favorites",
+                text = stringResource(R.string.favorites_header),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
@@ -1006,7 +1028,7 @@ private fun HomeContent(
         if (stations.isEmpty() && featuredStations.isNotEmpty()) {
             item("get-started-header") {
                 Text(
-                    text = "Get started",
+                    text = stringResource(R.string.get_started),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
@@ -1029,7 +1051,7 @@ private fun HomeContent(
 
         item("just-listen-header") {
             Text(
-                text = "Just listen",
+                text = stringResource(R.string.just_listen),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
@@ -1144,14 +1166,14 @@ private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
-                    contentDescription = "Find a station",
+                    contentDescription = stringResource(R.string.find_a_station),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(32.dp),
                 )
             }
         }
         Text(
-            text = "Find one to listen to",
+            text = stringResource(R.string.find_one_to_listen),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -1169,6 +1191,7 @@ private fun CategoryGrid(
     modifier: Modifier = Modifier,
 ) {
     if (tags.isEmpty()) return
+    val tagLabels = rememberTagLabels()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
@@ -1197,7 +1220,7 @@ private fun CategoryGrid(
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
-                            Text(tag, style = MaterialTheme.typography.titleMedium)
+                            Text(tagLabels[tag] ?: tag, style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
@@ -1217,6 +1240,8 @@ private fun SearchFilterRow(
     hasFilters: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val appLocale = LocalConfiguration.current.locales[0]
+    val tagLabels = rememberTagLabels()
     fun chipLabel(selected: Set<String>, fallback: String, displayName: (String) -> String = { it }): String = when (selected.size) {
         0 -> fallback
         1 -> displayName(selected.first())
@@ -1231,7 +1256,7 @@ private fun SearchFilterRow(
         FilterChip(
             selected = selectedCountries.isNotEmpty(),
             onClick = onCountryClick,
-            label = { Text(chipLabel(selectedCountries, "Country", ::countryName)) },
+            label = { Text(chipLabel(selectedCountries, stringResource(R.string.filter_country)) { countryName(it, appLocale) }) },
             leadingIcon = if (selectedCountries.isNotEmpty()) {
                 { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
             } else null,
@@ -1240,14 +1265,14 @@ private fun SearchFilterRow(
         FilterChip(
             selected = selectedTags.isNotEmpty(),
             onClick = onGenreClick,
-            label = { Text(chipLabel(selectedTags, "Genre")) },
+            label = { Text(chipLabel(selectedTags, stringResource(R.string.filter_genre)) { tagLabels[it] ?: it }) },
             leadingIcon = if (selectedTags.isNotEmpty()) {
                 { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
             } else null,
             trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
         if (hasFilters) {
-            TextButton(onClick = onClearAll) { Text("Clear all") }
+            TextButton(onClick = onClearAll) { Text(stringResource(R.string.clear_all)) }
         }
     }
 }
@@ -1272,7 +1297,7 @@ private fun StationContextSheet(
         HorizontalDivider()
         if (station.provider.isBlank()) {
             ListItem(
-                headlineContent = { Text("Edit") },
+                headlineContent = { Text(stringResource(R.string.action_edit)) },
                 leadingContent = {
                     Icon(Icons.Rounded.Edit, contentDescription = null)
                 },
@@ -1281,7 +1306,7 @@ private fun StationContextSheet(
         }
         ListItem(
             headlineContent = {
-                Text("Remove", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
             },
             leadingContent = {
                 Icon(
@@ -1335,7 +1360,7 @@ private fun FilterPickerSheetContent(
                 modifier = Modifier.weight(1f),
             )
             if (selectedItems.isNotEmpty()) {
-                TextButton(onClick = onClear) { Text("Clear") }
+                TextButton(onClick = onClear) { Text(stringResource(R.string.action_clear)) }
             }
         }
         OutlinedTextField(
@@ -1347,7 +1372,7 @@ private fun FilterPickerSheetContent(
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_search))
                     }
                 }
             },
@@ -1359,8 +1384,8 @@ private fun FilterPickerSheetContent(
                 modifier = Modifier.fillMaxWidth().weight(1f),
             ) {
                 HomeEmptyState(
-                    text = "No matches",
-                    supportingText = "Try a different search.",
+                    text = stringResource(R.string.no_matches),
+                    supportingText = stringResource(R.string.no_matches_desc),
                 )
             }
         } else {

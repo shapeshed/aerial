@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Retour</string>
+    <string name="action_remove">Supprimer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_clear">Effacer</string>
+    <string name="action_save">Enregistrer</string>
+    <string name="action_edit">Modifier</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">Rechercher des stations</string>
+    <string name="clear_search">Effacer la recherche</string>
+    <string name="settings">Paramètres</string>
+    <string name="buffering">Mise en mémoire tampon…</string>
+    <string name="play">Lire</string>
+    <string name="pause">Pause</string>
+    <string name="filter_country">Pays</string>
+    <string name="filter_genre">Genre</string>
+    <string name="search_countries">Rechercher des pays</string>
+    <string name="search_genres">Rechercher des genres</string>
+    <string name="clear_all">Tout effacer</string>
+    <string name="remove_station_title">Supprimer la station ?</string>
+    <string name="remove_station_message">\"%1$s\" sera supprimée de vos favoris.</string>
+    <string name="no_stations_found">Aucune station trouvée</string>
+    <string name="no_stations_found_desc">Essayez une autre recherche ou ajoutez une station avec son URL de flux.</string>
+    <string name="add_your_own_station">Ajoutez votre propre station</string>
+    <string name="save_to_favorites">Ajouter aux favoris</string>
+    <string name="remove_from_favorites">Retirer des favoris</string>
+    <string name="no_internet_title">Aucune connexion internet</string>
+    <string name="no_internet_desc">Les flux radio nécessitent une connexion internet active.</string>
+    <string name="favorites_header">Vos favoris</string>
+    <string name="get_started">Commencer</string>
+    <string name="just_listen">Écoutez, tout simplement</string>
+    <string name="find_a_station">Trouver une station</string>
+    <string name="find_one_to_listen">Trouvez-en une à écouter</string>
+    <string name="no_matches">Aucun résultat</string>
+    <string name="no_matches_desc">Essayez une autre recherche.</string>
+
+    <!-- Now playing -->
+    <string name="close_player">Fermer le lecteur</string>
+    <string name="add_to_favorites">Ajouter aux favoris</string>
+    <string name="share_station">Partager la station</string>
+    <string name="copy_track_info">Copier les infos du titre</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">Afficher le titre en cours</string>
+    <string name="show_whats_playing_desc">Affiche le morceau, l\'artiste et la pochette lorsque disponibles</string>
+    <string name="section_data">Données</string>
+    <string name="export_backup">Exporter la sauvegarde</string>
+    <string name="export_backup_desc">Enregistre les stations, les paramètres et les logos locaux</string>
+    <string name="import_backup">Importer la sauvegarde</string>
+    <string name="import_backup_desc">Fusionne les stations et restaure les paramètres depuis une sauvegarde</string>
+    <string name="section_debug">Débogage</string>
+    <string name="refresh_registry">Actualiser le registre</string>
+    <string name="refresh_registry_desc">Forcer le téléchargement du dernier registre des stations depuis le réseau</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">Langue</string>
+    <string name="language_desc">Choisir la langue de l\'application</string>
+    <string name="language_system_default">Par défaut du système</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">Modifier la station</string>
+    <string name="add_station">Ajouter une station</string>
+    <string name="change_station_logo">Changer le logo de la station</string>
+    <string name="choose_station_logo">Choisir le logo de la station</string>
+    <string name="remove_icon">Supprimer l\'icône</string>
+    <string name="remove_icon_title">Supprimer l\'icône ?</string>
+    <string name="remove_icon_message">L\'icône de la station sera supprimée.</string>
+    <string name="field_name">Nom</string>
+    <string name="field_stream_url">URL du flux</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">Minuteur de veille</string>
+    <string name="sleep_add_15">+15 min</string>
+    <string name="sleep_set_new_duration">Définir une nouvelle durée</string>
+    <string name="sleep_preset_seconds">%1$d s</string>
+    <string name="sleep_preset_minutes">%1$d min</string>
+    <string name="sleep_preset_hours">%1$d h</string>
+    <string name="sleep_preset_hours_minutes">%1$d h %2$d min</string>
+    <string name="live_radio">Radio en direct</string>
+    <string name="tag_news">Actualités</string>
+    <string name="tag_sport">Sport</string>
+    <string name="tag_pop">Pop</string>
+    <string name="tag_rock">Rock</string>
+    <string name="tag_jazz">Jazz</string>
+    <string name="tag_classical">Classique</string>
+    <string name="tag_dance">Dance</string>
+    <string name="tag_soul">Soul</string>
+    <string name="tag_country">Country</string>
+    <string name="tag_electronic">Électronique</string>
+</resources>

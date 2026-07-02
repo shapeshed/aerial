@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">返回</string>
+    <string name="action_remove">移除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_clear">清除</string>
+    <string name="action_save">保存</string>
+    <string name="action_edit">编辑</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">搜索电台</string>
+    <string name="clear_search">清除搜索</string>
+    <string name="settings">设置</string>
+    <string name="buffering">缓冲中…</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+    <string name="filter_country">国家/地区</string>
+    <string name="filter_genre">类型</string>
+    <string name="search_countries">搜索国家/地区</string>
+    <string name="search_genres">搜索类型</string>
+    <string name="clear_all">全部清除</string>
+    <string name="remove_station_title">移除电台？</string>
+    <string name="remove_station_message">将从收藏中移除“%1$s”。</string>
+    <string name="no_stations_found">未找到电台</string>
+    <string name="no_stations_found_desc">请尝试其他搜索，或使用电台的流媒体地址添加电台。</string>
+    <string name="add_your_own_station">添加自己的电台</string>
+    <string name="save_to_favorites">保存到收藏</string>
+    <string name="remove_from_favorites">从收藏中移除</string>
+    <string name="no_internet_title">无网络连接</string>
+    <string name="no_internet_desc">收听广播需要有效的网络连接。</string>
+    <string name="favorites_header">你的收藏</string>
+    <string name="get_started">开始使用</string>
+    <string name="just_listen">尽情聆听</string>
+    <string name="find_a_station">查找电台</string>
+    <string name="find_one_to_listen">找一个来收听</string>
+    <string name="no_matches">无匹配结果</string>
+    <string name="no_matches_desc">请尝试其他搜索。</string>
+
+    <!-- Now playing -->
+    <string name="close_player">关闭播放器</string>
+    <string name="add_to_favorites">添加到收藏</string>
+    <string name="share_station">分享电台</string>
+    <string name="copy_track_info">复制曲目信息</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">显示正在播放</string>
+    <string name="show_whats_playing_desc">在可用时显示歌曲、艺人和封面</string>
+    <string name="section_data">数据</string>
+    <string name="export_backup">导出备份</string>
+    <string name="export_backup_desc">保存电台、设置和本地徽标</string>
+    <string name="import_backup">导入备份</string>
+    <string name="import_backup_desc">从备份合并电台并恢复设置</string>
+    <string name="section_debug">调试</string>
+    <string name="refresh_registry">刷新注册表</string>
+    <string name="refresh_registry_desc">强制从网络获取最新的电台注册表</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">语言</string>
+    <string name="language_desc">选择应用语言</string>
+    <string name="language_system_default">系统默认</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">编辑电台</string>
+    <string name="add_station">添加电台</string>
+    <string name="change_station_logo">更换电台徽标</string>
+    <string name="choose_station_logo">选择电台徽标</string>
+    <string name="remove_icon">移除图标</string>
+    <string name="remove_icon_title">移除图标？</string>
+    <string name="remove_icon_message">将移除电台图标。</string>
+    <string name="field_name">名称</string>
+    <string name="field_stream_url">流媒体地址</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">睡眠定时器</string>
+    <string name="sleep_add_15">+15 分钟</string>
+    <string name="sleep_set_new_duration">设置新时长</string>
+    <string name="sleep_preset_seconds">%1$d 秒</string>
+    <string name="sleep_preset_minutes">%1$d 分钟</string>
+    <string name="sleep_preset_hours">%1$d 小时</string>
+    <string name="sleep_preset_hours_minutes">%1$d 小时 %2$d 分钟</string>
+    <string name="live_radio">直播电台</string>
+    <string name="tag_news">新闻</string>
+    <string name="tag_sport">体育</string>
+    <string name="tag_pop">流行</string>
+    <string name="tag_rock">摇滚</string>
+    <string name="tag_jazz">爵士</string>
+    <string name="tag_classical">古典</string>
+    <string name="tag_dance">舞曲</string>
+    <string name="tag_soul">灵魂乐</string>
+    <string name="tag_country">乡村</string>
+    <string name="tag_electronic">电子</string>
+</resources>

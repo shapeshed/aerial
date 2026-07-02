@@ -78,6 +78,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
@@ -188,7 +190,7 @@ fun NowPlayingScreen(
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         modifier = Modifier.semantics { traversalIndex = 0f },
                     ) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close player")
+                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.close_player))
                     }
                 },
                 actions = {
@@ -308,7 +310,7 @@ fun NowPlayingScreen(
                     ) {
                         Icon(
                             imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = if (station.isFavorite) "Remove from favorites" else "Add to favorites",
+                            contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
                             tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                         )
                     }
@@ -347,7 +349,7 @@ fun NowPlayingScreen(
                             } else {
                                 Icon(
                                     imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                    contentDescription = if (playing) "Pause" else "Play",
+                                    contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                                     modifier = Modifier.size(44.dp),
                                 )
                             }
@@ -366,7 +368,7 @@ fun NowPlayingScreen(
                                 putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
                             }
                             context.startActivity(
-                                Intent.createChooser(sendIntent, "Share station"),
+                                Intent.createChooser(sendIntent, context.getString(R.string.share_station)),
                             )
                         },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
@@ -376,7 +378,7 @@ fun NowPlayingScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share station",
+                            contentDescription = stringResource(R.string.share_station),
                         )
                     }
                 }
@@ -449,7 +451,7 @@ fun NowPlayingScreen(
                         Spacer(Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = "Copy track info",
+                            contentDescription = stringResource(R.string.copy_track_info),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
                         )
@@ -590,7 +592,7 @@ fun NowPlayingScreen(
                                 IconButtonDefaults.smallPressedShape,
                             ),
                         ) {
-                            Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy track info")
+                            Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
                         }
                     }
                 }
