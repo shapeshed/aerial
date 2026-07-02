@@ -12,11 +12,16 @@ import java.util.zip.GZIPInputStream
 
 private const val REGISTRY_URL = "https://aerial.shapeshed.com/registry.json.gz"
 
-private val FEATURED_PROVIDER_IDS = listOf(
-    "bbc_world_service", // BBC World Service
-    "FRANCEINFO",        // franceinfo
-    "21818908",          // Deutschlandfunk
-    "ki1",               // KISS
+// provider_id is only unique within a single provider's own namespace — e.g. NRK and DR
+// both use "p1"/"p2"/"p3" — so featured lookups must match on (provider, providerId)
+// together, not providerId alone.
+private data class FeaturedStation(val provider: String, val providerId: String)
+
+private val FEATURED_STATIONS = listOf(
+    FeaturedStation("bbc", "bbc_world_service"), // BBC World Service
+    FeaturedStation("radio-france", "2"),        // franceinfo
+    FeaturedStation("ard", "21818908"),          // Deutschlandfunk
+    FeaturedStation("bauer", "ki1"),             // KISS
 )
 
 private val CURATED_TAG_ORDER = listOf(
@@ -33,7 +38,8 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
 
     suspend fun syncFromAssets(context: Context) {
         val json = try {
-            context.assets.open("registry.json.gz").use { input -> input.readBytes().readRegistryJson() }
+            val name = if ("registry.json.gz" in context.assets.list("").orEmpty()) "registry.json.gz" else "registry.json"
+            context.assets.open(name).use { input -> input.readBytes().readRegistryJson() }
         } catch (e: Exception) {
             return
         }
@@ -120,8 +126,10 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
     }
 
     suspend fun featuredStations(): List<RegistryStation> {
-        val all = dao.getByProviderIds(FEATURED_PROVIDER_IDS)
-        return FEATURED_PROVIDER_IDS.mapNotNull { id -> all.find { it.providerId == id } }
+        val all = dao.getByProviderIds(FEATURED_STATIONS.map { it.providerId })
+        return FEATURED_STATIONS.mapNotNull { featured ->
+            all.find { it.provider == featured.provider && it.providerId == featured.providerId }
+        }
     }
 
     private fun parseRegistry(json: String): List<RegistryStation> {
@@ -143,6 +151,7 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
                     tags = tags,
                     provider = obj.optString("provider").trim(),
                     providerId = obj.optString("provider_id").trim(),
+                    livemetaId = obj.optInt("livemeta_id", 0),
                     searchText = NumberNormalizer.normalize("$name $tags"),
                 )
             }

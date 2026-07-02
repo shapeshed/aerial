@@ -113,7 +113,7 @@ fun NowPlayingScreen(
         nowPlayingInfo != null -> null  // enricher active but no track data — don't fall back to ICY
         else -> currentTrackTitle
     }
-    val trackArtist = track?.artist
+    val trackArtist = track?.artist?.takeIf { it.isNotBlank() }
     val mainArtworkModel = when {
         nowPlayingInfo?.artworkData != null -> nowPlayingInfo.artworkData
         !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo.artworkUrl
@@ -121,8 +121,8 @@ fun NowPlayingScreen(
         // artwork written to the media item by applyNowPlayingInfo (programme/track bytes or
         // the original station logo). MusicBrainz doesn't set programmeTitle, so it stays
         // blocked here to avoid showing album art as the main station image.
-        nowPlayingInfo?.programmeTitle != null && currentTrackArtworkData != null -> currentTrackArtworkData
-        nowPlayingInfo?.programmeTitle != null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
+        nowPlayingInfo?.programmeTitle != null && track == null && currentTrackArtworkData != null -> currentTrackArtworkData
+        nowPlayingInfo?.programmeTitle != null && track == null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         nowPlayingInfo == null && currentTrackArtworkData != null -> currentTrackArtworkData
         nowPlayingInfo == null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null

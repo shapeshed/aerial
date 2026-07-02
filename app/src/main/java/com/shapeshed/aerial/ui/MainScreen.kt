@@ -335,19 +335,23 @@ fun MainScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
         ) {
             currentStation?.let { station ->
-                val miniPlayerTitle = activeNowPlayingInfo?.track?.artist
-                    ?: activeNowPlayingInfo?.programmeTitle
-                    ?: station.name
+                val hasSong = activeNowPlayingInfo?.track != null
+                val miniPlayerTitle = if (hasSong) {
+                    activeNowPlayingInfo!!.track!!.artist.takeIf { it.isNotBlank() }
+                        ?: activeNowPlayingInfo.programmeTitle
+                        ?: station.name
+                } else {
+                    station.name
+                }
                 val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) "Buffering…"
-                    else when {
-                        activeNowPlayingInfo?.track?.title != null &&
-                            activeNowPlayingInfo.track.title != miniPlayerTitle -> activeNowPlayingInfo.track.title
-                        activeNowPlayingInfo?.programmeSubtitle != null &&
-                            activeNowPlayingInfo.programmeSubtitle != miniPlayerTitle -> activeNowPlayingInfo.programmeSubtitle
-                        currentTrackTitle != null && currentTrackTitle != miniPlayerTitle -> currentTrackTitle
-                        isPlaying -> "Playing"
-                        else -> "Paused"
+                    else if (hasSong) {
+                        activeNowPlayingInfo?.track?.title?.takeIf { it != miniPlayerTitle }
+                            ?: currentTrackTitle?.takeIf { it != miniPlayerTitle }
+                            ?: if (isPlaying) "Playing" else "Paused"
+                    } else {
+                        activeNowPlayingInfo?.programmeTitle?.takeIf { it != station.name }
+                            ?: if (isPlaying) "Playing" else "Paused"
                     }
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
@@ -765,7 +769,7 @@ private fun RegistryResultItem(
                     AsyncImage(
                         model = station.logoUrl,
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
@@ -1362,7 +1366,7 @@ private fun FeaturedStationCard(
                     AsyncImage(
                         model = station.logoUrl,
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
@@ -1421,7 +1425,7 @@ fun StationAvatar(
             AsyncImage(
                 model = imageRequest,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 onError = { logoFailed = true },
                 modifier = Modifier.fillMaxSize(),
             )

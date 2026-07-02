@@ -14,6 +14,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.icy.IcyInfo
+import androidx.media3.extractor.metadata.id3.ApicFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -52,6 +54,7 @@ class PlayerService : MediaSessionService() {
     private lateinit var repository: StationRepository
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
+    private var lastId3Title: String? = null
     private var activeEnricher: Provider? = null
     private var lastAppliedNowPlayingSignature: String? = null
     private var enrichMetadataEnabled = false
@@ -124,6 +127,7 @@ class PlayerService : MediaSessionService() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
             lastIcyTitle = null
+            lastId3Title = null
             lastAppliedNowPlayingSignature = null
             activeEnricher?.stop()
             activeEnricher = null
@@ -139,35 +143,64 @@ class PlayerService : MediaSessionService() {
 
         @OptIn(UnstableApi::class)
         override fun onMetadata(metadata: Metadata) {
+            var icyInfo: IcyInfo? = null
+            var id3Title: String? = null
+            var id3Artist: String? = null
+            var id3Artwork: ByteArray? = null
+            var hasUnhandled = false
+
             for (i in 0 until metadata.length()) {
                 val entry = metadata[i]
-                log("onMetadata type=${entry::class.simpleName}")
-                if (entry is IcyInfo) {
-                    val title = entry.title?.trim()
-                    log("ICY title=$title")
-                    if (title.isNullOrEmpty()) return
-                    if (title == lastIcyTitle) return
-                    lastIcyTitle = title
+                when (entry) {
+                    is IcyInfo -> icyInfo = entry
+                    is TextInformationFrame -> when (entry.id) {
+                        "TIT2" -> id3Title = entry.value.trim().takeIf { it.isNotEmpty() }
+                        "TPE1" -> id3Artist = entry.value.trim().takeIf { it.isNotEmpty() }
+                    }
+                    is ApicFrame -> id3Artwork = entry.pictureData
+                    else -> hasUnhandled = true
+                }
+            }
+
+            icyInfo?.let { icy ->
+                val title = icy.title?.trim()
+                if (title.isNullOrEmpty() || title == lastIcyTitle) return
+                lastIcyTitle = title
+                val item = player.currentMediaItem ?: return
+                val stationName = currentStation()?.name ?: item.mediaMetadata.title?.toString().orEmpty()
+                val (icyArtist, icyTrackTitle) = parseIcyTitle(title)
+                replaceCurrentMediaItem(
+                    item,
+                    index = player.currentMediaItemIndex,
+                    stationName = stationName,
+                    artist = icyArtist,
+                    title = icyTrackTitle,
+                    artworkData = item.mediaMetadata.artworkData,
+                    artworkUri = item.mediaMetadata.artworkUri,
+                )
+                activeEnricher?.onIcyTitle(title)
+            }
+
+            if (id3Title != null) {
+                if (id3Title != lastId3Title) {
+                    lastId3Title = id3Title
                     val item = player.currentMediaItem ?: return
-                    val station = currentStation()
-                    val stationName = station?.name ?: item.mediaMetadata.title?.toString().orEmpty()
-                    val (icyArtist, icyTrackTitle) = parseIcyTitle(title)
+                    val stationName = currentStation()?.name ?: item.mediaMetadata.title?.toString().orEmpty()
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
                         stationName = stationName,
-                        artist = icyArtist,
-                        title = icyTrackTitle,
-                        artworkData = item.mediaMetadata.artworkData,
-                        artworkUri = item.mediaMetadata.artworkUri,
+                        artist = id3Artist,
+                        title = id3Title,
+                        artworkData = id3Artwork ?: item.mediaMetadata.artworkData,
+                        artworkUri = if (id3Artwork != null) null else item.mediaMetadata.artworkUri,
                     )
-                    activeEnricher?.onIcyTitle(title)
-                } else {
-                    // Any non-ICY metadata may signal a track transition for enriched stations.
-                    // (Note: BBC HLS currently drops ID3 timed metadata due to a Media3 bug,
-                    // so this is a future-proofing hook rather than an active signal.)
                     activeEnricher?.notifyTransition()
                 }
+            } else if (icyInfo == null && (id3Artwork != null || hasUnhandled)) {
+                // Non-ICY, non-ID3-title metadata — signal transition for enriched stations.
+                // (Note: BBC HLS currently drops ID3 timed metadata due to a Media3 bug.)
+                activeEnricher?.notifyTransition()
             }
         }
     }
@@ -238,14 +271,22 @@ class PlayerService : MediaSessionService() {
             .build()
     }
 
-    private fun currentStation(): Station? {
-        val id = player.currentMediaItem?.mediaId?.toLongOrNull() ?: return null
-        return stations.firstOrNull { it.id == id }
-    }
+    private fun currentStation(): Station? = stationForMediaItem(player.currentMediaItem)
 
     private fun stationForMediaItem(mediaItem: MediaItem?): Station? {
         val id = mediaItem?.mediaId?.toLongOrNull() ?: return null
-        return stations.firstOrNull { it.id == id }
+        stations.firstOrNull { it.id == id }?.let { return it }
+        // Ephemeral station (id=0): reconstruct from MediaItem extras so enrichers can run.
+        val extras = mediaItem.mediaMetadata.extras ?: return null
+        val streamUrl = extras.getString("streamUrl")?.takeIf { it.isNotBlank() } ?: return null
+        return Station(
+            id = 0,
+            name = mediaItem.mediaMetadata.title?.toString() ?: "",
+            streamUrl = streamUrl,
+            provider = extras.getString("provider") ?: "",
+            providerId = extras.getString("providerId") ?: "",
+            livemetaId = extras.getInt("livemetaId", 0),
+        )
     }
 
     private fun replaceCurrentMediaItem(
@@ -294,7 +335,13 @@ class PlayerService : MediaSessionService() {
         lastAppliedNowPlayingSignature = signature
 
         val mediaMetadata = currentMediaItem.mediaMetadata.buildUpon()
-            .setTitle(info.track?.artist ?: info.programmeTitle ?: currentMediaItem.mediaMetadata.title)
+            .setTitle(
+                if (info.track != null) {
+                    info.track.artist.takeIf { it.isNotBlank() } ?: info.programmeTitle ?: currentStation.name
+                } else {
+                    currentStation.name
+                }
+            )
             .setArtist(
                 when {
                     info.track != null -> info.track.title

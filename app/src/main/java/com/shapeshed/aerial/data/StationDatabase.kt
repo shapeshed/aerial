@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Station::class, RegistryStation::class], version = 10, exportSchema = true)
+@Database(entities = [Station::class, RegistryStation::class], version = 11, exportSchema = true)
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
     abstract fun registryDao(): RegistryDao
@@ -21,7 +21,7 @@ abstract class StationDatabase : RoomDatabase() {
                     // Explicit migrations cover versions 6–9 → 10.
                     // Any user still on v5 or below will have their data wiped by the fallback.
                     // Future version bumps MUST add an explicit Migration before relying on this fallback.
-                    .addMigrations(MIGRATION_6_10, MIGRATION_7_10, MIGRATION_8_10, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_6_10, MIGRATION_7_10, MIGRATION_8_10, MIGRATION_9_10, MIGRATION_10_11)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { instance = it }
@@ -53,6 +53,13 @@ abstract class StationDatabase : RoomDatabase() {
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 migrateStationsWithProviderColumns(db)
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `livemetaId` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `registry_stations` ADD COLUMN `livemetaId` INTEGER NOT NULL DEFAULT 0")
             }
         }
 
