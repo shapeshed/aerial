@@ -190,6 +190,7 @@ fun MainScreen(
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
+    val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
     val availableCountries: List<String> by viewModel.availableCountries.collectAsStateWithLifecycle()
@@ -519,14 +520,30 @@ fun MainScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 if (searchQueryText.isBlank() && !hasFilters) {
-                    RecentSearches(
-                        searches = recentSearches,
-                        onSelect = { query ->
-                            textFieldState.edit { replace(0, length, query) }
-                            viewModel.searchRegistry(query)
-                        },
-                        onRemove = { viewModel.removeRecentSearch(it) },
-                    )
+                    if (recentSearches.isNotEmpty()) {
+                        RecentSearches(
+                            searches = recentSearches,
+                            onSelect = { query ->
+                                textFieldState.edit { replace(0, length, query) }
+                                viewModel.searchRegistry(query)
+                            },
+                            onRemove = { viewModel.removeRecentSearch(it) },
+                        )
+                    } else {
+                        // Cold start with no history: show an A-Z browse list so the view
+                        // isn't empty before the user has typed anything.
+                        DefaultSearchResults(
+                            stations = defaultStations,
+                            savedStreamUrls = savedStreamUrls,
+                            onPlay = { station ->
+                                viewModel.playFromRegistry(station)
+                                textFieldState.edit { replace(0, length, "") }
+                                scope.launch { searchBarState.animateToCollapsed() }
+                            },
+                            onAdd = { viewModel.addFromRegistry(it) },
+                            onRemove = { viewModel.removeFromRegistry(it) },
+                        )
+                    }
                 } else {
                     RegistrySearchResults(
                         results = registrySearchResults,
@@ -635,6 +652,34 @@ fun MainScreen(
 
 }
 
+
+// Pre-search browse list (A-Z subsection of the registry) shown on a cold start when there
+// are no recent searches, so the search view isn't empty before the user types.
+@Composable
+private fun DefaultSearchResults(
+    stations: List<RegistryStation>,
+    savedStreamUrls: Set<String>,
+    onPlay: (RegistryStation) -> Unit,
+    onAdd: (RegistryStation) -> Unit,
+    onRemove: (RegistryStation) -> Unit,
+) {
+    if (stations.isEmpty()) return
+    LazyColumn {
+        items(
+            items = stations,
+            key = { it.id },
+            contentType = { "registry-result" },
+        ) { station ->
+            RegistryResultItem(
+                station = station,
+                alreadySaved = station.streamUrl in savedStreamUrls,
+                onTap = { onPlay(station) },
+                onAdd = { onAdd(station) },
+                onRemove = { onRemove(station) },
+            )
+        }
+    }
+}
 
 @Composable
 private fun RecentSearches(

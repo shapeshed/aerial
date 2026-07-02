@@ -132,6 +132,10 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
         }
     }
 
+    // A-Z subsection shown as browse suggestions before the user has typed anything.
+    // Capped to match the search query limit.
+    suspend fun defaultStations(limit: Int = 200): List<RegistryStation> = dao.browse(limit)
+
     private fun parseRegistry(json: String): List<RegistryStation> {
         return try {
             val arr = JSONArray(json)

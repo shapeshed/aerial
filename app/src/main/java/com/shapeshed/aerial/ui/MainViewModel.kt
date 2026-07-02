@@ -88,6 +88,9 @@ class MainViewModel(
     private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
 
+    private val _defaultStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val defaultStations: StateFlow<List<RegistryStation>> = _defaultStations.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.getAll().first()
@@ -102,6 +105,7 @@ class MainViewModel(
                 .distinctUntilChanged()
                 .collect {
                     _featuredStations.value = registryRepository.featuredStations()
+                    _defaultStations.value = registryRepository.defaultStations()
                     _availableCountries.value = registryRepository.availableCountryCodes()
                     _allTags.value = registryRepository.availableTags()
                 }
