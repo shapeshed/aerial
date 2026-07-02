@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">뒤로</string>
+    <string name="action_remove">삭제</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_clear">지우기</string>
+    <string name="action_save">저장</string>
+    <string name="action_edit">편집</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">방송국 검색</string>
+    <string name="clear_search">검색어 지우기</string>
+    <string name="settings">설정</string>
+    <string name="buffering">버퍼링 중…</string>
+    <string name="play">재생</string>
+    <string name="pause">일시정지</string>
+    <string name="filter_country">국가</string>
+    <string name="filter_genre">장르</string>
+    <string name="search_countries">국가 검색</string>
+    <string name="search_genres">장르 검색</string>
+    <string name="clear_all">모두 지우기</string>
+    <string name="remove_station_title">방송국을 삭제할까요?</string>
+    <string name="remove_station_message">즐겨찾기에서 \"%1$s\"이(가) 삭제됩니다.</string>
+    <string name="no_stations_found">방송국을 찾을 수 없습니다</string>
+    <string name="no_stations_found_desc">다른 검색어를 시도하거나 스트림 URL로 방송국을 추가하세요.</string>
+    <string name="add_your_own_station">나만의 방송국 추가</string>
+    <string name="save_to_favorites">즐겨찾기에 저장</string>
+    <string name="remove_from_favorites">즐겨찾기에서 삭제</string>
+    <string name="no_internet_title">인터넷 연결 없음</string>
+    <string name="no_internet_desc">라디오 스트림에는 인터넷 연결이 필요합니다.</string>
+    <string name="favorites_header">즐겨찾기</string>
+    <string name="get_started">시작하기</string>
+    <string name="just_listen">그냥 들어보세요</string>
+    <string name="find_a_station">방송국 찾기</string>
+    <string name="find_one_to_listen">들을 방송국을 찾아보세요</string>
+    <string name="no_matches">일치하는 항목 없음</string>
+    <string name="no_matches_desc">다른 검색어를 시도하세요.</string>
+
+    <!-- Now playing -->
+    <string name="close_player">플레이어 닫기</string>
+    <string name="add_to_favorites">즐겨찾기에 추가</string>
+    <string name="share_station">방송국 공유</string>
+    <string name="copy_track_info">트랙 정보 복사</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">재생 중인 곡 표시</string>
+    <string name="show_whats_playing_desc">가능한 경우 곡, 아티스트, 아트워크를 표시</string>
+    <string name="section_data">데이터</string>
+    <string name="export_backup">백업 내보내기</string>
+    <string name="export_backup_desc">방송국, 설정, 로컬 로고 저장</string>
+    <string name="import_backup">백업 가져오기</string>
+    <string name="import_backup_desc">백업에서 방송국을 병합하고 설정을 복원</string>
+    <string name="section_debug">디버그</string>
+    <string name="refresh_registry">레지스트리 새로고침</string>
+    <string name="refresh_registry_desc">네트워크에서 최신 방송국 레지스트리를 강제로 가져오기</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">언어</string>
+    <string name="language_desc">앱 언어 선택</string>
+    <string name="language_system_default">시스템 기본값</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">방송국 편집</string>
+    <string name="add_station">방송국 추가</string>
+    <string name="change_station_logo">방송국 로고 변경</string>
+    <string name="choose_station_logo">방송국 로고 선택</string>
+    <string name="remove_icon">아이콘 삭제</string>
+    <string name="remove_icon_title">아이콘을 삭제할까요?</string>
+    <string name="remove_icon_message">방송국 아이콘이 삭제됩니다.</string>
+    <string name="field_name">이름</string>
+    <string name="field_stream_url">스트림 URL</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">취침 타이머</string>
+    <string name="sleep_add_15">+15분</string>
+    <string name="sleep_set_new_duration">새 시간 설정</string>
+    <string name="sleep_preset_seconds">%1$d초</string>
+    <string name="sleep_preset_minutes">%1$d분</string>
+    <string name="sleep_preset_hours">%1$d시간</string>
+    <string name="sleep_preset_hours_minutes">%1$d시간 %2$d분</string>
+    <string name="live_radio">라이브 라디오</string>
+    <string name="tag_news">뉴스</string>
+    <string name="tag_sport">스포츠</string>
+    <string name="tag_pop">팝</string>
+    <string name="tag_rock">록</string>
+    <string name="tag_jazz">재즈</string>
+    <string name="tag_classical">클래식</string>
+    <string name="tag_dance">댄스</string>
+    <string name="tag_soul">소울</string>
+    <string name="tag_country">컨트리</string>
+    <string name="tag_electronic">일렉트로닉</string>
+</resources>

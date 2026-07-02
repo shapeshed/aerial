@@ -38,8 +38,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.SleepTimerState
 
 private const val MINUTE_MS = 60_000L
@@ -62,13 +64,14 @@ fun formatSleepRemaining(ms: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
+@Composable
 private fun presetLabel(ms: Long): String {
-    if (ms < MINUTE_MS) return "${ms / 1000} sec"
-    val min = ms / MINUTE_MS
+    if (ms < MINUTE_MS) return stringResource(R.string.sleep_preset_seconds, (ms / 1000).toInt())
+    val min = (ms / MINUTE_MS).toInt()
     return when {
-        min < 60 -> "$min min"
-        min % 60 == 0L -> "${min / 60} hr"
-        else -> "${min / 60}h ${min % 60}m"
+        min < 60 -> stringResource(R.string.sleep_preset_minutes, min)
+        min % 60 == 0 -> stringResource(R.string.sleep_preset_hours, min / 60)
+        else -> stringResource(R.string.sleep_preset_hours_minutes, min / 60, min % 60)
     }
 }
 
@@ -95,7 +98,7 @@ fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
             ) {
                 Icon(
                     Icons.Rounded.Bedtime,
-                    contentDescription = "Sleep timer",
+                    contentDescription = stringResource(R.string.sleep_timer),
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(6.dp))
@@ -114,7 +117,7 @@ fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
             shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
             modifier = Modifier.padding(end = 8.dp),
         ) {
-            Icon(Icons.Rounded.Bedtime, contentDescription = "Sleep timer")
+            Icon(Icons.Rounded.Bedtime, contentDescription = stringResource(R.string.sleep_timer))
         }
     }
 }
@@ -136,7 +139,7 @@ fun SleepTimerSheet(
                 .padding(bottom = 48.dp),
         ) {
             Text(
-                text = "Sleep timer",
+                text = stringResource(R.string.sleep_timer),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -180,18 +183,18 @@ fun SleepTimerSheet(
                         onClick = { onCancel(); onDismiss() },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                     FilledTonalButton(
                         onClick = { onSet(active.remainingMs + 15 * MINUTE_MS) },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("+15 min")
+                        Text(stringResource(R.string.sleep_add_15))
                     }
                 }
                 Spacer(Modifier.height(28.dp))
                 Text(
-                    text = "Set a new duration",
+                    text = stringResource(R.string.sleep_set_new_duration),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

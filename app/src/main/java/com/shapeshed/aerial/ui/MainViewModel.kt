@@ -27,6 +27,7 @@ import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.NowPlayingInfo
@@ -176,8 +177,12 @@ class MainViewModel(
         _currentTrackArtist,
     ) { station, info, icyTitle, icyArtist ->
         val activeInfo = info?.takeIf { it.stationId == station?.id }
-        computeNowPlayingDisplay(station?.name.orEmpty(), activeInfo, icyTitle, icyArtist)
+        computeNowPlayingDisplay(station?.name.orEmpty(), activeInfo, icyTitle, icyArtist, liveRadio())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NowPlayingDisplay("", ""))
+
+    // Localized "Live Radio" — the placeholder shown in the notification / mini player when a
+    // station has no track metadata, and the sentinel used to detect that placeholder below.
+    private fun liveRadio(): String = getApplication<Application>().getString(R.string.live_radio)
 
     val sleepTimer: StateFlow<SleepTimerState?> = SleepTimerStore.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -388,7 +393,7 @@ class MainViewModel(
                     }
                     _isPlaying.value = controller?.isPlaying ?: false
                     controller?.mediaMetadata?.artist?.toString()?.trim()
-                        ?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+                        ?.takeIf { it.isNotEmpty() && it != liveRadio() }
                         ?.let { _currentTrackTitle.value = it }
                 } else if (_currentStationId.value == null) {
                     _isPlaying.value = controller?.isPlaying ?: false
@@ -442,10 +447,10 @@ class MainViewModel(
             val artwork = mediaMetadata.artworkUri?.toString()?.trim()
             val artworkData = mediaMetadata.artworkData
             when {
-                !title.isNullOrEmpty() && title != "Live Radio" -> _currentTrackTitle.value = title
-                !artist.isNullOrEmpty() && artist != "Live Radio" -> _currentTrackTitle.value = artist
+                !title.isNullOrEmpty() && title != liveRadio() -> _currentTrackTitle.value = title
+                !artist.isNullOrEmpty() && artist != liveRadio() -> _currentTrackTitle.value = artist
             }
-            _currentTrackArtist.value = artist?.takeIf { it.isNotEmpty() && it != "Live Radio" }
+            _currentTrackArtist.value = artist?.takeIf { it.isNotEmpty() && it != liveRadio() }
             _currentTrackArtworkData.value = artworkData
             _currentTrackArtworkUrl.value = if (artworkData == null && !artwork.isNullOrEmpty()) {
                 artwork
@@ -492,8 +497,8 @@ class MainViewModel(
                     }
                 }
                     .setTitle(station.name)
-                    .setArtist("Live Radio")
-                    .setSubtitle("Live Radio")
+                    .setArtist(liveRadio())
+                    .setSubtitle(liveRadio())
                     .setExtras(Bundle().apply {
                         putString("provider", station.provider)
                         putString("providerId", station.providerId)
@@ -611,8 +616,8 @@ class MainViewModel(
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(station.name)
-                    .setArtist("Live Radio")
-                    .setSubtitle("Live Radio")
+                    .setArtist(liveRadio())
+                    .setSubtitle(liveRadio())
                     .build(),
             )
             .build()
@@ -628,36 +633,36 @@ class MainViewModel(
 /** Two-line "what's playing" summary for the mini player / notifications. */
 data class NowPlayingDisplay(val title: String, val subtitle: String)
 
-private const val LIVE_RADIO = "Live Radio"
-
 /**
  * Derives the display summary from the available metadata sources, in priority order:
  * track (song) → programme → ICY title → nothing. Pure and side-effect free so it can be
- * unit tested and reused; the ViewModel drives it from the event-fed flows.
+ * unit tested and reused; the ViewModel drives it from the event-fed flows and injects the
+ * localized [liveRadio] label.
  */
 fun computeNowPlayingDisplay(
     stationName: String,
     info: NowPlayingInfo?,
     icyTitle: String?,
     icyArtist: String? = null,
+    liveRadio: String = "Live Radio",
 ): NowPlayingDisplay {
     val track = info?.track
     return when {
-        track != null -> artistTitleDisplay(track.artist, track.title, stationName)
+        track != null -> artistTitleDisplay(track.artist, track.title, stationName, liveRadio)
         info?.programmeTitle != null -> NowPlayingDisplay(
             title = info.programmeTitle,
             subtitle = info.programmeSubtitle?.takeIf { it.isNotBlank() } ?: stationName,
         )
         // No enricher active but the stream carries ICY/ID3 track text. ICY commonly parses to
         // "Artist - Title"; show both, the same as an enriched song.
-        info == null && !icyTitle.isNullOrBlank() -> artistTitleDisplay(icyArtist.orEmpty(), icyTitle, stationName)
-        else -> NowPlayingDisplay(stationName, LIVE_RADIO)
+        info == null && !icyTitle.isNullOrBlank() -> artistTitleDisplay(icyArtist.orEmpty(), icyTitle, stationName, liveRadio)
+        else -> NowPlayingDisplay(stationName, liveRadio)
     }
 }
 
 // Artist on the top line, title below; falls back to the station name when one side is missing,
 // ignoring an "artist" that is really just the station name (ICY with no separator).
-private fun artistTitleDisplay(rawArtist: String, rawTitle: String, stationName: String): NowPlayingDisplay {
+private fun artistTitleDisplay(rawArtist: String, rawTitle: String, stationName: String, liveRadio: String): NowPlayingDisplay {
     val artist = rawArtist.takeIf { it.isNotBlank() && it != stationName }
     // Ignore a "title" that is really just the station name: with no track metadata the media
     // item's title is the station name, which would otherwise show as "Station - Station".
@@ -666,7 +671,7 @@ private fun artistTitleDisplay(rawArtist: String, rawTitle: String, stationName:
         artist != null && title != null -> NowPlayingDisplay(artist, title)
         artist != null -> NowPlayingDisplay(artist, stationName)
         title != null -> NowPlayingDisplay(title, stationName)
-        else -> NowPlayingDisplay(stationName, LIVE_RADIO)
+        else -> NowPlayingDisplay(stationName, liveRadio)
     }
 }
 

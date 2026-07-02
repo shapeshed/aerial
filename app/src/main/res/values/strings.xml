@@ -1,4 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
+
+    <!-- Common actions -->
+    <string name="action_back">Back</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_save">Save</string>
+    <string name="action_edit">Edit</string>
+
+    <!-- Search / home -->
+    <string name="search_hint">Search stations</string>
+    <string name="clear_search">Clear search</string>
+    <string name="settings">Settings</string>
+    <string name="buffering">Buffering…</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="filter_country">Country</string>
+    <string name="filter_genre">Genre</string>
+    <string name="search_countries">Search countries</string>
+    <string name="search_genres">Search genres</string>
+    <string name="clear_all">Clear all</string>
+    <string name="remove_station_title">Remove station?</string>
+    <string name="remove_station_message">\"%1$s\" will be removed from your favorites.</string>
+    <string name="no_stations_found">No stations found</string>
+    <string name="no_stations_found_desc">Try a different search, or add a station using its stream URL.</string>
+    <string name="add_your_own_station">Add your own station</string>
+    <string name="save_to_favorites">Save to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="no_internet_title">No internet connection</string>
+    <string name="no_internet_desc">Radio streams require an active internet connection.</string>
+    <string name="favorites_header">Your favorites</string>
+    <string name="get_started">Get started</string>
+    <string name="just_listen">Just listen</string>
+    <string name="find_a_station">Find a station</string>
+    <string name="find_one_to_listen">Find one to listen to</string>
+    <string name="no_matches">No matches</string>
+    <string name="no_matches_desc">Try a different search.</string>
+
+    <!-- Now playing -->
+    <string name="close_player">Close player</string>
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="share_station">Share station</string>
+    <string name="copy_track_info">Copy track info</string>
+
+    <!-- Settings -->
+    <string name="show_whats_playing">Show what\'s playing</string>
+    <string name="show_whats_playing_desc">Display song, artist, and artwork when available</string>
+    <string name="section_data">Data</string>
+    <string name="export_backup">Export backup</string>
+    <string name="export_backup_desc">Save stations, settings, and local logos</string>
+    <string name="import_backup">Import backup</string>
+    <string name="import_backup_desc">Merge stations and restore settings from a backup</string>
+    <string name="section_debug">Debug</string>
+    <string name="refresh_registry">Refresh registry</string>
+    <string name="refresh_registry_desc">Force fetch latest station registry from network</string>
+    <string name="version_format">Aerial %1$s</string>
+    <string name="language">Language</string>
+    <string name="language_desc">Choose the app language</string>
+    <string name="language_system_default">System default</string>
+
+    <!-- Station edit -->
+    <string name="edit_station">Edit station</string>
+    <string name="add_station">Add station</string>
+    <string name="change_station_logo">Change station logo</string>
+    <string name="choose_station_logo">Choose station logo</string>
+    <string name="remove_icon">Remove icon</string>
+    <string name="remove_icon_title">Remove icon?</string>
+    <string name="remove_icon_message">The station icon will be removed.</string>
+    <string name="field_name">Name</string>
+    <string name="field_stream_url">Stream URL</string>
+
+    <!-- Playback -->
+    <string name="live_radio">Live Radio</string>
+
+    <!-- Curated genre/category tags. Display only — the English tag is the matching key. -->
+    <string name="tag_news">News</string>
+    <string name="tag_sport">Sport</string>
+    <string name="tag_pop">Pop</string>
+    <string name="tag_rock">Rock</string>
+    <string name="tag_jazz">Jazz</string>
+    <string name="tag_classical">Classical</string>
+    <string name="tag_dance">Dance</string>
+    <string name="tag_soul">Soul</string>
+    <string name="tag_country">Country</string>
+    <string name="tag_electronic">Electronic</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_add_15">+15 min</string>
+    <string name="sleep_set_new_duration">Set a new duration</string>
+    <string name="sleep_preset_seconds">%1$d sec</string>
+    <string name="sleep_preset_minutes">%1$d min</string>
+    <string name="sleep_preset_hours">%1$d hr</string>
+    <string name="sleep_preset_hours_minutes">%1$dh %2$dm</string>
 </resources>
