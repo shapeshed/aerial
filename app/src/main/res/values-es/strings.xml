@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">Forzar la descarga del último registro de emisoras de la red</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Idioma</string>
-    <string name="language_desc">Elige el idioma de la app</string>
     <string name="language_system_default">Predeterminado del sistema</string>
 
     <!-- Station edit -->

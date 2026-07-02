@@ -103,6 +103,7 @@ fun NowPlayingScreen(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val shareStationLabel = stringResource(R.string.share_station)
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var showTrackDetail by remember { mutableStateOf(false) }
@@ -368,7 +369,7 @@ fun NowPlayingScreen(
                                 putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
                             }
                             context.startActivity(
-                                Intent.createChooser(sendIntent, context.getString(R.string.share_station)),
+                                Intent.createChooser(sendIntent, shareStationLabel),
                             )
                         },
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),

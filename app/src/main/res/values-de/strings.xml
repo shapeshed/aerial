@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">Neueste Senderliste aus dem Netzwerk erzwingen</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Sprache</string>
-    <string name="language_desc">App-Sprache wählen</string>
     <string name="language_system_default">Systemstandard</string>
 
     <!-- Station edit -->

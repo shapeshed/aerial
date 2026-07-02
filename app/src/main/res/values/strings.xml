@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name">Aerial</string>
 
     <!-- Common actions -->
@@ -58,7 +58,6 @@
     <string name="refresh_registry_desc">Force fetch latest station registry from network</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Language</string>
-    <string name="language_desc">Choose the app language</string>
     <string name="language_system_default">System default</string>
 
     <!-- Station edit -->
