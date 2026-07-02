@@ -90,6 +90,7 @@ fun NowPlayingScreen(
     isBuffering: Boolean,
     nowPlayingInfo: NowPlayingInfo? = null,
     currentTrackTitle: String?,
+    currentTrackArtist: String? = null,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
     sleepTimer: SleepTimerState? = null,
@@ -119,6 +120,8 @@ fun NowPlayingScreen(
         else -> currentTrackTitle
     }
     val trackArtist = track?.artist?.takeIf { it.isNotBlank() }
+        // No enricher: use the ICY artist (ignoring one that's just the station name).
+        ?: currentTrackArtist?.takeIf { nowPlayingInfo == null && it.isNotBlank() && it != station.name }
     val mainArtworkModel = when {
         nowPlayingInfo?.artworkData != null -> nowPlayingInfo.artworkData
         !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo.artworkUrl
@@ -132,6 +135,10 @@ fun NowPlayingScreen(
         nowPlayingInfo == null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null
     }
+    // The main image is distinct programme/context artwork (not the station's own logo) only
+    // when the enricher supplied its own artwork. Otherwise the main image already is the
+    // station logo, so the small logo badge would just duplicate it.
+    val mainArtworkIsDistinct = nowPlayingInfo?.artworkData != null || !nowPlayingInfo?.artworkUrl.isNullOrBlank()
     val trackArtworkModel = when {
         track?.artworkData != null -> track.artworkData
         track?.artworkUrl?.isNotBlank() == true -> track.artworkUrl
@@ -216,7 +223,9 @@ fun NowPlayingScreen(
                             AsyncImage(
                                 model = mainArtworkModel,
                                 contentDescription = null,
-                                contentScale = ContentScale.Crop,
+                                // Fit (not Crop) so non-square artwork isn't cropped; the
+                                // surface colour fills the letterbox space.
+                                contentScale = ContentScale.Fit,
                                 onError = { mainArtworkFailed = true },
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -230,7 +239,7 @@ fun NowPlayingScreen(
                         }
                     }
                 }
-                if (mainArtworkModel != null && !mainArtworkFailed) {
+                if (mainArtworkModel != null && !mainArtworkFailed && mainArtworkIsDistinct) {
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surface,
