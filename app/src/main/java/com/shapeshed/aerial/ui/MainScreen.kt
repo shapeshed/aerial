@@ -179,6 +179,7 @@ fun MainScreen(
     val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
     val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
     val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
+    val sleepTimer by viewModel.sleepTimer.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val recentlyAddedStationId by viewModel.recentlyAddedStationId.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
@@ -488,8 +489,11 @@ fun MainScreen(
                     currentTrackTitle = currentTrackTitle,
                     currentTrackArtworkData = currentTrackArtworkData,
                     currentTrackArtworkUrl = currentTrackArtworkUrl,
+                    sleepTimer = sleepTimer,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
+                    onSetSleepTimer = { viewModel.setSleepTimer(it) },
+                    onCancelSleepTimer = { viewModel.cancelSleepTimer() },
                     onDismiss = { viewModel.setShowNowPlaying(false) },
                 )
             } else {
