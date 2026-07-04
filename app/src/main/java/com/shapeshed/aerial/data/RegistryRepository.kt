@@ -1,16 +1,10 @@
 package com.shapeshed.aerial.data
 
 import android.content.Context
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONArray
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
-
-private const val REGISTRY_URL = "https://aerial.shapeshed.com/registry.json.gz"
 
 // provider_id is only unique within a single provider's own namespace — e.g. NRK and DR
 // both use "p1"/"p2"/"p3" — so featured lookups must match on (provider, providerId)
@@ -37,7 +31,7 @@ internal fun toFtsMatchQuery(normalized: String): String =
         .filter { it.isNotBlank() }
         .joinToString(" ") { "$it*" }
 
-class RegistryRepository(private val dao: RegistryDao, private val httpClient: OkHttpClient) {
+class RegistryRepository(private val dao: RegistryDao) {
 
     fun countAsFlow(): Flow<Int> = dao.countAsFlow()
 
@@ -55,22 +49,6 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
         val stations = parseRegistry(json)
         if (stations.isEmpty()) return
         dao.clearAndInsertAll(stations)
-    }
-
-    suspend fun syncFromNetwork(): List<RegistryStation>? = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder().url(REGISTRY_URL).build()
-            val json = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
-                response.body.bytes().readRegistryJson()
-            }
-            val stations = parseRegistry(json)
-            if (stations.isEmpty()) return@withContext null
-            dao.clearAndInsertAll(stations)
-            stations
-        } catch (e: Exception) {
-            null
-        }
     }
 
     suspend fun availableCountryCodes(): List<String> = dao.distinctCountryCodes()

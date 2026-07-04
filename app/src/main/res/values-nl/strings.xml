@@ -61,7 +61,7 @@
     <string name="import_backup_desc">Voegt zenders samen en herstelt instellingen uit een back-up</string>
     <string name="section_debug">Foutopsporing</string>
     <string name="refresh_registry">Register vernieuwen</string>
-    <string name="refresh_registry_desc">Forceer het ophalen van het nieuwste zenderregister uit het netwerk</string>
+    <string name="refresh_registry_desc">Laad het ingebouwde zenderregister opnieuw</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Taal</string>
     <string name="language_system_default">Systeemstandaard</string>

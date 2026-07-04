@@ -12,7 +12,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
-import com.shapeshed.aerial.REGISTRY_LAST_SYNC_KEY
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
@@ -68,14 +67,10 @@ class SettingsViewModel(
     fun refreshRegistry() {
         viewModelScope.launch {
             val app = getApplication<AerialApp>()
-            val stations = runCatching {
-                withContext(Dispatchers.IO) { app.registryRepository.syncFromNetwork() }
-            }.getOrNull()
-            if (stations != null) {
-                withContext(Dispatchers.IO) { app.repository.updateStreamUrlsFromRegistry(stations) }
-                dataStore.edit { it[REGISTRY_LAST_SYNC_KEY] = System.currentTimeMillis() }
-            }
-            _messages.emit(if (stations != null) "Registry refreshed" else "Registry refresh failed")
+            val refreshed = runCatching {
+                withContext(Dispatchers.IO) { app.registryRepository.syncFromAssets(app) }
+            }.isSuccess
+            _messages.emit(if (refreshed) "Embedded registry refreshed" else "Embedded registry refresh failed")
         }
     }
 

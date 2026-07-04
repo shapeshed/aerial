@@ -61,7 +61,7 @@
     <string name="import_backup_desc">放送局を統合し、バックアップから設定を復元</string>
     <string name="section_debug">デバッグ</string>
     <string name="refresh_registry">レジストリを更新</string>
-    <string name="refresh_registry_desc">最新の放送局レジストリをネットワークから強制取得</string>
+    <string name="refresh_registry_desc">同梱の放送局レジストリを再読み込み</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">言語</string>
     <string name="language_system_default">システムのデフォルト</string>

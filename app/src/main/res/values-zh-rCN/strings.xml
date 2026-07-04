@@ -61,7 +61,7 @@
     <string name="import_backup_desc">从备份合并电台并恢复设置</string>
     <string name="section_debug">调试</string>
     <string name="refresh_registry">刷新注册表</string>
-    <string name="refresh_registry_desc">强制从网络获取最新的电台注册表</string>
+    <string name="refresh_registry_desc">重新加载内置电台注册表</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">语言</string>
     <string name="language_system_default">系统默认</string>
