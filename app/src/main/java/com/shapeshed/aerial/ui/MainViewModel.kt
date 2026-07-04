@@ -208,6 +208,9 @@ class MainViewModel(
     private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
     val registrySearchResults: StateFlow<List<RegistryStation>> = _registrySearchResults.asStateFlow()
 
+    private val _favoriteSearchResults = MutableStateFlow<List<Station>>(emptyList())
+    val favoriteSearchResults: StateFlow<List<Station>> = _favoriteSearchResults.asStateFlow()
+
     private val _selectedCountries = MutableStateFlow<Set<String>>(emptySet())
     val selectedCountries: StateFlow<Set<String>> = _selectedCountries.asStateFlow()
 
@@ -267,6 +270,11 @@ class MainViewModel(
     private fun runSearch(query: String) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch(Dispatchers.IO) {
+            _favoriteSearchResults.value = if (query.isBlank()) {
+                emptyList()
+            } else {
+                repository.searchFavorites(query)
+            }
             _registrySearchResults.value = registryRepository.search(
                 query = query,
                 countryCodes = _selectedCountries.value,
@@ -298,6 +306,10 @@ class MainViewModel(
             logoPath = registryStation.logoUrl,
             provider = registryStation.provider,
             providerId = registryStation.providerId,
+            tags = registryStation.tags,
+            description = registryStation.description,
+            country = registryStation.country,
+            countryCode = registryStation.countryCode,
         )
         play(station)
     }
@@ -317,6 +329,10 @@ class MainViewModel(
                     isFavorite = true,
                     provider = registryStation.provider,
                     providerId = registryStation.providerId,
+                    tags = registryStation.tags,
+                    description = registryStation.description,
+                    country = registryStation.country,
+                    countryCode = registryStation.countryCode,
                 ),
             )
             _recentlyAddedStationId.value = stationId
@@ -324,7 +340,13 @@ class MainViewModel(
     }
 
     fun removeFromRegistry(registryStation: RegistryStation) {
-        val station = _allStations.value.find { it.streamUrl == registryStation.streamUrl } ?: return
+        val station = _allStations.value.find { station ->
+            station.streamUrl == registryStation.streamUrl ||
+                station.provider.isNotBlank() &&
+                station.providerId.isNotBlank() &&
+                station.provider == registryStation.provider &&
+                station.providerId == registryStation.providerId
+        } ?: return
         deleteStation(station)
     }
 
@@ -686,6 +708,10 @@ private fun Station.toLastPlayedJson(): JSONObject =
         .put("isFavorite", isFavorite)
         .put("provider", provider)
         .put("providerId", providerId)
+        .put("tags", tags)
+        .put("description", description)
+        .put("country", country)
+        .put("countryCode", countryCode)
 
 private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     val obj = JSONObject(json)
@@ -698,6 +724,10 @@ private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
             isFavorite = obj.optBoolean("isFavorite"),
             provider = obj.optString("provider"),
             providerId = obj.optString("providerId"),
+            tags = obj.optString("tags"),
+            description = obj.optString("description"),
+            country = obj.optString("country"),
+            countryCode = obj.optString("countryCode"),
         ),
     )
 }

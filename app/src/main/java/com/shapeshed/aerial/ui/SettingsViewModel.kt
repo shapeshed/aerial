@@ -114,6 +114,12 @@ class SettingsViewModel(
                     .put("name", station.name)
                     .put("streamUrl", station.streamUrl)
                     .put("isFavorite", station.isFavorite)
+                    .put("provider", station.provider)
+                    .put("providerId", station.providerId)
+                    .put("tags", station.tags)
+                    .put("description", station.description)
+                    .put("country", station.country)
+                    .put("countryCode", station.countryCode)
 
                 val logoFile = station.logoPath
                     .takeIf { it.isNotBlank() && !it.startsWith("http") }
@@ -192,7 +198,13 @@ class SettingsViewModel(
                     name = item.getString("name").trim(),
                     streamUrl = item.getString("streamUrl").trim(),
                     logoPath = logoPath.trim(),
-                    isFavorite = item.optBoolean("isFavorite"),
+                    isFavorite = item.optBoolean("isFavorite", true),
+                    provider = item.optString("provider").trim(),
+                    providerId = item.optString("providerId").trim(),
+                    tags = item.optString("tags").trim(),
+                    description = item.optString("description").trim(),
+                    country = item.optString("country").trim(),
+                    countryCode = item.optString("countryCode").trim(),
                 )
             )
         }

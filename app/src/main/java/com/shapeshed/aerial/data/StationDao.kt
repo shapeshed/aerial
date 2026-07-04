@@ -18,6 +18,16 @@ interface StationDao {
     @Query("SELECT * FROM stations WHERE streamUrl = :streamUrl LIMIT 1")
     suspend fun getByStreamUrl(streamUrl: String): Station?
 
+    @Query("SELECT * FROM stations WHERE provider = :provider AND providerId = :providerId LIMIT 1")
+    suspend fun getByProviderId(provider: String, providerId: String): Station?
+
+    @Query(
+        "SELECT s.* FROM stations s " +
+            "JOIN stations_fts fts ON s.id = fts.rowid " +
+            "WHERE stations_fts MATCH :match ORDER BY s.name COLLATE NOCASE ASC LIMIT 20",
+    )
+    suspend fun searchStationFts(match: String): List<Station>
+
     @Query("UPDATE stations SET streamUrl = :streamUrl WHERE provider = :provider AND providerId = :providerId AND streamUrl != :streamUrl")
     suspend fun updateStreamUrlByProviderId(provider: String, providerId: String, streamUrl: String)
 

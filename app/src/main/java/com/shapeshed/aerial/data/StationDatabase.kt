@@ -7,7 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Station::class, RegistryStation::class, RegistryStationFts::class], version = 11, exportSchema = true)
+@Database(
+    entities = [Station::class, StationFts::class, RegistryStation::class, RegistryStationFts::class],
+    version = 13,
+    exportSchema = true,
+)
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
     abstract fun registryDao(): RegistryDao
@@ -21,7 +25,15 @@ abstract class StationDatabase : RoomDatabase() {
                     // Explicit migrations cover versions 6–9 → 10.
                     // Any user still on v5 or below will have their data wiped by the fallback.
                     // Future version bumps MUST add an explicit Migration before relying on this fallback.
-                    .addMigrations(MIGRATION_6_10, MIGRATION_7_10, MIGRATION_8_10, MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(
+                        MIGRATION_6_10,
+                        MIGRATION_7_10,
+                        MIGRATION_8_10,
+                        MIGRATION_9_10,
+                        MIGRATION_10_11,
+                        MIGRATION_11_12,
+                        MIGRATION_12_13,
+                    )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { instance = it }
@@ -71,6 +83,93 @@ abstract class StationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE VIRTUAL TABLE IF NOT EXISTS `stations_fts` USING FTS4(" +
+                        "`name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `provider` TEXT NOT NULL, " +
+                        "`providerId` TEXT NOT NULL, tokenize=unicode61 `remove_diacritics=1`, content=`stations`)",
+                )
+                db.execSQL(
+                    "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_BEFORE_UPDATE " +
+                        "BEFORE UPDATE ON `stations` BEGIN DELETE FROM `stations_fts` WHERE `docid`=OLD.`rowid`; END",
+                )
+                db.execSQL(
+                    "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_BEFORE_DELETE " +
+                        "BEFORE DELETE ON `stations` BEGIN DELETE FROM `stations_fts` WHERE `docid`=OLD.`rowid`; END",
+                )
+                db.execSQL(
+                    "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE " +
+                        "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`) " +
+                        "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`); END",
+                )
+                db.execSQL(
+                    "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT " +
+                        "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`) " +
+                        "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`); END",
+                )
+                db.execSQL("INSERT INTO `stations_fts`(`stations_fts`) VALUES('rebuild')")
+            }
+        }
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `tags` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `description` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `country` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `countryCode` TEXT NOT NULL DEFAULT ''")
+                db.execSQL(
+                    """
+                    UPDATE `stations`
+                    SET
+                      `tags` = COALESCE((
+                        SELECT `registry_stations`.`tags`
+                        FROM `registry_stations`
+                        WHERE
+                          (`stations`.`provider` != '' AND `stations`.`providerId` != ''
+                            AND `registry_stations`.`provider` = `stations`.`provider`
+                            AND `registry_stations`.`providerId` = `stations`.`providerId`)
+                          OR `registry_stations`.`streamUrl` = `stations`.`streamUrl`
+                        LIMIT 1
+                      ), ''),
+                      `description` = COALESCE((
+                        SELECT `registry_stations`.`description`
+                        FROM `registry_stations`
+                        WHERE
+                          (`stations`.`provider` != '' AND `stations`.`providerId` != ''
+                            AND `registry_stations`.`provider` = `stations`.`provider`
+                            AND `registry_stations`.`providerId` = `stations`.`providerId`)
+                          OR `registry_stations`.`streamUrl` = `stations`.`streamUrl`
+                        LIMIT 1
+                      ), ''),
+                      `country` = COALESCE((
+                        SELECT `registry_stations`.`country`
+                        FROM `registry_stations`
+                        WHERE
+                          (`stations`.`provider` != '' AND `stations`.`providerId` != ''
+                            AND `registry_stations`.`provider` = `stations`.`provider`
+                            AND `registry_stations`.`providerId` = `stations`.`providerId`)
+                          OR `registry_stations`.`streamUrl` = `stations`.`streamUrl`
+                        LIMIT 1
+                      ), ''),
+                      `countryCode` = COALESCE((
+                        SELECT `registry_stations`.`countryCode`
+                        FROM `registry_stations`
+                        WHERE
+                          (`stations`.`provider` != '' AND `stations`.`providerId` != ''
+                            AND `registry_stations`.`provider` = `stations`.`provider`
+                            AND `registry_stations`.`providerId` = `stations`.`providerId`)
+                          OR `registry_stations`.`streamUrl` = `stations`.`streamUrl`
+                        LIMIT 1
+                      ), '')
+                    WHERE `tags` = '' AND `description` = '' AND `country` = '' AND `countryCode` = ''
+                    """.trimIndent(),
+                )
+                dropStationsFts(db)
+                createStationsFts(db)
+            }
+        }
+
         private fun migrateStationsWithoutProviderColumns(db: SupportSQLiteDatabase) {
             db.execSQL(createStationsNewSql())
             db.execSQL(
@@ -110,6 +209,43 @@ abstract class StationDatabase : RoomDatabase() {
               `providerId` TEXT NOT NULL
             )
             """.trimIndent()
+
+        private fun dropStationsFts(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_BEFORE_UPDATE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_BEFORE_DELETE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT")
+            db.execSQL("DROP TABLE IF EXISTS `stations_fts`")
+        }
+
+        private fun createStationsFts(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS `stations_fts` USING FTS4(" +
+                    "`name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `provider` TEXT NOT NULL, " +
+                    "`providerId` TEXT NOT NULL, `tags` TEXT NOT NULL, `description` TEXT NOT NULL, " +
+                    "`country` TEXT NOT NULL, " +
+                    "tokenize=unicode61 `remove_diacritics=1`, content=`stations`)",
+            )
+            db.execSQL(
+                "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_BEFORE_UPDATE " +
+                    "BEFORE UPDATE ON `stations` BEGIN DELETE FROM `stations_fts` WHERE `docid`=OLD.`rowid`; END",
+            )
+            db.execSQL(
+                "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_BEFORE_DELETE " +
+                    "BEFORE DELETE ON `stations` BEGIN DELETE FROM `stations_fts` WHERE `docid`=OLD.`rowid`; END",
+            )
+            db.execSQL(
+                "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE " +
+                    "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`, `tags`, `description`, `country`) " +
+                    "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`, NEW.`tags`, NEW.`description`, NEW.`country`); END",
+            )
+            db.execSQL(
+                "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT " +
+                    "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`, `tags`, `description`, `country`) " +
+                    "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`, NEW.`tags`, NEW.`description`, NEW.`country`); END",
+            )
+            db.execSQL("INSERT INTO `stations_fts`(`stations_fts`) VALUES('rebuild')")
+        }
 
         private fun createRegistryTable(db: SupportSQLiteDatabase) {
             db.execSQL(

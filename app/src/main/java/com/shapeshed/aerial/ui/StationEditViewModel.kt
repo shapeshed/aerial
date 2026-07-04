@@ -33,11 +33,13 @@ class StationEditViewModel(
     val isEditing: Boolean = stationId != null
 
     private var logoCopyJob: Job? = null
+    private var existingStation: Station? = null
 
     init {
         if (stationId != null) {
             viewModelScope.launch {
                 repository.getById(stationId)?.let { station ->
+                    existingStation = station
                     _name.value = station.name
                     _streamUrl.value = station.streamUrl
                     val path = station.logoPath
@@ -73,7 +75,11 @@ class StationEditViewModel(
         if (_name.value.isBlank() || _streamUrl.value.isBlank()) return
         viewModelScope.launch {
             logoCopyJob?.join()  // wait for any in-progress copy before reading the path
-            val station = Station(
+            val station = (existingStation ?: Station(
+                name = "",
+                streamUrl = "",
+                isFavorite = true,
+            )).copy(
                 id = stationId ?: 0,
                 name = _name.value.trim(),
                 streamUrl = _streamUrl.value.trim(),
