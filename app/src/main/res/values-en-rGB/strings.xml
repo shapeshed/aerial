@@ -6,5 +6,7 @@
     <string name="remove_from_favorites">Remove from favourites</string>
     <string name="add_to_favorites">Add to favourites</string>
     <string name="favorites_header">Your favourites</string>
+    <string name="home_view_cards">Cards</string>
+    <string name="home_view_list">List</string>
     <string name="search_stations_header">Stations</string>
 </resources>

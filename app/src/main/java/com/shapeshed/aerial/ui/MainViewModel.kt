@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import android.os.Bundle
@@ -64,6 +65,7 @@ private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
 private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
 private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
+private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private const val MAX_RECENT_SEARCHES = 5
 
 private data class LastPlayedStationSnapshot(
@@ -203,6 +205,18 @@ class MainViewModel(
     val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow("showNowPlaying", false)
     fun setShowNowPlaying(value: Boolean) {
         savedStateHandle["showNowPlaying"] = value
+    }
+
+    val homeViewMode: StateFlow<HomeViewMode> = dataStore.data
+        .map { prefs -> if (prefs[HOME_CARDS_VIEW_KEY] == false) HomeViewMode.List else HomeViewMode.Cards }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeViewMode.Cards)
+
+    fun setHomeViewMode(mode: HomeViewMode) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[HOME_CARDS_VIEW_KEY] = mode == HomeViewMode.Cards
+            }
+        }
     }
 
     private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())

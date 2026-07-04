@@ -62,8 +62,7 @@ class RegistryRepository(private val dao: RegistryDao, private val httpClient: O
             val request = Request.Builder().url(REGISTRY_URL).build()
             val json = httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                val body = response.body ?: return@withContext null
-                body.bytes().readRegistryJson()
+                response.body.bytes().readRegistryJson()
             }
             val stations = parseRegistry(json)
             if (stations.isEmpty()) return@withContext null

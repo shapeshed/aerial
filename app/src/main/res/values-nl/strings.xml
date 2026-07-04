@@ -32,6 +32,8 @@
     <string name="no_internet_title">Geen internetverbinding</string>
     <string name="no_internet_desc">Radiostreams vereisen een actieve internetverbinding.</string>
     <string name="favorites_header">Je favorieten</string>
+    <string name="home_view_cards">Kaarten</string>
+    <string name="home_view_list">Lijst</string>
     <string name="search_stations_header">Stations</string>
     <string name="get_started">Aan de slag</string>
     <string name="just_listen">Gewoon luisteren</string>
