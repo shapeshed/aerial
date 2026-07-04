@@ -61,7 +61,7 @@
     <string name="import_backup_desc">Fusionne les stations et restaure les paramètres depuis une sauvegarde</string>
     <string name="section_debug">Débogage</string>
     <string name="refresh_registry">Actualiser le registre</string>
-    <string name="refresh_registry_desc">Forcer le téléchargement du dernier registre des stations depuis le réseau</string>
+    <string name="refresh_registry_desc">Recharge le registre des stations intégré</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Langue</string>
     <string name="language_system_default">Par défaut du système</string>
