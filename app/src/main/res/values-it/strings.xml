@@ -32,6 +32,7 @@
     <string name="no_internet_title">Nessuna connessione a internet</string>
     <string name="no_internet_desc">Gli stream radio richiedono una connessione a internet attiva.</string>
     <string name="favorites_header">I tuoi preferiti</string>
+    <string name="search_stations_header">Stazioni</string>
     <string name="get_started">Inizia</string>
     <string name="just_listen">Ascolta e basta</string>
     <string name="find_a_station">Trova una stazione</string>

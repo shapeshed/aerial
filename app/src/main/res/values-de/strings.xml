@@ -32,6 +32,7 @@
     <string name="no_internet_title">Keine Internetverbindung</string>
     <string name="no_internet_desc">Radio-Streams erfordern eine aktive Internetverbindung.</string>
     <string name="favorites_header">Deine Favoriten</string>
+    <string name="search_stations_header">Stationen</string>
     <string name="get_started">Loslegen</string>
     <string name="just_listen">Einfach zuhören</string>
     <string name="find_a_station">Sender finden</string>

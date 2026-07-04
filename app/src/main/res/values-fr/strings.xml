@@ -32,6 +32,7 @@
     <string name="no_internet_title">Aucune connexion internet</string>
     <string name="no_internet_desc">Les flux radio nécessitent une connexion internet active.</string>
     <string name="favorites_header">Vos favoris</string>
+    <string name="search_stations_header">Stations</string>
     <string name="get_started">Commencer</string>
     <string name="just_listen">Écoutez, tout simplement</string>
     <string name="find_a_station">Trouver une station</string>
