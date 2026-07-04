@@ -47,10 +47,13 @@
     <string name="add_to_favorites">Añadir a favoritos</string>
     <string name="share_station">Compartir emisora</string>
     <string name="copy_track_info">Copiar info de la pista</string>
+    <string name="stream_bitrate_format">%1$d kbps</string>
 
     <!-- Settings -->
     <string name="show_whats_playing">Mostrar qué suena</string>
     <string name="show_whats_playing_desc">Muestra la canción, el artista y la portada cuando estén disponibles</string>
+    <string name="show_stream_bitrate">Mostrar bitrate del stream</string>
+    <string name="show_stream_bitrate_desc">Muestra la calidad actual del stream en el reproductor</string>
     <string name="section_data">Datos</string>
     <string name="export_backup">Exportar copia</string>
     <string name="export_backup_desc">Guarda emisoras, ajustes y logotipos locales</string>

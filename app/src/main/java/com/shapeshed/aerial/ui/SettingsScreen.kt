@@ -48,6 +48,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
+    val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
     val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
@@ -98,6 +99,21 @@ fun SettingsScreen(
                     },
                 ) {
                     Text(stringResource(R.string.show_whats_playing))
+                }
+                HorizontalDivider()
+            }
+            item(contentType = "setting") {
+                ListItem(
+                    modifier = Modifier.clickable { viewModel.setShowStreamBitrate(!showStreamBitrate) },
+                    supportingContent = { Text(stringResource(R.string.show_stream_bitrate_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = showStreamBitrate,
+                            onCheckedChange = { viewModel.setShowStreamBitrate(it) },
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.show_stream_bitrate))
                 }
                 HorizontalDivider()
             }

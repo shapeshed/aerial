@@ -47,10 +47,13 @@
     <string name="add_to_favorites">添加到收藏</string>
     <string name="share_station">分享电台</string>
     <string name="copy_track_info">复制曲目信息</string>
+    <string name="stream_bitrate_format">%1$d kbps</string>
 
     <!-- Settings -->
     <string name="show_whats_playing">显示正在播放</string>
     <string name="show_whats_playing_desc">在可用时显示歌曲、艺人和封面</string>
+    <string name="show_stream_bitrate">显示流比特率</string>
+    <string name="show_stream_bitrate_desc">在播放器中显示当前流质量</string>
     <string name="section_data">数据</string>
     <string name="export_backup">导出备份</string>
     <string name="export_backup_desc">保存电台、设置和本地徽标</string>

@@ -47,10 +47,13 @@
     <string name="add_to_favorites">즐겨찾기에 추가</string>
     <string name="share_station">방송국 공유</string>
     <string name="copy_track_info">트랙 정보 복사</string>
+    <string name="stream_bitrate_format">%1$d kbps</string>
 
     <!-- Settings -->
     <string name="show_whats_playing">재생 중인 곡 표시</string>
     <string name="show_whats_playing_desc">가능한 경우 곡, 아티스트, 아트워크를 표시</string>
+    <string name="show_stream_bitrate">스트림 비트레이트 표시</string>
+    <string name="show_stream_bitrate_desc">플레이어에 현재 스트림 품질을 표시</string>
     <string name="section_data">데이터</string>
     <string name="export_backup">백업 내보내기</string>
     <string name="export_backup_desc">방송국, 설정, 로컬 로고 저장</string>

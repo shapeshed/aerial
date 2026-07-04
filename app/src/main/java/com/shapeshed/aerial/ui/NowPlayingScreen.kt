@@ -96,6 +96,8 @@ fun NowPlayingScreen(
     currentTrackArtist: String? = null,
     currentTrackArtworkData: ByteArray? = null,
     currentTrackArtworkUrl: String? = null,
+    currentBitrateKbps: Int? = null,
+    showStreamBitrate: Boolean = false,
     sleepTimer: SleepTimerState? = null,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -153,6 +155,9 @@ fun NowPlayingScreen(
     var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
+    val bitrateLabel = currentBitrateKbps
+        ?.takeIf { showStreamBitrate && it > 0 }
+        ?.let { stringResource(R.string.stream_bitrate_format, it) }
     LaunchedEffect(showTrackBlock) { if (!showTrackBlock) showTrackDetail = false }
     // When the timer clears (it expired, or was cancelled), close the picker too. Keyed on the
     // active->inactive transition so a picker opened with no timer running stays open.
@@ -262,6 +267,14 @@ fun NowPlayingScreen(
                             )
                         }
                     }
+                }
+                if (bitrateLabel != null) {
+                    StreamBitratePill(
+                        text = bitrateLabel,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 12.dp, bottom = 12.dp),
+                    )
                 }
             }
             Spacer(Modifier.height(28.dp))
@@ -603,5 +616,25 @@ fun NowPlayingScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StreamBitratePill(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 1.dp,
+        modifier = modifier,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+        )
     }
 }
