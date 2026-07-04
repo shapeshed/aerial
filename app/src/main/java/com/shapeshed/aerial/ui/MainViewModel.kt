@@ -18,10 +18,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -29,6 +33,7 @@ import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.NowPlayingInfo
@@ -163,6 +168,9 @@ class MainViewModel(
     private val _currentTrackArtworkData = MutableStateFlow<ByteArray?>(null)
     val currentTrackArtworkData: StateFlow<ByteArray?> = _currentTrackArtworkData.asStateFlow()
 
+    private val _currentBitrateKbps = MutableStateFlow<Int?>(null)
+    val currentBitrateKbps: StateFlow<Int?> = _currentBitrateKbps.asStateFlow()
+
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
@@ -210,6 +218,10 @@ class MainViewModel(
     val homeViewMode: StateFlow<HomeViewMode> = dataStore.data
         .map { prefs -> if (prefs[HOME_CARDS_VIEW_KEY] == false) HomeViewMode.List else HomeViewMode.Cards }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeViewMode.Cards)
+
+    val showStreamBitrate: StateFlow<Boolean> = dataStore.data
+        .map { prefs -> prefs[SHOW_STREAM_BITRATE_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setHomeViewMode(mode: HomeViewMode) {
         viewModelScope.launch {
@@ -428,11 +440,13 @@ class MainViewModel(
                         _ephemeralStation.value = null
                     }
                     _isPlaying.value = controller?.isPlaying ?: false
+                    updateCurrentBitrate(controller?.currentTracks ?: Tracks.EMPTY)
                     controller?.mediaMetadata?.artist?.toString()?.trim()
                         ?.takeIf { it.isNotEmpty() && it != liveRadio() }
                         ?.let { _currentTrackTitle.value = it }
                 } else if (_currentStationId.value == null) {
                     _isPlaying.value = controller?.isPlaying ?: false
+                    updateCurrentBitrate(controller?.currentTracks ?: Tracks.EMPTY)
                 }
             }
             if (controller?.currentMediaItem == null) {
@@ -494,6 +508,24 @@ class MainViewModel(
                 null
             }
         }
+        override fun onTracksChanged(tracks: Tracks) {
+            updateCurrentBitrate(tracks)
+        }
+    }
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private fun updateCurrentBitrate(tracks: Tracks) {
+        _currentBitrateKbps.value = tracks.getGroups()
+            .asSequence()
+            .filter { group -> group.type == C.TRACK_TYPE_AUDIO && group.isSelected }
+            .flatMap { group ->
+                (0 until group.length).asSequence()
+                    .filter { index -> group.isTrackSelected(index) }
+                    .map { index -> group.getTrackFormat(index) }
+            }
+            .mapNotNull { format -> format.bitrate.takeIf { it != Format.NO_VALUE && it > 0 } }
+            .firstOrNull()
+            ?.let { bitrate -> (bitrate / 1_000).coerceAtLeast(1) }
     }
 
     fun play(station: Station) {
@@ -508,6 +540,7 @@ class MainViewModel(
         _currentTrackArtist.value = null
         _currentTrackArtworkUrl.value = null
         _currentTrackArtworkData.value = null
+        _currentBitrateKbps.value = null
         _playbackError.value = null
         persistLastPlayedStation(station)
         val artworkUri = station.logoPath

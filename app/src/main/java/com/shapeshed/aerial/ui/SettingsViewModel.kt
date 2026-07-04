@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import com.shapeshed.aerial.REGISTRY_LAST_SYNC_KEY
+import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream
@@ -45,12 +46,22 @@ class SettingsViewModel(
         .map { it[ENRICH_METADATA_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val showStreamBitrate = dataStore.data
+        .map { it[SHOW_STREAM_BITRATE_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
 
     fun setEnrichMetadata(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[ENRICH_METADATA_KEY] = enabled }
+        }
+    }
+
+    fun setShowStreamBitrate(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SHOW_STREAM_BITRATE_KEY] = enabled }
         }
     }
 

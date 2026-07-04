@@ -227,6 +227,7 @@ fun MainScreen(
     val currentTrackArtist by viewModel.currentTrackArtist.collectAsStateWithLifecycle()
     val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
     val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
+    val currentBitrateKbps by viewModel.currentBitrateKbps.collectAsStateWithLifecycle()
     val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
     val nowPlayingDisplay by viewModel.nowPlayingDisplay.collectAsStateWithLifecycle()
     val sleepTimer by viewModel.sleepTimer.collectAsStateWithLifecycle()
@@ -243,6 +244,7 @@ fun MainScreen(
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
+    val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
     val availableCountries: List<String> by viewModel.availableCountries.collectAsStateWithLifecycle()
@@ -537,6 +539,8 @@ fun MainScreen(
                     currentTrackArtist = currentTrackArtist,
                     currentTrackArtworkData = currentTrackArtworkData,
                     currentTrackArtworkUrl = currentTrackArtworkUrl,
+                    currentBitrateKbps = currentBitrateKbps,
+                    showStreamBitrate = showStreamBitrate,
                     sleepTimer = sleepTimer,
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },

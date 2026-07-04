@@ -36,6 +36,7 @@ import okhttp3.OkHttpClient
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val REGISTRY_LAST_SYNC_KEY = longPreferencesKey("registry_last_network_sync")
 val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
+val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 private const val REGISTRY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000L
 
 class AerialApp : Application(), SingletonImageLoader.Factory {
