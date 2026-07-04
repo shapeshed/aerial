@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
@@ -93,6 +96,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
@@ -101,11 +106,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberContainedSearchBarState
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -197,6 +205,11 @@ private fun Station.savedKey(): RegistryStationKey? =
         it.provider.isNotBlank() && it.providerId.isNotBlank()
     }
 
+enum class HomeViewMode {
+    Cards,
+    List,
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
@@ -229,6 +242,7 @@ fun MainScreen(
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
+    val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
     val availableCountries: List<String> by viewModel.availableCountries.collectAsStateWithLifecycle()
@@ -243,8 +257,14 @@ fun MainScreen(
     var showGenreSheet by remember { mutableStateOf(false) }
     var contextStation by remember { mutableStateOf<Station?>(null) }
     var stationToDelete by remember { mutableStateOf<Station?>(null) }
-    val countrySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val genreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val countrySheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    val genreSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     var countryFilterQuery by remember { mutableStateOf("") }
     var genreFilterQuery by remember { mutableStateOf("") }
 
@@ -354,8 +374,10 @@ fun MainScreen(
                         isBuffering = isBuffering,
                         allTags = allTags,
                         featuredStations = featuredStations,
+                        homeViewMode = homeViewMode,
                         bottomPadding = padding.calculateBottomPadding() + stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
+                        onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
                         onAddTapped = ::openRegistrySearch,
                         onStationLongPress = { contextStation = it },
                         onCategoryTap = { viewModel.playRandomFromCategory(it) },
@@ -484,9 +506,8 @@ fun MainScreen(
                                 text = miniPlayerTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (miniPlayerSubtitle != null) {
+                                overflow = TextOverflow.Ellipsis,
+                            )
                             Text(
                                 text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -494,7 +515,6 @@ fun MainScreen(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                    }
                 }
             }
             }
@@ -649,7 +669,10 @@ fun MainScreen(
         contextStation?.let { station ->
             ModalBottomSheet(
                 onDismissRequest = { contextStation = null },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                sheetState = rememberBottomSheetState(
+                    initialValue = SheetValue.Hidden,
+                    enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+                ),
                 dragHandle = { BottomSheetDefaults.DragHandle() },
             ) {
                 StationContextSheet(
@@ -736,9 +759,6 @@ private fun RecentSearches(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                headlineContent = {
-                    Text(query, style = MaterialTheme.typography.bodyLarge)
-                },
                 trailingContent = {
                     IconButton(
                         onClick = { onRemove(query) },
@@ -747,7 +767,9 @@ private fun RecentSearches(
                         Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_remove), modifier = Modifier.size(18.dp))
                     }
                 },
-            )
+            ) {
+                Text(query, style = MaterialTheme.typography.bodyLarge)
+            }
         }
     }
 }
@@ -879,14 +901,6 @@ private fun FavoriteResultItem(
         leadingContent = {
             StationAvatar(station = station, isActive = false, size = 50.dp)
         },
-        headlineContent = {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
         supportingContent = if (countryLabel.isNotBlank()) {
             {
                 Text(
@@ -906,7 +920,14 @@ private fun FavoriteResultItem(
                 modifier = Modifier.size(20.dp),
             )
         },
-    )
+    ) {
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable
@@ -948,14 +969,6 @@ private fun RegistryResultItem(
                 }
             }
         },
-        headlineContent = {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
         supportingContent = if (countryLabel.isNotBlank()) {
             { Text(countryLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else null,
@@ -972,7 +985,14 @@ private fun RegistryResultItem(
                 )
             }
         },
-    )
+    ) {
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 
@@ -1074,8 +1094,10 @@ private fun HomeContent(
     isBuffering: Boolean,
     allTags: List<String>,
     featuredStations: List<com.shapeshed.aerial.data.RegistryStation>,
+    homeViewMode: HomeViewMode,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
+    onHomeViewModeChange: (HomeViewMode) -> Unit,
     onAddTapped: () -> Unit,
     onStationLongPress: (Station) -> Unit,
     onCategoryTap: (String) -> Unit,
@@ -1084,51 +1106,79 @@ private fun HomeContent(
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val activeTileColor = MaterialTheme.colorScheme.primaryContainer
     val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val favoriteRows = remember(stations) { (0 until stations.size + 1).toList().chunked(3) }
+    val lazyListState = rememberLazyListState()
+    val showFavoriteActivityIndicators by remember {
+        derivedStateOf { !lazyListState.isScrollInProgress }
+    }
 
     LazyColumn(
+        state = lazyListState,
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
     ) {
         item("favorites-header") {
-            Text(
-                text = stringResource(R.string.favorites_header),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-            )
-        }
-        val totalTiles = stations.size + 1
-        val rows = (0 until totalTiles).toList().chunked(3)
-        items(rows, key = { it.first() }) { rowIndices ->
             Row(
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = if (rowIndices == rows.last()) 8.dp else 12.dp,
-                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 12.dp),
             ) {
-                rowIndices.forEach { idx ->
-                    if (idx < stations.size) {
-                        val station = stations[idx]
-                        val isActive = currentStation?.id == station.id
-                        StationTile(
-                            station = station,
-                            tileColor = if (isActive) activeTileColor else tileColor,
-                            contentColor = tileContentColor,
-                            isActive = isActive,
-                            isPlaying = isPlaying && isActive,
-                            isBuffering = isBuffering && isActive,
-                            onClick = { onPlay(station) },
-                            onLongClick = { onStationLongPress(station) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    } else {
-                        AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
-                    }
-                }
-                repeat(3 - rowIndices.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+                Text(
+                    text = stringResource(R.string.favorites_header),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                HomeViewModeToggle(
+                    selected = homeViewMode,
+                    onSelected = onHomeViewModeChange,
+                )
+            }
+        }
+        if (homeViewMode == HomeViewMode.Cards) {
+            items(
+                items = favoriteRows,
+                key = { rowIndices -> "favorite-card-row-${rowIndices.first()}" },
+                contentType = { "favorite-card-row" },
+            ) { rowIndices ->
+                FavoriteStationCardRow(
+                    rowIndices = rowIndices,
+                    isLastRow = rowIndices == favoriteRows.last(),
+                    stations = stations,
+                    currentStation = currentStation,
+                    isPlaying = isPlaying,
+                    isBuffering = isBuffering,
+                    showActivityIndicator = showFavoriteActivityIndicators,
+                    tileColor = tileColor,
+                    activeTileColor = activeTileColor,
+                    tileContentColor = tileContentColor,
+                    onPlay = onPlay,
+                    onAddTapped = onAddTapped,
+                    onStationLongPress = onStationLongPress,
+                )
+            }
+        } else {
+            items(
+                items = stations,
+                key = { station -> "favorite-list-${station.id}" },
+                contentType = { "favorite-list-row" },
+            ) { station ->
+                val isActive = currentStation?.id == station.id
+                StationListRow(
+                    station = station,
+                    isActive = isActive,
+                    isPlaying = isPlaying && isActive,
+                    isBuffering = isBuffering && isActive,
+                    showActivityIndicator = showFavoriteActivityIndicators,
+                    onClick = { onPlay(station) },
+                    onLongClick = { onStationLongPress(station) },
+                )
+            }
+            item("favorite-list-add", contentType = "favorite-list-add") {
+                AddStationListRow(
+                    onClick = onAddTapped,
+                )
             }
         }
 
@@ -1176,6 +1226,197 @@ private fun HomeContent(
 
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun HomeViewModeToggle(
+    selected: HomeViewMode,
+    onSelected: (HomeViewMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ButtonGroup(
+        overflowIndicator = {},
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        modifier = modifier,
+    ) {
+        customItem(
+            buttonGroupContent = {
+                ToggleButton(
+                    checked = selected == HomeViewMode.Cards,
+                    onCheckedChange = { if (it) onSelected(HomeViewMode.Cards) },
+                    shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                    colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GridView,
+                        contentDescription = stringResource(R.string.home_view_cards),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            },
+            menuContent = {},
+        )
+        customItem(
+            buttonGroupContent = {
+                ToggleButton(
+                    checked = selected == HomeViewMode.List,
+                    onCheckedChange = { if (it) onSelected(HomeViewMode.List) },
+                    shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                    colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ViewList,
+                        contentDescription = stringResource(R.string.home_view_list),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            },
+            menuContent = {},
+        )
+    }
+}
+
+@Composable
+private fun FavoriteStationCardRow(
+    rowIndices: List<Int>,
+    isLastRow: Boolean,
+    stations: List<Station>,
+    currentStation: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    showActivityIndicator: Boolean,
+    tileColor: androidx.compose.ui.graphics.Color,
+    activeTileColor: androidx.compose.ui.graphics.Color,
+    tileContentColor: androidx.compose.ui.graphics.Color,
+    onPlay: (Station) -> Unit,
+    onAddTapped: () -> Unit,
+    onStationLongPress: (Station) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.padding(
+            start = 16.dp,
+            end = 16.dp,
+            bottom = if (isLastRow) 8.dp else 12.dp,
+        ),
+    ) {
+        rowIndices.forEach { idx ->
+            if (idx < stations.size) {
+                val station = stations[idx]
+                val isActive = currentStation?.id == station.id
+                StationTile(
+                    station = station,
+                    tileColor = if (isActive) activeTileColor else tileColor,
+                    contentColor = tileContentColor,
+                    isActive = isActive,
+                    isPlaying = isPlaying && isActive,
+                    isBuffering = isBuffering && isActive,
+                    showActivityIndicator = showActivityIndicator,
+                    onClick = { onPlay(station) },
+                    onLongClick = { onStationLongPress(station) },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
+            }
+        }
+        repeat(3 - rowIndices.size) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun AddStationListRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ListItem(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        leadingContent = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        supportingContent = { Text(stringResource(R.string.find_one_to_listen)) },
+    ) {
+        Text(stringResource(R.string.find_a_station))
+    }
+}
+
+@Composable
+private fun StationListRow(
+    station: Station,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    showActivityIndicator: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+    val appLocale = LocalConfiguration.current.locales[0]
+    val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+        ?.let { countryName(it, appLocale) }
+        ?: station.country
+    ListItem(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            ),
+        leadingContent = {
+            StationAvatar(station = station, isActive = isActive, size = 50.dp)
+        },
+        supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
+            {
+                Text(
+                    text = label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
+        trailingContent = {
+            when {
+                !showActivityIndicator -> Unit
+                isBuffering -> CircularWavyProgressIndicator(
+                    modifier = Modifier.size(26.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                )
+                isActive && isPlaying -> EqualizerBars(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(width = 30.dp, height = 24.dp),
+                    barCount = 3,
+                )
+            }
+        },
+    ) {
+        Text(
+            text = station.name,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun StationTile(
     station: Station,
     tileColor: androidx.compose.ui.graphics.Color,
@@ -1183,6 +1424,7 @@ private fun StationTile(
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
+    showActivityIndicator: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -1238,6 +1480,7 @@ private fun StationTile(
                 }
                 val indicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
                 when {
+                    !showActivityIndicator -> Unit
                     isBuffering -> CircularWavyProgressIndicator(
                         modifier = Modifier.size(32.dp),
                         color = indicatorColor,
@@ -1409,16 +1652,14 @@ private fun StationContextSheet(
         )
         HorizontalDivider()
         ListItem(
-            headlineContent = { Text(stringResource(R.string.action_edit)) },
             leadingContent = {
                 Icon(Icons.Rounded.Edit, contentDescription = null)
             },
             modifier = Modifier.clickable(onClick = onEdit),
-        )
+        ) {
+            Text(stringResource(R.string.action_edit))
+        }
         ListItem(
-            headlineContent = {
-                Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
-            },
             leadingContent = {
                 Icon(
                     imageVector = Icons.Rounded.Delete,
@@ -1427,7 +1668,9 @@ private fun StationContextSheet(
                 )
             },
             modifier = Modifier.clickable(onClick = onDelete),
-        )
+        ) {
+            Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
+        }
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -1508,9 +1751,10 @@ private fun FilterPickerSheetContent(
                     val checked = item in selectedItems
                     ListItem(
                         modifier = Modifier.clickable { onToggle(item) },
-                        headlineContent = { Text(displayName(item)) },
                         trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-                    )
+                    ) {
+                        Text(displayName(item))
+                    }
                 }
             }
         }

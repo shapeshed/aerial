@@ -166,8 +166,8 @@ class PlayerService : MediaSessionService() {
                 when (entry) {
                     is IcyInfo -> icyInfo = entry
                     is TextInformationFrame -> when (entry.id) {
-                        "TIT2" -> id3Title = entry.value.trim().takeIf { it.isNotEmpty() }
-                        "TPE1" -> id3Artist = entry.value.trim().takeIf { it.isNotEmpty() }
+                        "TIT2" -> id3Title = entry.values.first().trim().takeIf { it.isNotEmpty() }
+                        "TPE1" -> id3Artist = entry.values.first().trim().takeIf { it.isNotEmpty() }
                     }
                     is ApicFrame -> id3Artwork = entry.pictureData
                     else -> hasUnhandled = true

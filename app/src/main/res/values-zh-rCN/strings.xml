@@ -32,6 +32,8 @@
     <string name="no_internet_title">无网络连接</string>
     <string name="no_internet_desc">收听广播需要有效的网络连接。</string>
     <string name="favorites_header">你的收藏</string>
+    <string name="home_view_cards">卡片</string>
+    <string name="home_view_list">列表</string>
     <string name="search_stations_header">电台</string>
     <string name="get_started">开始使用</string>
     <string name="just_listen">尽情聆听</string>

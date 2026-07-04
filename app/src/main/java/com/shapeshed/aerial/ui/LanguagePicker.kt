@@ -70,9 +70,10 @@ fun LanguageSettingRow() {
     ListItem(
         modifier = Modifier.fillMaxWidth().clickable { showDialog = true },
         leadingContent = { Icon(Icons.Rounded.Language, contentDescription = null) },
-        headlineContent = { Text(stringResource(R.string.language)) },
         supportingContent = { Text(currentLabel) },
-    )
+    ) {
+        Text(stringResource(R.string.language))
+    }
 
     if (showDialog) {
         AlertDialog(

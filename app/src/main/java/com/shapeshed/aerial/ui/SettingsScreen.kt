@@ -89,7 +89,6 @@ fun SettingsScreen(
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
-                    headlineContent = { Text(stringResource(R.string.show_whats_playing)) },
                     supportingContent = { Text(stringResource(R.string.show_whats_playing_desc)) },
                     trailingContent = {
                         Switch(
@@ -97,7 +96,9 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setEnrichMetadata(it) },
                         )
                     },
-                )
+                ) {
+                    Text(stringResource(R.string.show_whats_playing))
+                }
                 HorizontalDivider()
             }
             // In-app language picker only for pre-Android-13; 13+ uses the system per-app setting.
@@ -123,9 +124,10 @@ fun SettingsScreen(
                     leadingContent = {
                         Icon(Icons.Rounded.FileDownload, contentDescription = null)
                     },
-                    headlineContent = { Text(stringResource(R.string.export_backup)) },
                     supportingContent = { Text(stringResource(R.string.export_backup_desc)) },
-                )
+                ) {
+                    Text(stringResource(R.string.export_backup))
+                }
                 HorizontalDivider()
             }
             item(contentType = "action") {
@@ -136,9 +138,10 @@ fun SettingsScreen(
                     leadingContent = {
                         Icon(Icons.Rounded.FileUpload, contentDescription = null)
                     },
-                    headlineContent = { Text(stringResource(R.string.import_backup)) },
                     supportingContent = { Text(stringResource(R.string.import_backup_desc)) },
-                )
+                ) {
+                    Text(stringResource(R.string.import_backup))
+                }
                 HorizontalDivider()
             }
             if (BuildConfig.DEBUG) {
@@ -153,9 +156,10 @@ fun SettingsScreen(
                 item(contentType = "action") {
                     ListItem(
                         modifier = Modifier.clickable { viewModel.refreshRegistry() },
-                        headlineContent = { Text(stringResource(R.string.refresh_registry)) },
                         supportingContent = { Text(stringResource(R.string.refresh_registry_desc)) },
-                    )
+                    ) {
+                        Text(stringResource(R.string.refresh_registry))
+                    }
                 }
             }
             item(contentType = "footer") {
