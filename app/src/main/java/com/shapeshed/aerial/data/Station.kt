@@ -12,4 +12,8 @@ data class Station(
     val isFavorite: Boolean = false,
     val provider: String = "",
     val providerId: String = "",
+    val tags: String = "",
+    val description: String = "",
+    val country: String = "",
+    val countryCode: String = "",
 )

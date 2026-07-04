@@ -52,6 +52,30 @@ class StationRepositoryTest {
     }
 
     @Test
+    fun insertOrGetExistingMatchesByProviderIdWhenStreamUrlChanged() = runBlocking {
+        val existing = station(
+            id = 5L,
+            streamUrl = "https://stream.example.com/local-correction",
+            provider = "aerial",
+            providerId = "mango",
+        )
+        val dao = FakeStationDao(existing)
+        val repository = StationRepository(dao)
+
+        val id = repository.insertOrGetExisting(
+            station(
+                streamUrl = "https://stream.example.com/registry",
+                provider = "aerial",
+                providerId = "mango",
+            )
+        )
+
+        assertEquals(5L, id)
+        assertEquals(0, dao.insertCount)
+        assertEquals(existing, dao.stations.single())
+    }
+
+    @Test
     fun insertOrGetExistingKeepsExistingLogoWhenPresent() = runBlocking {
         val existing = station(id = 3L, logoPath = "/logos/existing.png")
         val dao = FakeStationDao(existing)
@@ -62,16 +86,88 @@ class StationRepositoryTest {
         assertEquals("/logos/existing.png", dao.stations.single().logoPath)
     }
 
+    @Test
+    fun saveAsFavoriteMatchesProviderIdAndKeepsLocalEdits() = runBlocking {
+        val existing = station(
+            id = 8L,
+            name = "Mango Local",
+            streamUrl = "https://stream.example.com/local-correction",
+            logoPath = "/logos/local.png",
+            isFavorite = true,
+            provider = "aerial",
+            providerId = "mango",
+        )
+        val dao = FakeStationDao(existing)
+        val repository = StationRepository(dao)
+
+        val id = repository.saveAsFavorite(
+            station(
+                name = "Mango Registry",
+                streamUrl = "https://stream.example.com/registry",
+                logoPath = "/logos/registry.png",
+                provider = "aerial",
+                providerId = "mango",
+            )
+        )
+
+        assertEquals(8L, id)
+        assertEquals(existing, dao.stations.single())
+    }
+
+    @Test
+    fun searchFavoritesIncludesSavedStationsImportedWithoutFavoriteFlag() = runBlocking {
+        val dao = FakeStationDao(
+            station(id = 2L, name = "dublab", isFavorite = false),
+        )
+        val repository = StationRepository(dao)
+
+        val results = repository.searchFavorites("dublab")
+
+        assertEquals(listOf(dao.stations.single()), results)
+    }
+
+    @Test
+    fun searchFavoritesMatchesTagsAndDescription() = runBlocking {
+        val dao = FakeStationDao(
+            station(
+                id = 3L,
+                name = "Kool FM",
+                tags = "drum bass jungle",
+                description = "Underground radio",
+                country = "United Kingdom",
+            ),
+        )
+        val repository = StationRepository(dao)
+
+        assertEquals(listOf(dao.stations.single()), repository.searchFavorites("jungle"))
+        assertEquals(listOf(dao.stations.single()), repository.searchFavorites("underground"))
+        assertEquals(listOf(dao.stations.single()), repository.searchFavorites("kingdom"))
+    }
+
     private fun station(
         id: Long = 0,
         name: String = "Mango",
         streamUrl: String = "https://stream.example.com/mango",
         logoPath: String = "",
+        isFavorite: Boolean = false,
+        provider: String = "",
+        providerId: String = "",
+        tags: String = "",
+        description: String = "",
+        country: String = "",
+        countryCode: String = "",
     ) = Station(
         id = id,
         name = name,
         streamUrl = streamUrl,
         logoPath = logoPath,
+        isFavorite = isFavorite,
+        provider = provider,
+        providerId = providerId,
+        tags = tags,
+        description = description,
+        country = country,
+        countryCode = countryCode,
     )
 
     private class FakeStationDao(vararg initialStations: Station) : StationDao {
@@ -87,6 +183,23 @@ class StationRepositoryTest {
 
         override suspend fun getByStreamUrl(streamUrl: String): Station? {
             return stations.firstOrNull { it.streamUrl == streamUrl }
+        }
+
+        override suspend fun getByProviderId(provider: String, providerId: String): Station? {
+            return stations.firstOrNull { it.provider == provider && it.providerId == providerId }
+        }
+
+        override suspend fun searchStationFts(match: String): List<Station> {
+            val terms = match.split(" ").map { it.removeSuffix("*").lowercase() }
+            return stations
+                .filter { station ->
+                    val text = "${station.name} ${station.streamUrl} ${station.provider} ${station.providerId} " +
+                        "${station.tags} ${station.description} ${station.country}"
+                    val searchable = text.lowercase()
+                    terms.all { searchable.contains(it) }
+                }
+                .sortedBy { it.name.lowercase() }
+                .take(20)
         }
 
         override suspend fun updateStreamUrlByProviderId(provider: String, providerId: String, streamUrl: String) {

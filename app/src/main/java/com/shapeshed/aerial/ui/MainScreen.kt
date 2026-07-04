@@ -182,6 +182,21 @@ private val CATEGORY_ICONS = mapOf(
     "Electronic" to Icons.Rounded.GraphicEq,
 )
 
+private data class RegistryStationKey(
+    val provider: String,
+    val providerId: String,
+)
+
+private fun RegistryStation.savedKey(): RegistryStationKey? =
+    RegistryStationKey(provider, providerId).takeIf {
+        it.provider.isNotBlank() && it.providerId.isNotBlank()
+    }
+
+private fun Station.savedKey(): RegistryStationKey? =
+    RegistryStationKey(provider, providerId).takeIf {
+        it.provider.isNotBlank() && it.providerId.isNotBlank()
+    }
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
@@ -209,6 +224,7 @@ fun MainScreen(
     val haptic = LocalHapticFeedback.current
     val showNowPlaying by viewModel.showNowPlaying.collectAsStateWithLifecycle()
     val registrySearchResults by viewModel.registrySearchResults.collectAsStateWithLifecycle()
+    val favoriteSearchResults by viewModel.favoriteSearchResults.collectAsStateWithLifecycle()
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
@@ -235,6 +251,7 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
 
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
+    val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
 
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
@@ -545,6 +562,7 @@ fun MainScreen(
                         DefaultSearchResults(
                             stations = defaultStations,
                             savedStreamUrls = savedStreamUrls,
+                            savedRegistryKeys = savedRegistryKeys,
                             onPlay = { station ->
                                 viewModel.playFromRegistry(station)
                                 textFieldState.edit { replace(0, length, "") }
@@ -556,8 +574,16 @@ fun MainScreen(
                     }
                 } else {
                     RegistrySearchResults(
+                        favoriteResults = favoriteSearchResults,
                         results = registrySearchResults,
                         savedStreamUrls = savedStreamUrls,
+                        savedRegistryKeys = savedRegistryKeys,
+                        onFavoritePlay = { station ->
+                            viewModel.saveRecentSearch(searchQueryText)
+                            viewModel.play(station)
+                            textFieldState.edit { replace(0, length, "") }
+                            scope.launch { searchBarState.animateToCollapsed() }
+                        },
                         onPlay = { station ->
                             viewModel.saveRecentSearch(searchQueryText)
                             viewModel.playFromRegistry(station)
@@ -669,6 +695,7 @@ fun MainScreen(
 private fun DefaultSearchResults(
     stations: List<RegistryStation>,
     savedStreamUrls: Set<String>,
+    savedRegistryKeys: Set<RegistryStationKey>,
     onPlay: (RegistryStation) -> Unit,
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
@@ -682,7 +709,7 @@ private fun DefaultSearchResults(
         ) { station ->
             RegistryResultItem(
                 station = station,
-                alreadySaved = station.streamUrl in savedStreamUrls,
+                alreadySaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys,
                 onTap = { onPlay(station) },
                 onAdd = { onAdd(station) },
                 onRemove = { onRemove(station) },
@@ -727,15 +754,18 @@ private fun RecentSearches(
 
 @Composable
 private fun RegistrySearchResults(
+    favoriteResults: List<Station>,
     results: List<RegistryStation>,
     savedStreamUrls: Set<String>,
+    savedRegistryKeys: Set<RegistryStationKey>,
+    onFavoritePlay: (Station) -> Unit,
     onPlay: (RegistryStation) -> Unit,
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onAddManually: (() -> Unit)? = null,
 ) {
-    if (results.isEmpty()) {
+    if (favoriteResults.isEmpty() && results.isEmpty()) {
         Box(
             modifier = androidx.compose.ui.Modifier.fillMaxSize().padding(32.dp),
             contentAlignment = Alignment.Center,
@@ -788,12 +818,42 @@ private fun RegistrySearchResults(
         LazyColumn(
             contentPadding = PaddingValues(bottom = bottomPadding),
         ) {
+            if (favoriteResults.isNotEmpty()) {
+                item("favorite-results-header") {
+                    Text(
+                        text = stringResource(R.string.favorites_header),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
+                    )
+                }
+                items(
+                    items = favoriteResults,
+                    key = { "favorite-${it.id}" },
+                    contentType = { "favorite-result" },
+                ) { station ->
+                    FavoriteResultItem(
+                        station = station,
+                        onTap = { onFavoritePlay(station) },
+                    )
+                }
+                if (results.isNotEmpty()) {
+                    item("registry-results-header") {
+                        Text(
+                            text = stringResource(R.string.search_stations_header),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
+                        )
+                    }
+                }
+            }
             items(
                 items = results,
                 key = { it.id },
                 contentType = { "registry-result" },
             ) { station ->
-                val alreadySaved = station.streamUrl in savedStreamUrls
+                val alreadySaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
                 RegistryResultItem(
                     station = station,
                     alreadySaved = alreadySaved,
@@ -804,6 +864,49 @@ private fun RegistrySearchResults(
             }
         }
     }
+}
+
+@Composable
+private fun FavoriteResultItem(
+    station: Station,
+    onTap: () -> Unit,
+) {
+    val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+        ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
+        ?: station.country
+    ListItem(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
+        leadingContent = {
+            StationAvatar(station = station, isActive = false, size = 50.dp)
+        },
+        headlineContent = {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = if (countryLabel.isNotBlank()) {
+            {
+                Text(
+                    text = countryLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else null,
+        trailingContent = {
+            Icon(
+                imageVector = Icons.Rounded.Favorite,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+    )
 }
 
 @Composable
@@ -1111,6 +1214,12 @@ private fun StationTile(
                 ),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    imageVector = Icons.Rounded.Radio,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(48.dp),
+                )
                 if (logoModel != null && !logoFailed) {
                     AsyncImage(
                         model = logoModel,
@@ -1299,15 +1408,13 @@ private fun StationContextSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
         )
         HorizontalDivider()
-        if (station.provider.isBlank()) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.action_edit)) },
-                leadingContent = {
-                    Icon(Icons.Rounded.Edit, contentDescription = null)
-                },
-                modifier = Modifier.clickable(onClick = onEdit),
-            )
-        }
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.action_edit)) },
+            leadingContent = {
+                Icon(Icons.Rounded.Edit, contentDescription = null)
+            },
+            modifier = Modifier.clickable(onClick = onEdit),
+        )
         ListItem(
             headlineContent = {
                 Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
@@ -1486,6 +1593,12 @@ fun StationAvatar(
                 else MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
     ) {
+        Icon(
+            imageVector = Icons.Rounded.Radio,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(size * 0.55f),
+        )
         if (logoModel != null && !logoFailed) {
             val imageRequest = remember(context, logoModel) { ImageRequest.Builder(context).data(logoModel).build() }
             AsyncImage(
@@ -1494,13 +1607,6 @@ fun StationAvatar(
                 contentScale = ContentScale.Fit,
                 onError = { logoFailed = true },
                 modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Rounded.Radio,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(size * 0.55f),
             )
         }
     }

@@ -6,6 +6,10 @@ class StationRepository(private val dao: StationDao) {
     fun getAll(): Flow<List<Station>> = dao.getAll()
     suspend fun getById(id: Long): Station? = dao.getById(id)
     suspend fun getByStreamUrl(streamUrl: String): Station? = dao.getByStreamUrl(streamUrl)
+    suspend fun searchFavorites(query: String): List<Station> {
+        val match = toFtsMatchQuery(NumberNormalizer.normalize(query.trim()))
+        return if (match.isBlank()) emptyList() else dao.searchStationFts(match)
+    }
     suspend fun insert(station: Station): Long = dao.insert(station)
     suspend fun update(station: Station) = dao.update(station)
     suspend fun delete(station: Station) = dao.delete(station)
@@ -15,6 +19,10 @@ class StationRepository(private val dao: StationDao) {
         if (existing != null) {
             val updated = existing.copy(
                 logoPath = existing.logoPath.ifBlank { station.logoPath },
+                tags = existing.tags.ifBlank { station.tags },
+                description = existing.description.ifBlank { station.description },
+                country = existing.country.ifBlank { station.country },
+                countryCode = existing.countryCode.ifBlank { station.countryCode },
             )
             if (updated != existing) dao.update(updated)
             return existing.id
@@ -43,7 +51,15 @@ class StationRepository(private val dao: StationDao) {
     suspend fun saveAsFavorite(station: Station): Long {
         val existing = findExisting(station)
         return if (existing != null) {
-            if (!existing.isFavorite) dao.update(existing.copy(isFavorite = true))
+            val updated = existing.copy(
+                isFavorite = true,
+                logoPath = existing.logoPath.ifBlank { station.logoPath },
+                tags = existing.tags.ifBlank { station.tags },
+                description = existing.description.ifBlank { station.description },
+                country = existing.country.ifBlank { station.country },
+                countryCode = existing.countryCode.ifBlank { station.countryCode },
+            )
+            if (updated != existing) dao.update(updated)
             existing.id
         } else {
             dao.insert(station.copy(id = 0, isFavorite = true))
@@ -51,6 +67,10 @@ class StationRepository(private val dao: StationDao) {
     }
 
     private suspend fun findExisting(station: Station): Station? {
-        return dao.getByStreamUrl(station.streamUrl)
+        return if (station.provider.isNotBlank() && station.providerId.isNotBlank()) {
+            dao.getByProviderId(station.provider, station.providerId)
+        } else {
+            null
+        } ?: dao.getByStreamUrl(station.streamUrl)
     }
 }
