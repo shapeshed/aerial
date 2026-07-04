@@ -11,12 +11,14 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -70,6 +72,9 @@ class PlayerService : MediaSessionService() {
     private var activeEnricher: Provider? = null
     private var lastAppliedNowPlayingSignature: String? = null
     private var enrichMetadataEnabled = false
+    private var pausedAtMs: Long? = null
+    private var reconnectingStream = false
+    private var lastReconnectAtMs = 0L
 
     private fun log(message: String) {
         Log.d(TAG, message)
@@ -83,7 +88,16 @@ class PlayerService : MediaSessionService() {
             }
         )
         repository = (application as AerialApp).repository
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                MIN_BUFFER_MS,
+                MAX_BUFFER_MS,
+                BUFFER_FOR_PLAYBACK_MS,
+                BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+            )
+            .build()
         player = ExoPlayer.Builder(this)
+            .setLoadControl(loadControl)
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
             .build()
@@ -127,6 +141,20 @@ class PlayerService : MediaSessionService() {
     }
 
     private val icyListener = object : Player.Listener {
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            log("onPlayWhenReadyChanged=$playWhenReady reason=$reason")
+            if (!playWhenReady) {
+                pausedAtMs = SystemClock.elapsedRealtime()
+                return
+            }
+
+            val pausedForMs = pausedAtMs?.let { SystemClock.elapsedRealtime() - it }
+            pausedAtMs = null
+            if (pausedForMs != null && pausedForMs > STALE_BUFFER_THRESHOLD_MS) {
+                reconnectCurrentStream("resuming after ${pausedForMs}ms pause")
+            }
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             log("onIsPlayingChanged=$isPlaying")
             if (isPlaying) {
@@ -214,6 +242,11 @@ class PlayerService : MediaSessionService() {
                 // (Note: BBC HLS currently drops ID3 timed metadata due to a Media3 bug.)
                 activeEnricher?.notifyTransition()
             }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            log("onPlayerError code=${error.errorCode} message=${error.message}")
+            reconnectCurrentStream("player error ${error.errorCode}")
         }
     }
 
@@ -379,6 +412,32 @@ class PlayerService : MediaSessionService() {
         player.replaceMediaItem(index, item.buildUpon().setMediaMetadata(mediaMetadata).build())
     }
 
+    private fun reconnectCurrentStream(reason: String) {
+        if (reconnectingStream) return
+        val nowMs = SystemClock.elapsedRealtime()
+        if (nowMs - lastReconnectAtMs < RECONNECT_RETRY_COOLDOWN_MS) {
+            log("skip reconnectCurrentStream reason=$reason cooldown")
+            return
+        }
+        val item = player.currentMediaItem ?: return
+        val shouldResume = player.playWhenReady
+        reconnectingStream = true
+        lastReconnectAtMs = nowMs
+        log("reconnectCurrentStream reason=$reason shouldResume=$shouldResume")
+        lastIcyTitle = null
+        lastId3Title = null
+        lastAppliedNowPlayingSignature = null
+        runCatching {
+            player.stop()
+            player.setMediaItem(item)
+            player.prepare()
+            player.playWhenReady = shouldResume
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to reconnect current stream", error)
+        }
+        reconnectingStream = false
+    }
+
     private fun applyNowPlayingInfo(info: NowPlayingInfo?) {
         val currentMediaItem = player.currentMediaItem ?: return
         val currentStation = currentStation() ?: return
@@ -459,5 +518,11 @@ class PlayerService : MediaSessionService() {
         const val TAG = "AerialPlayerService"
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
         const val FADE_STEP_MS = 200L
+        const val STALE_BUFFER_THRESHOLD_MS = 3_000L
+        const val MIN_BUFFER_MS = 5_000
+        const val MAX_BUFFER_MS = 8_000
+        const val BUFFER_FOR_PLAYBACK_MS = 1_500
+        const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000
+        const val RECONNECT_RETRY_COOLDOWN_MS = 10_000L
     }
 }
