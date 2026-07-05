@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -27,8 +26,10 @@ fun EqualizerBars(
 ) {
     val count = barCount.coerceIn(1, BAR_DURATIONS.size)
     val infiniteTransition = rememberInfiniteTransition(label = "eq")
+    // Keep the State objects unread here and read .value inside the Canvas lambda, so each
+    // animation frame only invalidates the draw phase instead of recomposing the composable.
     val heights = List(count) { i ->
-        val height by infiniteTransition.animateFloat(
+        infiniteTransition.animateFloat(
             initialValue = 0.2f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
@@ -38,14 +39,13 @@ fun EqualizerBars(
             ),
             label = "bar$i",
         )
-        height
     }
     Canvas(modifier = modifier) {
         val gap = if (count > 1) size.width * 0.15f / (count - 1) else 0f
         val barWidth = (size.width - gap * (count - 1)) / count
 
         heights.forEachIndexed { i, h ->
-            val barH = size.height * h
+            val barH = size.height * h.value
             drawRoundRect(
                 color = color,
                 topLeft = Offset(i * (barWidth + gap), size.height - barH),

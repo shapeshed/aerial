@@ -1174,7 +1174,8 @@ private fun HomeContent(
                     isActive = isActive,
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
-                    showActivityIndicator = showFavoriteActivityIndicators,
+                    // Stable false for inactive rows — see the card-mode note above.
+                    showActivityIndicator = showFavoriteActivityIndicators && isActive,
                     onClick = { onPlay(station) },
                     onLongClick = { onStationLongPress(station) },
                 )
@@ -1313,7 +1314,9 @@ private fun FavoriteStationCardRow(
                     isActive = isActive,
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
-                    showActivityIndicator = showActivityIndicator,
+                    // Only the active tile can show an indicator, so inactive tiles get a
+                    // stable false and skip the recomposition when scrolling starts/stops.
+                    showActivityIndicator = showActivityIndicator && isActive,
                     onClick = { onPlay(station) },
                     onLongClick = { onStationLongPress(station) },
                     modifier = Modifier.weight(1f),
