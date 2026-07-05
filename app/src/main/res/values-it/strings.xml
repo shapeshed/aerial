@@ -95,4 +95,8 @@
     <string name="tag_electronic">Elettronica</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Preferiti</string>
+    <string name="sort_by">Ordina per</string>
+    <string name="sort_az">Dalla A alla Z</string>
+    <string name="sort_last_played">Riprodotta di recente</string>
+    <string name="sort_most_played">Più riprodotta</string>
 </resources>

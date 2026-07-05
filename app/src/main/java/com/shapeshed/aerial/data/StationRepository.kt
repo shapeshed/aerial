@@ -13,6 +13,7 @@ class StationRepository(private val dao: StationDao) {
     suspend fun insert(station: Station): Long = dao.insert(station)
     suspend fun update(station: Station) = dao.update(station)
     suspend fun delete(station: Station) = dao.delete(station)
+    suspend fun recordPlay(id: Long, playedAt: Long) = dao.recordPlay(id, playedAt)
 
     suspend fun insertOrGetExisting(station: Station): Long {
         val existing = findExisting(station)

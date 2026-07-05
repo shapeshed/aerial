@@ -99,4 +99,8 @@
     <string name="sleep_preset_hours_minutes">%1$dh %2$dm</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorites</string>
+    <string name="sort_by">Sort by</string>
+    <string name="sort_az">A to Z</string>
+    <string name="sort_last_played">Last played</string>
+    <string name="sort_most_played">Most played</string>
 </resources>
