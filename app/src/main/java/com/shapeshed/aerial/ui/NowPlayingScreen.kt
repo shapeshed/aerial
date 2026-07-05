@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -99,6 +101,8 @@ fun NowPlayingScreen(
     currentBitrateKbps: Int? = null,
     showStreamBitrate: Boolean = false,
     sleepTimer: SleepTimerState? = null,
+    swipeStations: List<Station> = emptyList(),
+    onPlayStation: (Station) -> Unit = {},
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onSetSleepTimer: (Long) -> Unit = {},
@@ -109,6 +113,11 @@ fun NowPlayingScreen(
     val shareStationLabel = stringResource(R.string.share_station)
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    // Horizontal paging steps through swipeStations (the favourites in their selected sort
+    // order). A non-favourite station isn't in the list, so the artwork stays static for it.
+    val swipeIndex = remember(swipeStations, station.id) {
+        swipeStations.indexOfFirst { it.id == station.id }
+    }
     var showTrackDetail by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     val artworkShape = RoundedCornerShape(
@@ -154,7 +163,22 @@ fun NowPlayingScreen(
     }
     var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
-    val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
+    // The track flows reset asynchronously when the station changes, so for a frame or two
+    // the previous station's song can pair with the new station. Hide the track card from
+    // the moment the station changes until that reset has been observed, so stale track
+    // info never flashes on the new page. On the pane's first composition the metadata is
+    // live for the current station (e.g. opened mid-song from the mini player), so it shows
+    // immediately — only an in-pane station change arms the gate.
+    val seenStreamUrl = remember { mutableStateOf<String?>(null) }
+    var trackResetSeen by remember(station.streamUrl) {
+        val stationChanged = seenStreamUrl.value != null && seenStreamUrl.value != station.streamUrl
+        seenStreamUrl.value = station.streamUrl
+        mutableStateOf(!stationChanged || trackTitle == null)
+    }
+    LaunchedEffect(trackTitle, station.streamUrl) {
+        if (trackTitle == null) trackResetSeen = true
+    }
+    val showTrackBlock = trackResetSeen && !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
     val bitrateLabel = currentBitrateKbps
         ?.takeIf { showStreamBitrate && it > 0 }
         ?.let { stringResource(R.string.stream_bitrate_format, it) }
@@ -219,34 +243,41 @@ fun NowPlayingScreen(
                     .fillMaxWidth()
                     .semantics { traversalIndex = 1f },
             ) {
-                Surface(
-                    shape = artworkShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 8.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f),
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (mainArtworkModel != null && !mainArtworkFailed) {
-                            AsyncImage(
-                                model = mainArtworkModel,
-                                contentDescription = null,
-                                // Fit (not Crop) so non-square artwork isn't cropped; the
-                                // surface colour fills the letterbox space.
-                                contentScale = ContentScale.Fit,
-                                onError = { mainArtworkFailed = true },
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            StationAvatar(
-                                station = station,
-                                isActive = true,
-                                size = 200.dp,
-                                modifier = Modifier.align(Alignment.Center),
-                            )
+                if (swipeIndex != -1 && swipeStations.size > 1) {
+                    // Real pager over the frozen favourites order: the neighbour's artwork is a
+                    // prepared page that slides in with the finger; settling switches playback.
+                    // The rest of the pane stays static.
+                    val pagerState = rememberPagerState(initialPage = swipeIndex) { swipeStations.size }
+                    LaunchedEffect(pagerState.settledPage) {
+                        val target = swipeStations.getOrNull(pagerState.settledPage) ?: return@LaunchedEffect
+                        if (target.id != station.id) onPlayStation(target)
+                    }
+                    // Keep the pager in step when the station changes some other way (e.g. the
+                    // media notification or a tap on the favourites grid behind the pane).
+                    LaunchedEffect(swipeIndex) {
+                        if (pagerState.currentPage != swipeIndex && !pagerState.isScrollInProgress) {
+                            pagerState.animateScrollToPage(swipeIndex)
                         }
                     }
+                    HorizontalPager(
+                        state = pagerState,
+                        pageSpacing = 24.dp,
+                    ) { page ->
+                        val pageStation = swipeStations[page]
+                        StationArtworkSurface(
+                            station = pageStation,
+                            shape = artworkShape,
+                            artworkModel = mainArtworkModel.takeIf { pageStation.id == station.id && !mainArtworkFailed },
+                            onArtworkError = { mainArtworkFailed = true },
+                        )
+                    }
+                } else {
+                    StationArtworkSurface(
+                        station = station,
+                        shape = artworkShape,
+                        artworkModel = mainArtworkModel.takeIf { !mainArtworkFailed },
+                        onArtworkError = { mainArtworkFailed = true },
+                    )
                 }
                 if (mainArtworkModel != null && !mainArtworkFailed && mainArtworkIsDistinct) {
                     Surface(
@@ -277,37 +308,38 @@ fun NowPlayingScreen(
                     )
                 }
             }
+            // Every block below reserves its space even when empty (blank text keeps its
+            // line height, the track card keeps a fixed slot) so the centred column doesn't
+            // jump vertically when swiping between stations with different metadata.
             Spacer(Modifier.height(28.dp))
-            if (nowPlayingInfo != null) {
-                Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(4.dp))
-            }
+            Text(
+                text = if (nowPlayingInfo != null) station.name else "",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = programmeTitle,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
+                minLines = 2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { traversalIndex = 2f },
             )
-            if (programmeSubtitle != null && programmeSubtitle != programmeTitle) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = programmeSubtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { traversalIndex = 3f },
-                )
-            }
-            Spacer(Modifier.height(44.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = programmeSubtitle?.takeIf { it != programmeTitle } ?: "",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minLines = 2,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { traversalIndex = 3f },
+            )
+            Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -398,8 +430,16 @@ fun NowPlayingScreen(
                     }
                 }
             }
-            if (showTrackBlock) {
-                Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
+            // Fixed-height slot whether or not track info exists — the card fades in and
+            // out inside it, so the layout above never shifts. Fully qualified because the
+            // enclosing ColumnScope's AnimatedVisibility extension shadows the top-level one.
+            Box(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showTrackBlock,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -471,6 +511,7 @@ fun NowPlayingScreen(
                             modifier = Modifier.size(18.dp),
                         )
                     }
+                }
                 }
             }
         }
@@ -614,6 +655,45 @@ fun NowPlayingScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StationArtworkSurface(
+    station: Station,
+    shape: RoundedCornerShape,
+    artworkModel: Any?,
+    onArtworkError: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        tonalElevation = 8.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (artworkModel != null) {
+                AsyncImage(
+                    model = artworkModel,
+                    contentDescription = null,
+                    // Fit (not Crop) so non-square artwork isn't cropped; the
+                    // surface colour fills the letterbox space.
+                    contentScale = ContentScale.Fit,
+                    onError = { onArtworkError() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                StationAvatar(
+                    station = station,
+                    isActive = true,
+                    size = 200.dp,
+                    modifier = Modifier.align(Alignment.Center),
+                )
             }
         }
     }

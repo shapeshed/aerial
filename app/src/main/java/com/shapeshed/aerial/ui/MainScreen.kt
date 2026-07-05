@@ -100,6 +100,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
@@ -592,6 +593,10 @@ fun MainScreen(
         ) {
             val station = currentStation
             if (station != null) {
+                // Swipe order frozen for the lifetime of the pane: under the Last/Most played
+                // sorts, playing a station immediately re-sorts the live list, which would make
+                // consecutive swipes ping-pong between the same two stations.
+                val swipeStations = remember { viewModel.stations.value }
                 NowPlayingScreen(
                     station = station,
                     isPlaying = isPlaying,
@@ -604,6 +609,8 @@ fun MainScreen(
                     currentBitrateKbps = currentBitrateKbps,
                     showStreamBitrate = showStreamBitrate,
                     sleepTimer = sleepTimer,
+                    swipeStations = swipeStations,
+                    onPlayStation = { viewModel.play(it) },
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
                     onSetSleepTimer = { viewModel.setSleepTimer(it) },
@@ -1265,7 +1272,14 @@ private fun FavoritesTabContent(
                     .fillMaxWidth()
                     .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
             ) {
-                TextButton(onClick = { showSortSheet = true }) {
+                TextButton(
+                    onClick = { showSortSheet = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        // Same colour as the checked pill of the view-mode switcher beside
+                        // it, so the two header controls read as one family.
+                        contentColor = ToggleButtonDefaults.tonalToggleButtonColors().checkedContainerColor,
+                    ),
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.Sort,
                         contentDescription = null,
