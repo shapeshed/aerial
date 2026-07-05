@@ -115,6 +115,8 @@ class SettingsViewModel(
                     .put("description", station.description)
                     .put("country", station.country)
                     .put("countryCode", station.countryCode)
+                    .put("playCount", station.playCount)
+                    .put("lastPlayedAt", station.lastPlayedAt)
 
                 val logoFile = station.logoPath
                     .takeIf { it.isNotBlank() && !it.startsWith("http") }
@@ -200,6 +202,9 @@ class SettingsViewModel(
                     description = item.optString("description").trim(),
                     country = item.optString("country").trim(),
                     countryCode = item.optString("countryCode").trim(),
+                    // Absent in version-1 backups written before play tracking; defaults to 0.
+                    playCount = item.optInt("playCount"),
+                    lastPlayedAt = item.optLong("lastPlayedAt"),
                 )
             )
         }

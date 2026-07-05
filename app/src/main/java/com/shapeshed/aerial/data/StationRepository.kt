@@ -38,7 +38,15 @@ class StationRepository(private val dao: StationDao) {
         if (existing == null) {
             dao.insert(station.copy(id = 0))
         } else {
-            dao.update(station.copy(id = existing.id))
+            // Merge play stats rather than overwrite: a restored backup may be older than
+            // the local row, and importing must never regress listening history.
+            dao.update(
+                station.copy(
+                    id = existing.id,
+                    playCount = maxOf(existing.playCount, station.playCount),
+                    lastPlayedAt = maxOf(existing.lastPlayedAt, station.lastPlayedAt),
+                ),
+            )
         }
     }
 

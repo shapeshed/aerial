@@ -168,6 +168,29 @@ class StationRepositoryTest {
     }
 
     @Test
+    fun upsertImportedKeepsNewerLocalPlayStats() = runBlocking {
+        val existing = station(id = 6L, playCount = 12, lastPlayedAt = 2_000L)
+        val dao = FakeStationDao(existing)
+        val repository = StationRepository(dao)
+
+        repository.upsertImported(station(playCount = 3, lastPlayedAt = 1_000L))
+
+        assertEquals(12, dao.stations.single().playCount)
+        assertEquals(2_000L, dao.stations.single().lastPlayedAt)
+    }
+
+    @Test
+    fun upsertImportedRestoresPlayStatsOntoFreshInstall() = runBlocking {
+        val dao = FakeStationDao()
+        val repository = StationRepository(dao)
+
+        repository.upsertImported(station(playCount = 7, lastPlayedAt = 3_000L))
+
+        assertEquals(7, dao.stations.single().playCount)
+        assertEquals(3_000L, dao.stations.single().lastPlayedAt)
+    }
+
+    @Test
     fun searchFavoritesIncludesSavedStationsImportedWithoutFavoriteFlag() = runBlocking {
         val dao = FakeStationDao(
             station(id = 2L, name = "dublab", isFavorite = false),
@@ -209,6 +232,8 @@ class StationRepositoryTest {
         description: String = "",
         country: String = "",
         countryCode: String = "",
+        playCount: Int = 0,
+        lastPlayedAt: Long = 0,
     ) = Station(
         id = id,
         name = name,
@@ -221,6 +246,8 @@ class StationRepositoryTest {
         description = description,
         country = country,
         countryCode = countryCode,
+        playCount = playCount,
+        lastPlayedAt = lastPlayedAt,
     )
 
     private class FakeStationDao(vararg initialStations: Station) : StationDao {
