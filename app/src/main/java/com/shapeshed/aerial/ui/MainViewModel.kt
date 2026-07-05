@@ -142,6 +142,27 @@ class MainViewModel(
     // CompletableDeferred ensures the handoff is safe regardless of which side wins the race.
     private val pendingRestoreStation = CompletableDeferred<Station?>()
 
+    init {
+        // If the current station's row is deleted outside this ViewModel (e.g. unfavourited
+        // from the media notification), hand it off to the ephemeral slot so playback and the
+        // Now Playing UI survive. In-app delete paths clear _currentStationId before deleting,
+        // so they never trigger this. The previous-list guard stops the initial empty emission
+        // from being mistaken for a deletion.
+        viewModelScope.launch {
+            var previous: List<Station> = emptyList()
+            _allStations.collect { list ->
+                val id = _currentStationId.value
+                if (id != null && list.none { it.id == id }) {
+                    previous.firstOrNull { it.id == id }?.let { removed ->
+                        _ephemeralStation.value = removed.copy(id = 0, isFavorite = false)
+                        _currentStationId.value = null
+                    }
+                }
+                previous = list
+            }
+        }
+    }
+
     val currentStation: StateFlow<Station?> = combine(
         _allStations,
         _currentStationId,
@@ -467,8 +488,26 @@ class MainViewModel(
                 _ephemeralStation.value = null
                 return@launch
             }
-            val nowFavorite = !station.isFavorite
-            repository.update(station.copy(isFavorite = nowFavorite))
+            if (!station.isFavorite) {
+                // Saved but unflagged (e.g. imported): favouriting just sets the flag.
+                repository.update(station.copy(isFavorite = true))
+                return@launch
+            }
+            // Unfavouriting removes the saved row — home and search both treat row
+            // existence as "favourited". If it's the active station, hand it off to the
+            // ephemeral slot first so playback and the Now Playing UI carry on, and keep
+            // its logo files so re-favouriting restores the same artwork.
+            val isCurrent = _currentStationId.value == station.id
+            if (isCurrent) {
+                _ephemeralStation.value = station.copy(id = 0, isFavorite = false)
+                _currentStationId.value = null
+            } else {
+                clearLastPlayedStationIfMatching(station)
+            }
+            repository.delete(station)
+            if (!isCurrent) {
+                withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
+            }
         }
     }
 
@@ -689,6 +728,11 @@ class MainViewModel(
                     .setTitle(station.name)
                     .setArtist(liveRadio())
                     .setSubtitle(liveRadio())
+                    .setExtras(Bundle().apply {
+                        putString("provider", station.provider)
+                        putString("providerId", station.providerId)
+                        putString("streamUrl", station.streamUrl)
+                    })
                     .build(),
             )
             .build()

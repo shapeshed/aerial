@@ -297,11 +297,22 @@ class PlayerService : MediaSessionService() {
                     val station = currentStation()
                         ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
                     serviceScope.launch {
-                        val updatedStation = station.copy(isFavorite = !station.isFavorite)
+                        // Mirrors MainViewModel.toggleFavorite: row existence means "favourited",
+                        // so unfavouriting deletes the row and favouriting (re-)saves one. The
+                        // repository flow refreshes `stations`; the local patch just avoids a
+                        // stale heart until that lands.
                         withContext(Dispatchers.IO) {
-                            repository.update(updatedStation)
+                            when {
+                                station.id == 0L -> repository.saveAsFavorite(station)
+                                !station.isFavorite -> repository.update(station.copy(isFavorite = true))
+                                else -> repository.delete(station)
+                            }
                         }
-                        stations = stations.map { if (it.id == updatedStation.id) updatedStation else it }
+                        stations = if (station.isFavorite) {
+                            stations.filter { it.id != station.id }
+                        } else {
+                            stations.map { if (it.id == station.id) station.copy(isFavorite = true) else it }
+                        }
                         updateFavoriteButton()
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
