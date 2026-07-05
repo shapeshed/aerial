@@ -10,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
@@ -61,16 +60,6 @@ class SettingsViewModel(
     fun setShowStreamBitrate(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SHOW_STREAM_BITRATE_KEY] = enabled }
-        }
-    }
-
-    fun refreshRegistry() {
-        viewModelScope.launch {
-            val app = getApplication<AerialApp>()
-            val refreshed = runCatching {
-                withContext(Dispatchers.IO) { app.registryRepository.syncFromAssets(app) }
-            }.isSuccess
-            _messages.emit(if (refreshed) "Embedded registry refreshed" else "Embedded registry refresh failed")
         }
     }
 

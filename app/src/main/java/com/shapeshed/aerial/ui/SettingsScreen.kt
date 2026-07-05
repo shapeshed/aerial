@@ -160,24 +160,6 @@ fun SettingsScreen(
                 }
                 HorizontalDivider()
             }
-            if (BuildConfig.DEBUG) {
-                item(contentType = "section") {
-                    Text(
-                        text = stringResource(R.string.section_debug),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
-                }
-                item(contentType = "action") {
-                    ListItem(
-                        modifier = Modifier.clickable { viewModel.refreshRegistry() },
-                        supportingContent = { Text(stringResource(R.string.refresh_registry_desc)) },
-                    ) {
-                        Text(stringResource(R.string.refresh_registry))
-                    }
-                }
-            }
             item(contentType = "footer") {
                 Text(
                     text = stringResource(R.string.version_format, versionName),

@@ -59,9 +59,6 @@
     <string name="export_backup_desc">Speichert Sender, Einstellungen und lokale Logos</string>
     <string name="import_backup">Backup importieren</string>
     <string name="import_backup_desc">Führt Sender zusammen und stellt Einstellungen aus einem Backup wieder her</string>
-    <string name="section_debug">Debug</string>
-    <string name="refresh_registry">Registry aktualisieren</string>
-    <string name="refresh_registry_desc">Eingebettete Senderliste neu laden</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Sprache</string>
     <string name="language_system_default">Systemstandard</string>

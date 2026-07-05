@@ -59,9 +59,6 @@
     <string name="export_backup_desc">Salva estações, configurações e logotipos locais</string>
     <string name="import_backup">Importar backup</string>
     <string name="import_backup_desc">Mescla estações e restaura configurações de um backup</string>
-    <string name="section_debug">Depuração</string>
-    <string name="refresh_registry">Atualizar registro</string>
-    <string name="refresh_registry_desc">Recarrega o registro de estações embutido</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Idioma</string>
     <string name="language_system_default">Padrão do sistema</string>

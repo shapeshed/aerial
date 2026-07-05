@@ -366,14 +366,12 @@ class MainViewModel(
     }
 
     fun removeFromRegistry(registryStation: RegistryStation) {
-        val station = _allStations.value.find { station ->
-            station.streamUrl == registryStation.streamUrl ||
-                station.provider.isNotBlank() &&
-                station.providerId.isNotBlank() &&
-                station.provider == registryStation.provider &&
-                station.providerId == registryStation.providerId
-        } ?: return
-        deleteStation(station)
+        viewModelScope.launch {
+            val station = withContext(Dispatchers.IO) {
+                repository.findMatching(registryStation)
+            } ?: return@launch
+            deleteStationRecord(station)
+        }
     }
 
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
@@ -623,17 +621,21 @@ class MainViewModel(
 
     fun deleteStation(station: Station) {
         viewModelScope.launch {
-            if (_currentStationId.value == station.id) {
-                controller?.stop()
-                _currentStationId.value = null
-            }
-            if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
-                _ephemeralStation.value = null
-            }
-            clearLastPlayedStationIfMatching(station)
-            repository.delete(station)
-            withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
+            deleteStationRecord(station)
         }
+    }
+
+    private suspend fun deleteStationRecord(station: Station) {
+        if (_currentStationId.value == station.id) {
+            controller?.stop()
+            _currentStationId.value = null
+        }
+        if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+            _ephemeralStation.value = null
+        }
+        clearLastPlayedStationIfMatching(station)
+        repository.delete(station)
+        withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
     }
 
     override fun onCleared() {

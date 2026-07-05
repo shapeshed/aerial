@@ -59,9 +59,6 @@
     <string name="export_backup_desc">방송국, 설정, 로컬 로고 저장</string>
     <string name="import_backup">백업 가져오기</string>
     <string name="import_backup_desc">백업에서 방송국을 병합하고 설정을 복원</string>
-    <string name="section_debug">디버그</string>
-    <string name="refresh_registry">레지스트리 새로고침</string>
-    <string name="refresh_registry_desc">내장된 방송국 레지스트리를 다시 불러오기</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">언어</string>
     <string name="language_system_default">시스템 기본값</string>

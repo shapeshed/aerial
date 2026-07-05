@@ -18,6 +18,7 @@ class StationRepository(private val dao: StationDao) {
         val existing = findExisting(station)
         if (existing != null) {
             val updated = existing.copy(
+                isFavorite = true,
                 logoPath = existing.logoPath.ifBlank { station.logoPath },
                 tags = existing.tags.ifBlank { station.tags },
                 description = existing.description.ifBlank { station.description },
@@ -46,6 +47,14 @@ class StationRepository(private val dao: StationDao) {
                 dao.updateStreamUrlByProviderId(s.provider, s.providerId, s.streamUrl)
             }
         }
+    }
+
+    suspend fun findMatching(registryStation: RegistryStation): Station? {
+        return if (registryStation.provider.isNotBlank() && registryStation.providerId.isNotBlank()) {
+            dao.getByProviderId(registryStation.provider, registryStation.providerId)
+        } else {
+            null
+        } ?: dao.getByStreamUrl(registryStation.streamUrl)
     }
 
     suspend fun saveAsFavorite(station: Station): Long {

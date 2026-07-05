@@ -59,9 +59,6 @@
     <string name="export_backup_desc">Guarda emisoras, ajustes y logotipos locales</string>
     <string name="import_backup">Importar copia</string>
     <string name="import_backup_desc">Combina emisoras y restaura los ajustes desde una copia</string>
-    <string name="section_debug">Depuración</string>
-    <string name="refresh_registry">Actualizar registro</string>
-    <string name="refresh_registry_desc">Recargar el registro de emisoras incluido</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Idioma</string>
     <string name="language_system_default">Predeterminado del sistema</string>

@@ -55,6 +55,7 @@ gradle/gradle-daemon-jvm.properties
 node_modules/
 .rpt2_cache/
 local.properties
+app/src/main/assets/registry.json.gz
 keystore.properties
 *.jks
 *.keystore

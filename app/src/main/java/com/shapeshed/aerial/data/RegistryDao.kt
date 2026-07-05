@@ -1,31 +1,11 @@
 package com.shapeshed.aerial.data
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class RegistryDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract suspend fun insertAll(stations: List<RegistryStation>)
-
-    @Query("DELETE FROM registry_stations")
-    abstract suspend fun clear()
-
-    @Transaction
-    open suspend fun clearAndInsertAll(stations: List<RegistryStation>) {
-        clear()
-        insertAll(stations)
-        // External-content FTS isn't auto-maintained; rebuild the index after a bulk import.
-        rebuildFts()
-    }
-
-    @Query("INSERT INTO registry_stations_fts(registry_stations_fts) VALUES('rebuild')")
-    abstract suspend fun rebuildFts()
-
     // Full-text search over name+tags (via searchText), description, and country. The join maps
     // FTS rowids back to the content rows. MATCH does the accent-folded, tokenized matching.
     @Query(

@@ -10,10 +10,9 @@ usage() {
 Prepare a local Aerial release candidate.
 
 Usage:
-  scripts/prepare-release.sh [--draft] [--skip-cache] [--skip-fdroid]
+  scripts/prepare-release.sh [--draft] [--skip-fdroid]
 
 Runs:
-  - Aerial registry cache refresh
   - Gradle test/lint/release builds
   - Fastlane changelog/version checks
   - F-Droid metadata sync and validation
@@ -24,13 +23,11 @@ USAGE
 }
 
 draft=false
-skip_cache=false
 skip_fdroid=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --draft) draft=true ;;
-    --skip-cache) skip_cache=true ;;
     --skip-fdroid) skip_fdroid=true ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
@@ -62,12 +59,6 @@ NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 
 echo "Preparing Aerial $VERSION_NAME (versionCode $VERSION_CODE)..."
-
-if [[ "$skip_cache" == false ]]; then
-  "$ROOT_DIR/scripts/refresh-registry-cache.sh"
-else
-  echo "Skipping Aerial registry cache refresh."
-fi
 
 if [[ ! -f "$FASTLANE_CHANGELOG" ]]; then
   echo "Missing Fastlane changelog: $FASTLANE_CHANGELOG" >&2
@@ -125,7 +116,7 @@ fi
 echo
 echo "Next manual steps:"
 echo "  git status --short"
-echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/assets/registry.json.gz"
+echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/assets/registry.db.compressed"
 echo "  git add docs/screenshots fastlane/metadata/android/en-US/images/phoneScreenshots"
 echo "  git commit -S -m \"chore(release): v${VERSION_NAME}\""
 echo
