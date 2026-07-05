@@ -9,4 +9,6 @@
     <string name="home_view_cards">Cards</string>
     <string name="home_view_list">List</string>
     <string name="search_stations_header">Stations</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_favorites">Favourites</string>
 </resources>

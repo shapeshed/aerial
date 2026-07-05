@@ -93,4 +93,6 @@
     <string name="tag_soul">Soul</string>
     <string name="tag_country">Country</string>
     <string name="tag_electronic">Electrónica</string>
+    <string name="tab_home">Inicio</string>
+    <string name="tab_favorites">Favoritos</string>
 </resources>

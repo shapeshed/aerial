@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -49,7 +50,9 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
@@ -103,6 +106,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
@@ -210,6 +215,9 @@ enum class HomeViewMode {
     List,
 }
 
+private const val TAB_HOME = 0
+private const val TAB_FAVORITES = 1
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
@@ -274,6 +282,11 @@ fun MainScreen(
 
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
     val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
+
+    val selectedTab by viewModel.selectedHomeTab.collectAsStateWithLifecycle()
+    // Hoisted so each tab keeps its scroll position across tab switches.
+    val homeListState = rememberLazyListState()
+    val favoritesListState = rememberLazyListState()
 
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
@@ -353,7 +366,42 @@ fun MainScreen(
         Scaffold(
             modifier = Modifier.semantics { traversalIndex = 0f },
             contentWindowInsets = WindowInsets.navigationBars,
+            bottomBar = {
+                // surfaceContainerLow matches the reference bar (Google Drive) rather than
+                // the component's default surfaceContainer.
+                ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    ShortNavigationBarItem(
+                        selected = selectedTab == TAB_HOME,
+                        onClick = { viewModel.setSelectedHomeTab(TAB_HOME) },
+                        icon = {
+                            Icon(
+                                imageVector = if (selectedTab == TAB_HOME) Icons.Rounded.Home else Icons.Outlined.Home,
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.tab_home)) },
+                    )
+                    ShortNavigationBarItem(
+                        selected = selectedTab == TAB_FAVORITES,
+                        onClick = { viewModel.setSelectedHomeTab(TAB_FAVORITES) },
+                        icon = {
+                            Icon(
+                                imageVector = if (selectedTab == TAB_FAVORITES) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.tab_favorites)) },
+                    )
+                }
+            },
         ) { padding ->
+            // The wrapper Box insets the tab content and lets the mini player float above
+            // the navigation bar; the search/now-playing overlays outside it still cover it.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = padding.calculateBottomPadding()),
+            ) {
             Column(Modifier.fillMaxSize()) {
                 SearchBar(
                     state = searchBarState,
@@ -368,26 +416,31 @@ fun MainScreen(
 
                 if (!isOnline) {
                     NoNetworkState()
+                } else if (selectedTab == TAB_HOME) {
+                    HomeTabContent(
+                        allTags = allTags,
+                        featuredStations = featuredStations,
+                        listState = homeListState,
+                        bottomPadding = stationContentBottomPadding,
+                        onCategoryTap = { viewModel.playRandomFromCategory(it) },
+                        onFeaturedStationTap = { viewModel.playFromRegistry(it) },
+                    )
                 } else {
-                    HomeContent(
+                    FavoritesTabContent(
                         stations = stations,
                         currentStation = currentStation,
                         isPlaying = isPlaying,
                         isBuffering = isBuffering,
-                        allTags = allTags,
-                        featuredStations = featuredStations,
                         homeViewMode = homeViewMode,
-                        bottomPadding = padding.calculateBottomPadding() + stationContentBottomPadding,
+                        listState = favoritesListState,
+                        bottomPadding = stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
                         onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
                         onAddTapped = ::openRegistrySearch,
                         onStationLongPress = { contextStation = it },
-                        onCategoryTap = { viewModel.playRandomFromCategory(it) },
-                        onFeaturedStationTap = { viewModel.playFromRegistry(it) },
                     )
                 }
             }
-        }
 
         val miniPlayerState = remember { MutableTransitionState(currentStation != null) }
         miniPlayerState.targetState = currentStation != null
@@ -399,7 +452,7 @@ fun MainScreen(
                 .align(Alignment.BottomCenter)
                 .semantics { traversalIndex = 1f }
                 .onSizeChanged { miniPlayerHeightPx = it.height }
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
         ) {
             currentStation?.let { station ->
                 val miniPlayerTitle = nowPlayingDisplay.title.ifBlank { station.name }
@@ -519,6 +572,8 @@ fun MainScreen(
                         }
                 }
             }
+            }
+        }
             }
         }
 
@@ -1090,50 +1145,97 @@ private fun HomeEmptyState(
 
 
 @Composable
+private fun HomeTabContent(
+    allTags: List<String>,
+    featuredStations: List<com.shapeshed.aerial.data.RegistryStation>,
+    listState: LazyListState,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    onCategoryTap: (String) -> Unit,
+    onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
+) {
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+    ) {
+        if (featuredStations.isNotEmpty()) {
+            item("get-started-header") {
+                Text(
+                    text = stringResource(R.string.get_started),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                )
+            }
+            item("get-started-row") {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    items(featuredStations) { station ->
+                        FeaturedStationCard(
+                            station = station,
+                            onClick = { onFeaturedStationTap(station) },
+                        )
+                    }
+                }
+            }
+        }
+
+        item("just-listen-header") {
+            Text(
+                text = stringResource(R.string.just_listen),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+            )
+        }
+        item("just-listen-pills") {
+            CategoryGrid(
+                tags = allTags.take(10),
+                onCategoryTap = onCategoryTap,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private fun HomeContent(
+private fun FavoritesTabContent(
     stations: List<Station>,
     currentStation: Station?,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    allTags: List<String>,
-    featuredStations: List<com.shapeshed.aerial.data.RegistryStation>,
     homeViewMode: HomeViewMode,
+    listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onAddTapped: () -> Unit,
     onStationLongPress: (Station) -> Unit,
-    onCategoryTap: (String) -> Unit,
-    onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
 ) {
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val activeTileColor = MaterialTheme.colorScheme.primaryContainer
     val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val favoriteRows = remember(stations) { (0 until stations.size + 1).toList().chunked(3) }
-    val lazyListState = rememberLazyListState()
     val showFavoriteActivityIndicators by remember {
-        derivedStateOf { !lazyListState.isScrollInProgress }
+        derivedStateOf { !listState.isScrollInProgress }
     }
 
     LazyColumn(
-        state = lazyListState,
+        state = listState,
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
     ) {
         item("favorites-header") {
+            // No headline — the Favourites tab already names the screen (Material tabs
+            // convention); only the view-mode toggle remains.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.End,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.favorites_header),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
                 HomeViewModeToggle(
                     selected = homeViewMode,
                     onSelected = onHomeViewModeChange,
@@ -1185,46 +1287,6 @@ private fun HomeContent(
                     onClick = onAddTapped,
                 )
             }
-        }
-
-        if (stations.isEmpty() && featuredStations.isNotEmpty()) {
-            item("get-started-header") {
-                Text(
-                    text = stringResource(R.string.get_started),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-                )
-            }
-            item("get-started-row") {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                ) {
-                    items(featuredStations) { station ->
-                        FeaturedStationCard(
-                            station = station,
-                            onClick = { onFeaturedStationTap(station) },
-                        )
-                    }
-                }
-            }
-        }
-
-        item("just-listen-header") {
-            Text(
-                text = stringResource(R.string.just_listen),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-            )
-        }
-        item("just-listen-pills") {
-            CategoryGrid(
-                tags = allTags.take(10),
-                onCategoryTap = onCategoryTap,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
         }
     }
 }
