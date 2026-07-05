@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
@@ -104,6 +106,7 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShortNavigationBar
@@ -138,6 +141,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -252,6 +256,7 @@ fun MainScreen(
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
+    val favoritesSort by viewModel.favoritesSort.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
@@ -432,10 +437,12 @@ fun MainScreen(
                         isPlaying = isPlaying,
                         isBuffering = isBuffering,
                         homeViewMode = homeViewMode,
+                        favoritesSort = favoritesSort,
                         listState = favoritesListState,
                         bottomPadding = stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
                         onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
+                        onSortSelected = { viewModel.setFavoritesSort(it) },
                         onAddTapped = ::openRegistrySearch,
                         onStationLongPress = { contextStation = it },
                     )
@@ -1200,6 +1207,15 @@ private fun HomeTabContent(
 }
 
 @Composable
+private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
+    when (sort) {
+        FavoritesSort.AZ -> R.string.sort_az
+        FavoritesSort.LAST_PLAYED -> R.string.sort_last_played
+        FavoritesSort.MOST_PLAYED -> R.string.sort_most_played
+    },
+)
+
+@Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun FavoritesTabContent(
     stations: List<Station>,
@@ -1207,10 +1223,12 @@ private fun FavoritesTabContent(
     isPlaying: Boolean,
     isBuffering: Boolean,
     homeViewMode: HomeViewMode,
+    favoritesSort: FavoritesSort,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
+    onSortSelected: (FavoritesSort) -> Unit,
     onAddTapped: () -> Unit,
     onStationLongPress: (Station) -> Unit,
 ) {
@@ -1221,6 +1239,18 @@ private fun FavoritesTabContent(
     val showFavoriteActivityIndicators by remember {
         derivedStateOf { !listState.isScrollInProgress }
     }
+    var showSortSheet by remember { mutableStateOf(false) }
+
+    if (showSortSheet) {
+        FavoritesSortSheet(
+            current = favoritesSort,
+            onSelect = { sort ->
+                onSortSelected(sort)
+                showSortSheet = false
+            },
+            onDismiss = { showSortSheet = false },
+        )
+    }
 
     LazyColumn(
         state = listState,
@@ -1228,14 +1258,23 @@ private fun FavoritesTabContent(
     ) {
         item("favorites-header") {
             // No headline — the Favourites tab already names the screen (Material tabs
-            // convention); only the view-mode toggle remains.
+            // convention); just the sort selector and the view-mode toggle.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
             ) {
+                TextButton(onClick = { showSortSheet = true }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Sort,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(favoritesSortLabel(favoritesSort))
+                }
+                Spacer(modifier = Modifier.weight(1f))
                 HomeViewModeToggle(
                     selected = homeViewMode,
                     onSelected = onHomeViewModeChange,
@@ -1288,6 +1327,53 @@ private fun FavoritesTabContent(
                 )
             }
         }
+    }
+}
+
+// Single-select sort picker in a modal bottom sheet — the Material 3 pattern used by
+// Google apps (list of radio rows under a small title).
+@Composable
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+private fun FavoritesSortSheet(
+    current: FavoritesSort,
+    onSelect: (FavoritesSort) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        ),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+    ) {
+        Text(
+            text = stringResource(R.string.sort_by),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        FavoritesSort.entries.forEach { sort ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = current == sort,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(sort) },
+                    )
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+            ) {
+                RadioButton(selected = current == sort, onClick = null)
+                Text(
+                    text = favoritesSortLabel(sort),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 16.dp),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

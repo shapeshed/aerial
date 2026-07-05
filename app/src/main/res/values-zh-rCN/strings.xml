@@ -95,4 +95,8 @@
     <string name="tag_electronic">电子</string>
     <string name="tab_home">首页</string>
     <string name="tab_favorites">收藏</string>
+    <string name="sort_by">排序方式</string>
+    <string name="sort_az">按字母顺序</string>
+    <string name="sort_last_played">最近播放</string>
+    <string name="sort_most_played">播放最多</string>
 </resources>

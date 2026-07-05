@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Station::class, StationFts::class],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 abstract class StationDatabase : RoomDatabase() {
@@ -33,6 +33,7 @@ abstract class StationDatabase : RoomDatabase() {
                         MIGRATION_11_12,
                         MIGRATION_12_13,
                         MIGRATION_13_14,
+                        MIGRATION_14_15,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
@@ -174,6 +175,13 @@ abstract class StationDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 dropRegistryFts(db)
                 db.execSQL("DROP TABLE IF EXISTS `registry_stations`")
+            }
+        }
+
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `playCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `stations` ADD COLUMN `lastPlayedAt` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

@@ -265,6 +265,12 @@ class StationRepositoryTest {
             }
         }
 
+        override suspend fun recordPlay(id: Long, playedAt: Long) {
+            stations.replaceAll {
+                if (it.id == id) it.copy(playCount = it.playCount + 1, lastPlayedAt = playedAt) else it
+            }
+        }
+
         override suspend fun insert(station: Station): Long {
             insertCount += 1
             val id = station.id.takeIf { it != 0L } ?: nextId++

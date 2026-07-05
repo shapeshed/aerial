@@ -95,4 +95,8 @@
     <string name="tag_electronic">Elektronisch</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorieten</string>
+    <string name="sort_by">Sorteren op</string>
+    <string name="sort_az">A tot Z</string>
+    <string name="sort_last_played">Laatst afgespeeld</string>
+    <string name="sort_most_played">Meest afgespeeld</string>
 </resources>

@@ -95,4 +95,8 @@
     <string name="tag_electronic">일렉트로닉</string>
     <string name="tab_home">홈</string>
     <string name="tab_favorites">즐겨찾기</string>
+    <string name="sort_by">정렬 기준</string>
+    <string name="sort_az">가나다순</string>
+    <string name="sort_last_played">최근 재생순</string>
+    <string name="sort_most_played">재생 횟수순</string>
 </resources>

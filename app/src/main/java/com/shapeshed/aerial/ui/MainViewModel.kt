@@ -73,6 +73,13 @@ private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
+private val FAVORITES_SORT_KEY = stringPreferencesKey("favorites_sort")
+
+enum class FavoritesSort {
+    AZ,
+    LAST_PLAYED,
+    MOST_PLAYED,
+}
 private const val MAX_RECENT_SEARCHES = 5
 
 private data class LastPlayedStationSnapshot(
@@ -127,15 +134,38 @@ class MainViewModel(
             _selectedTags.value = prefs[SEARCH_TAGS_KEY]
                 ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
             _selectedHomeTab.value = prefs[LAST_HOME_TAB_KEY] ?: 0
+            _favoritesSort.value = prefs[FAVORITES_SORT_KEY]
+                ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
+                ?: FavoritesSort.AZ
         }
     }
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val stations: StateFlow<List<Station>> = _allStations
-        .map { list -> list.sortedWith(compareBy { stationSortKey(it.name) }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // Sort order for the Favourites tab. Updated synchronously so the list reorders
+    // immediately; the DataStore write catches up in the background.
+    private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
+    val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
+
+    fun setFavoritesSort(sort: FavoritesSort) {
+        _favoritesSort.value = sort
+        viewModelScope.launch {
+            dataStore.edit { prefs -> prefs[FAVORITES_SORT_KEY] = sort.name }
+        }
+    }
+
+    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort) { list, sort ->
+        when (sort) {
+            FavoritesSort.AZ -> list.sortedWith(compareBy { stationSortKey(it.name) })
+            FavoritesSort.LAST_PLAYED -> list.sortedWith(
+                compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
+            )
+            FavoritesSort.MOST_PLAYED -> list.sortedWith(
+                compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
@@ -587,6 +617,9 @@ class MainViewModel(
         } else {
             _ephemeralStation.value = null
             _currentStationId.value = station.id
+            viewModelScope.launch {
+                repository.recordPlay(station.id, System.currentTimeMillis())
+            }
         }
         _currentTrackTitle.value = null
         _currentTrackArtist.value = null

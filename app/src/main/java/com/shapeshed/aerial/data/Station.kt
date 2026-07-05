@@ -16,4 +16,6 @@ data class Station(
     val description: String = "",
     val country: String = "",
     val countryCode: String = "",
+    val playCount: Int = 0,
+    val lastPlayedAt: Long = 0,
 )

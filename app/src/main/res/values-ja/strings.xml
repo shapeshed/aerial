@@ -95,4 +95,8 @@
     <string name="tag_electronic">エレクトロニック</string>
     <string name="tab_home">ホーム</string>
     <string name="tab_favorites">お気に入り</string>
+    <string name="sort_by">並べ替え</string>
+    <string name="sort_az">A〜Z順</string>
+    <string name="sort_last_played">最近再生した順</string>
+    <string name="sort_most_played">再生回数順</string>
 </resources>
