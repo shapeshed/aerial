@@ -1,9 +1,18 @@
 package com.shapeshed.aerial.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "registry_stations")
+@Entity(
+    tableName = "registry_stations",
+    indices = [
+        Index(value = ["countryCode"]),
+        Index(value = ["provider", "providerId"]),
+        Index(value = ["providerId"]),
+        Index(value = ["streamUrl"]),
+    ],
+)
 data class RegistryStation(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,

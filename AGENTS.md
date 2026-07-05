@@ -116,15 +116,17 @@ fastlane/metadata/android/en-US/images/phoneScreenshots/
 
 ## Offline Station Cache
 
-The app bundles `app/src/main/assets/registry.json.gz` as the offline seed for
-the Aerial station registry. Refresh it before release candidates:
+The app bundles `app/src/main/assets/registry.db.compressed` as the offline Aerial
+station registry. Generate it from a local registry JSON or JSON.GZ file before
+release candidates:
 
 ```sh
-scripts/refresh-registry-cache.sh
+scripts/generate-registry-db.py --input /path/to/registry.json.gz
 ```
 
-Do not move this fetch into Gradle. The checked-in JSON keeps GitHub and
-F-Droid builds offline and reproducible.
+Do not move this fetch into Gradle. The checked-in compressed SQLite database
+keeps GitHub and F-Droid builds offline and reproducible. Local source JSON/GZ
+files are ignored and should not be committed.
 
 ## F-Droid
 

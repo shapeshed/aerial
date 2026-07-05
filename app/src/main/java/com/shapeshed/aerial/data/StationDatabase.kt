@@ -8,13 +8,12 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Station::class, StationFts::class, RegistryStation::class, RegistryStationFts::class],
-    version = 13,
+    entities = [Station::class, StationFts::class],
+    version = 14,
     exportSchema = true,
 )
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
-    abstract fun registryDao(): RegistryDao
 
     companion object {
         @Volatile private var instance: StationDatabase? = null
@@ -33,6 +32,7 @@ abstract class StationDatabase : RoomDatabase() {
                         MIGRATION_10_11,
                         MIGRATION_11_12,
                         MIGRATION_12_13,
+                        MIGRATION_13_14,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
@@ -170,6 +170,13 @@ abstract class StationDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                dropRegistryFts(db)
+                db.execSQL("DROP TABLE IF EXISTS `registry_stations`")
+            }
+        }
+
         private fun migrateStationsWithoutProviderColumns(db: SupportSQLiteDatabase) {
             db.execSQL(createStationsNewSql())
             db.execSQL(
@@ -216,6 +223,14 @@ abstract class StationDatabase : RoomDatabase() {
             db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE")
             db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT")
             db.execSQL("DROP TABLE IF EXISTS `stations_fts`")
+        }
+
+        private fun dropRegistryFts(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_registry_stations_fts_BEFORE_UPDATE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_registry_stations_fts_BEFORE_DELETE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_registry_stations_fts_AFTER_UPDATE")
+            db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_registry_stations_fts_AFTER_INSERT")
+            db.execSQL("DROP TABLE IF EXISTS `registry_stations_fts`")
         }
 
         private fun createStationsFts(db: SupportSQLiteDatabase) {

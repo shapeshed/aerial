@@ -59,9 +59,6 @@
     <string name="export_backup_desc">Save stations, settings, and local logos</string>
     <string name="import_backup">Import backup</string>
     <string name="import_backup_desc">Merge stations and restore settings from a backup</string>
-    <string name="section_debug">Debug</string>
-    <string name="refresh_registry">Refresh registry</string>
-    <string name="refresh_registry_desc">Reload the embedded station registry</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Language</string>
     <string name="language_system_default">System default</string>

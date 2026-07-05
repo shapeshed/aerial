@@ -37,13 +37,12 @@ Aerial can also import a backup file that you select.
 
 Aerial uses network access for radio playback and station discovery:
 
-- Aerial may download the Aerial station registry so you can discover stations.
+- Aerial includes a bundled station registry so you can discover stations.
 - When you play a station, Aerial connects to that station's stream URL.
 - When a station has a logo URL, Aerial may download the logo and store it
   locally.
 
-The Aerial station registry is operated by the app developer and is available
-at:
+The bundled Aerial station registry is built by the app developer from:
 
 https://aerial.shapeshed.com/registry.json.gz
 

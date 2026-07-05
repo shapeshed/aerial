@@ -81,22 +81,23 @@ The in-app export/import feature is the supported way to move user data between 
 
 ## Offline Station Cache
 
-Aerial bundles a gzipped Aerial station registry as the offline seed for station
-discovery. Refresh it before release candidate commits:
+Aerial bundles a prebuilt SQLite Aerial station registry for station discovery.
+Generate it from a local registry JSON or JSON.GZ file before release candidate
+commits:
 
 ```sh
-scripts/refresh-registry-cache.sh
+scripts/generate-registry-db.py --input /path/to/registry.json.gz
 ```
 
-The script downloads the registry from the Aerial service, validates the
-decompressed JSON with `jq`, and updates:
+The script validates the registry and generates:
 
 ```text
-app/src/main/assets/registry.json.gz
+app/src/main/assets/registry.db.compressed
 ```
 
-Do not fetch this cache from Gradle. The checked-in asset keeps F-Droid and
-release builds offline and reproducible.
+Do not fetch this cache from Gradle. The checked-in SQLite database keeps
+F-Droid and release builds offline and reproducible. Local source JSON/GZ files
+are ignored and should not be committed.
 
 ## Release Process
 

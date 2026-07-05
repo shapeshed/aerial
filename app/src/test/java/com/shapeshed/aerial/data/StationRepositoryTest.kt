@@ -35,7 +35,7 @@ class StationRepositoryTest {
 
         assertEquals(7L, id)
         assertEquals(0, dao.insertCount)
-        assertEquals(existing, dao.stations.single())
+        assertEquals(existing.copy(isFavorite = true), dao.stations.single())
     }
 
     @Test
@@ -48,7 +48,7 @@ class StationRepositoryTest {
 
         assertEquals(4L, id)
         assertEquals(0, dao.insertCount)
-        assertEquals(existing, dao.stations.single())
+        assertEquals(existing.copy(isFavorite = true), dao.stations.single())
     }
 
     @Test
@@ -72,7 +72,7 @@ class StationRepositoryTest {
 
         assertEquals(5L, id)
         assertEquals(0, dao.insertCount)
-        assertEquals(existing, dao.stations.single())
+        assertEquals(existing.copy(isFavorite = true), dao.stations.single())
     }
 
     @Test
@@ -84,6 +84,59 @@ class StationRepositoryTest {
         repository.insertOrGetExisting(station(logoPath = "/logos/new.png"))
 
         assertEquals("/logos/existing.png", dao.stations.single().logoPath)
+    }
+
+    @Test
+    fun insertOrGetExistingMarksExistingStationAsFavorite() = runBlocking {
+        val existing = station(id = 9L, isFavorite = false)
+        val dao = FakeStationDao(existing)
+        val repository = StationRepository(dao)
+
+        repository.insertOrGetExisting(station(isFavorite = true))
+
+        assertEquals(true, dao.stations.single().isFavorite)
+    }
+
+    @Test
+    fun findMatchingFindsRegistryStationByProviderIdBeforeStreamUrl() = runBlocking {
+        val providerMatch = station(
+            id = 10L,
+            streamUrl = "https://stream.example.com/local-correction",
+            provider = "aerial",
+            providerId = "mango",
+        )
+        val streamMatch = station(id = 11L, streamUrl = "https://stream.example.com/registry")
+        val dao = FakeStationDao(providerMatch, streamMatch)
+        val repository = StationRepository(dao)
+
+        val result = repository.findMatching(
+            RegistryStation(
+                name = "Mango",
+                streamUrl = "https://stream.example.com/registry",
+                provider = "aerial",
+                providerId = "mango",
+            )
+        )
+
+        assertEquals(providerMatch, result)
+    }
+
+    @Test
+    fun findMatchingFallsBackToStreamUrl() = runBlocking {
+        val existing = station(id = 12L, streamUrl = "https://stream.example.com/registry")
+        val dao = FakeStationDao(existing)
+        val repository = StationRepository(dao)
+
+        val result = repository.findMatching(
+            RegistryStation(
+                name = "Mango",
+                streamUrl = "https://stream.example.com/registry",
+                provider = "aerial",
+                providerId = "missing",
+            )
+        )
+
+        assertEquals(existing, result)
     }
 
     @Test

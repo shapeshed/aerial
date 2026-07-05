@@ -1,10 +1,6 @@
 package com.shapeshed.aerial.data
 
-import android.content.Context
 import kotlinx.coroutines.flow.Flow
-import org.json.JSONArray
-import java.io.ByteArrayInputStream
-import java.util.zip.GZIPInputStream
 
 // provider_id is only unique within a single provider's own namespace — e.g. NRK and DR
 // both use "p1"/"p2"/"p3" — so featured lookups must match on (provider, providerId)
@@ -38,18 +34,6 @@ class RegistryRepository(private val dao: RegistryDao) {
     suspend fun isEmpty(): Boolean = dao.count() == 0
 
     suspend fun randomByCategory(tag: String): RegistryStation? = dao.randomStationByTag(tag)
-
-    suspend fun syncFromAssets(context: Context) {
-        val json = try {
-            val name = if ("registry.json.gz" in context.assets.list("").orEmpty()) "registry.json.gz" else "registry.json"
-            context.assets.open(name).use { input -> input.readBytes().readRegistryJson() }
-        } catch (e: Exception) {
-            return
-        }
-        val stations = parseRegistry(json)
-        if (stations.isEmpty()) return
-        dao.clearAndInsertAll(stations)
-    }
 
     suspend fun availableCountryCodes(): List<String> = dao.distinctCountryCodes()
 
@@ -111,42 +95,4 @@ class RegistryRepository(private val dao: RegistryDao) {
     // A-Z subsection shown as browse suggestions before the user has typed anything.
     // Capped to match the search query limit.
     suspend fun defaultStations(limit: Int = 200): List<RegistryStation> = dao.browse(limit)
-
-    private fun parseRegistry(json: String): List<RegistryStation> {
-        return try {
-            val arr = JSONArray(json)
-            (0 until arr.length()).mapNotNull { i ->
-                val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-                val name = obj.optString("name").trim().takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val streamUrl = obj.optString("stream_url").trim().takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val tags = obj.optJSONArray("tags")?.let { tagsArr ->
-                    (0 until tagsArr.length()).mapNotNull { tagsArr.optString(it).trim().takeIf { s -> s.isNotBlank() } }.joinToString(" ")
-                } ?: ""
-                RegistryStation(
-                    name = name,
-                    streamUrl = streamUrl,
-                    logoUrl = obj.optString("logo_url").trim(),
-                    country = obj.optString("country").trim(),
-                    countryCode = obj.optString("country_code").trim(),
-                    tags = tags,
-                    provider = obj.optString("provider").trim(),
-                    providerId = obj.optString("provider_id").trim(),
-                    // Optional: absent in the current registry, so it defaults to "".
-                    description = obj.optString("description").trim(),
-                    searchText = NumberNormalizer.normalize("$name $tags"),
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun ByteArray.readRegistryJson(): String {
-        val isGzip = size >= 2 && this[0] == 0x1f.toByte() && this[1] == 0x8b.toByte()
-        return if (isGzip) {
-            GZIPInputStream(ByteArrayInputStream(this)).bufferedReader().use { it.readText() }
-        } else {
-            toString(Charsets.UTF_8)
-        }
-    }
 }

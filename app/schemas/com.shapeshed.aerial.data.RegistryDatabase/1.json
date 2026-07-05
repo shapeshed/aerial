@@ -1,0 +1,177 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "8edd974d88a4182b3c653225d9b0cf7d",
+    "entities": [
+      {
+        "tableName": "registry_stations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT NOT NULL, `country` TEXT NOT NULL, `countryCode` TEXT NOT NULL, `tags` TEXT NOT NULL, `provider` TEXT NOT NULL, `providerId` TEXT NOT NULL, `description` TEXT NOT NULL, `searchText` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "streamUrl",
+            "columnName": "streamUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logoUrl",
+            "columnName": "logoUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countryCode",
+            "columnName": "countryCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tags",
+            "columnName": "tags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerId",
+            "columnName": "providerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "searchText",
+            "columnName": "searchText",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_registry_stations_countryCode",
+            "unique": false,
+            "columnNames": [
+              "countryCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_registry_stations_countryCode` ON `${TABLE_NAME}` (`countryCode`)"
+          },
+          {
+            "name": "index_registry_stations_provider_providerId",
+            "unique": false,
+            "columnNames": [
+              "provider",
+              "providerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_registry_stations_provider_providerId` ON `${TABLE_NAME}` (`provider`, `providerId`)"
+          },
+          {
+            "name": "index_registry_stations_providerId",
+            "unique": false,
+            "columnNames": [
+              "providerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_registry_stations_providerId` ON `${TABLE_NAME}` (`providerId`)"
+          },
+          {
+            "name": "index_registry_stations_streamUrl",
+            "unique": false,
+            "columnNames": [
+              "streamUrl"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_registry_stations_streamUrl` ON `${TABLE_NAME}` (`streamUrl`)"
+          }
+        ]
+      },
+      {
+        "tableName": "registry_stations_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`searchText` TEXT NOT NULL, `description` TEXT NOT NULL, `country` TEXT NOT NULL, tokenize=unicode61 `remove_diacritics=1`, content=`registry_stations`)",
+        "fields": [
+          {
+            "fieldPath": "searchText",
+            "columnName": "searchText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "unicode61",
+          "tokenizerArgs": [
+            "remove_diacritics=1"
+          ],
+          "contentTable": "registry_stations",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_registry_stations_fts_BEFORE_UPDATE BEFORE UPDATE ON `registry_stations` BEGIN DELETE FROM `registry_stations_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_registry_stations_fts_BEFORE_DELETE BEFORE DELETE ON `registry_stations` BEGIN DELETE FROM `registry_stations_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_registry_stations_fts_AFTER_UPDATE AFTER UPDATE ON `registry_stations` BEGIN INSERT INTO `registry_stations_fts`(`docid`, `searchText`, `description`, `country`) VALUES (NEW.`rowid`, NEW.`searchText`, NEW.`description`, NEW.`country`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_registry_stations_fts_AFTER_INSERT AFTER INSERT ON `registry_stations` BEGIN INSERT INTO `registry_stations_fts`(`docid`, `searchText`, `description`, `country`) VALUES (NEW.`rowid`, NEW.`searchText`, NEW.`description`, NEW.`country`); END"
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8edd974d88a4182b3c653225d9b0cf7d')"
+    ]
+  }
+}
