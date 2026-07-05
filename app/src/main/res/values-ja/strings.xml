@@ -93,4 +93,6 @@
     <string name="tag_soul">ソウル</string>
     <string name="tag_country">カントリー</string>
     <string name="tag_electronic">エレクトロニック</string>
+    <string name="tab_home">ホーム</string>
+    <string name="tab_favorites">お気に入り</string>
 </resources>

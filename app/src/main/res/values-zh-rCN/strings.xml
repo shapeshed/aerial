@@ -93,4 +93,6 @@
     <string name="tag_soul">灵魂乐</string>
     <string name="tag_country">乡村</string>
     <string name="tag_electronic">电子</string>
+    <string name="tab_home">首页</string>
+    <string name="tab_favorites">收藏</string>
 </resources>

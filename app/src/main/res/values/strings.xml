@@ -97,4 +97,6 @@
     <string name="sleep_preset_minutes">%1$d min</string>
     <string name="sleep_preset_hours">%1$d hr</string>
     <string name="sleep_preset_hours_minutes">%1$dh %2$dm</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_favorites">Favorites</string>
 </resources>

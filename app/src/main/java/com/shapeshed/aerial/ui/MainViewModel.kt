@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import android.os.Bundle
@@ -71,6 +72,7 @@ private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
 private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
+private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val MAX_RECENT_SEARCHES = 5
 
 private data class LastPlayedStationSnapshot(
@@ -124,6 +126,7 @@ class MainViewModel(
                 ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
             _selectedTags.value = prefs[SEARCH_TAGS_KEY]
                 ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            _selectedHomeTab.value = prefs[LAST_HOME_TAB_KEY] ?: 0
         }
     }
 
@@ -234,6 +237,18 @@ class MainViewModel(
     val showNowPlaying: StateFlow<Boolean> = savedStateHandle.getStateFlow("showNowPlaying", false)
     fun setShowNowPlaying(value: Boolean) {
         savedStateHandle["showNowPlaying"] = value
+    }
+
+    // Last selected bottom-navigation tab, restored on relaunch. Updated synchronously so
+    // tab switches render immediately; the DataStore write catches up in the background.
+    private val _selectedHomeTab = MutableStateFlow(0)
+    val selectedHomeTab: StateFlow<Int> = _selectedHomeTab.asStateFlow()
+
+    fun setSelectedHomeTab(tab: Int) {
+        _selectedHomeTab.value = tab
+        viewModelScope.launch {
+            dataStore.edit { prefs -> prefs[LAST_HOME_TAB_KEY] = tab }
+        }
     }
 
     val homeViewMode: StateFlow<HomeViewMode> = dataStore.data

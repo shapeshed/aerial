@@ -93,4 +93,6 @@
     <string name="tag_soul">소울</string>
     <string name="tag_country">컨트리</string>
     <string name="tag_electronic">일렉트로닉</string>
+    <string name="tab_home">홈</string>
+    <string name="tab_favorites">즐겨찾기</string>
 </resources>
