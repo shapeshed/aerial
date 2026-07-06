@@ -107,6 +107,7 @@ class PlayerService : MediaSessionService() {
             .setSessionActivity(pendingIntent())
             .setCallback(sessionCallback)
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
+            .setBitmapLoader(CoilBitmapLoader(this))
             .build()
         log("onCreate")
         serviceScope.launch {
