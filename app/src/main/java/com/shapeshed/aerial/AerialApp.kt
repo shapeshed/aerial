@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.shapeshed.aerial.data.BauerProvider
 import com.shapeshed.aerial.data.BbcProvider
@@ -29,6 +30,9 @@ import okhttp3.OkHttpClient
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
+val FAVORITES_GRID_COLUMNS_KEY = intPreferencesKey("favorites_grid_columns")
+const val FAVORITES_GRID_COLUMNS_DEFAULT = 3
+val FAVORITES_GRID_COLUMNS_RANGE = 2..5
 
 class AerialApp : Application(), SingletonImageLoader.Factory {
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()

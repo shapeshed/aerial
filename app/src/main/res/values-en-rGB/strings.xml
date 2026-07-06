@@ -15,4 +15,7 @@
     <string name="sort_az">A to Z</string>
     <string name="sort_last_played">Last played</string>
     <string name="sort_most_played">Most played</string>
+    <string name="for_you">For you</string>
+    <string name="favorites_grid_columns">Favourites grid width</string>
+    <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
 </resources>

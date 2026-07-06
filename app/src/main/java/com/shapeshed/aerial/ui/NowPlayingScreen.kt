@@ -477,12 +477,17 @@ fun NowPlayingScreen(
                             modifier = Modifier.size(52.dp),
                         ) {
                             if (trackArtworkModel != null && !trackArtworkFailed) {
+                                // Same light adaptive plate as the other artwork surfaces,
+                                // visible only through transparent artwork.
                                 AsyncImage(
                                     model = trackArtworkModel,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     onError = { trackArtworkFailed = true },
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(MaterialTheme.shapes.small)
+                                        .background(stationLogoPlateColor()),
                                 )
                             } else {
                                 Surface(
@@ -594,7 +599,12 @@ fun NowPlayingScreen(
             ) {
                 Surface(
                     shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    // Plate behind rendered artwork, matching the main artwork surface.
+                    color = if (trackArtworkModel != null && !trackArtworkFailed) {
+                        stationLogoPlateColor()
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    },
                     tonalElevation = 4.dp,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -690,11 +700,11 @@ private fun StationArtworkSurface(
 ) {
     Surface(
         shape = shape,
-        // White behind rendered artwork so transparent station logos (and letterboxed
-        // images) sit on a consistent plate; the tonal container shows only for the
-        // avatar fallback.
+        // Light palette-tinted plate behind rendered artwork so transparent station logos
+        // (and letterboxed images) sit on a consistent background; the tonal container
+        // shows only for the avatar fallback.
         color = if (artworkModel != null) {
-            androidx.compose.ui.graphics.Color.White
+            stationLogoPlateColor()
         } else {
             MaterialTheme.colorScheme.primaryContainer
         },
