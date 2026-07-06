@@ -35,9 +35,6 @@
     <string name="home_view_list">Lijst</string>
     <string name="search_stations_header">Stations</string>
     <string name="view_all">Alles bekijken</string>
-    <string name="just_listen">Gewoon luisteren</string>
-    <string name="find_a_station">Zoek een zender</string>
-    <string name="find_one_to_listen">Zoek er een om naar te luisteren</string>
     <string name="no_matches">Geen resultaten</string>
     <string name="no_matches_desc">Probeer een andere zoekopdracht.</string>
     <string name="listen_by_mood">Passend bij je stemming</string>
@@ -111,4 +108,6 @@
     <string name="for_you">Voor jou</string>
     <string name="favorites_grid_columns">Rasterbreedte van favorieten</string>
     <string name="favorites_grid_columns_desc">Kolommen in de kaartweergave</string>
+    <string name="no_favorites">Nog geen favorieten</string>
+    <string name="no_favorites_desc">Voeg zenders toe die je leuk vindt om ze hier snel terug te vinden</string>
 </resources>

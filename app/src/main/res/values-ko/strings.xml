@@ -35,9 +35,6 @@
     <string name="home_view_list">목록</string>
     <string name="search_stations_header">방송국</string>
     <string name="view_all">모두 보기</string>
-    <string name="just_listen">그냥 들어보세요</string>
-    <string name="find_a_station">방송국 찾기</string>
-    <string name="find_one_to_listen">들을 방송국을 찾아보세요</string>
     <string name="no_matches">일치하는 항목 없음</string>
     <string name="no_matches_desc">다른 검색어를 시도하세요.</string>
     <string name="listen_by_mood">기분에 맞게</string>
@@ -111,4 +108,6 @@
     <string name="for_you">맞춤 추천</string>
     <string name="favorites_grid_columns">즐겨찾기 그리드 너비</string>
     <string name="favorites_grid_columns_desc">카드 보기의 열 수</string>
+    <string name="no_favorites">즐겨찾기가 없습니다</string>
+    <string name="no_favorites_desc">좋아하는 방송국을 추가하면 여기서 쉽게 찾을 수 있어요</string>
 </resources>
