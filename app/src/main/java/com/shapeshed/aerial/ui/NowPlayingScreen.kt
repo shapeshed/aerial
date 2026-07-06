@@ -690,7 +690,14 @@ private fun StationArtworkSurface(
 ) {
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.primaryContainer,
+        // White behind rendered artwork so transparent station logos (and letterboxed
+        // images) sit on a consistent plate; the tonal container shows only for the
+        // avatar fallback.
+        color = if (artworkModel != null) {
+            androidx.compose.ui.graphics.Color.White
+        } else {
+            MaterialTheme.colorScheme.primaryContainer
+        },
         tonalElevation = 8.dp,
         modifier = modifier
             .fillMaxWidth()

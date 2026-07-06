@@ -1170,28 +1170,16 @@ private fun RegistryResultItem(
     ListItem(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            StationLogoCircle(
+                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                size = 50.dp,
             ) {
-                if (station.logoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = station.logoUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Radio,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(26.dp),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Radio,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp),
+                )
             }
         },
         supportingContent = if (countryLabel.isNotBlank()) {
@@ -1353,7 +1341,7 @@ private fun HomeTabContent(
             }
             item("for-you-row") {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                 ) {
                     items(
@@ -1667,28 +1655,17 @@ private fun MoodStationRow(
     ListItem(
         modifier = modifier.fillMaxWidth().clickable(onClick = onPlay),
         leadingContent = {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(MaterialTheme.shapes.large)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            // Circle rather than a rounded square, matching the search and favourites rows.
+            StationLogoCircle(
+                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                size = 56.dp,
             ) {
-                if (station.logoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = station.logoUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Radio,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Radio,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp),
+                )
             }
         },
         supportingContent = {
@@ -2707,43 +2684,32 @@ private fun ForYouStationCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = MaterialTheme.shapes.large,
+        // Tonal, border-less container on the expressive extra-large radius, matching the
+        // app's other tiles.
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.width(112.dp).height(144.dp),
+        modifier = modifier.width(140.dp).height(132.dp),
     ) {
         Column(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.padding(12.dp).fillMaxSize(),
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+            StationLogoCircle(
+                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                size = 60.dp,
             ) {
-                if (station.logoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = station.logoUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        text = station.name.take(1).uppercase(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = station.name.take(1).uppercase(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 val genre = station.tags.split(" ").firstOrNull { it.isNotBlank() } ?: station.country
@@ -2761,8 +2727,42 @@ private fun ForYouStationCard(
     }
 }
 
+// Circular station logo on a white plate. The plate shows through transparent regions of
+// third-party artwork so every logo sits on a consistent background, and it is never a
+// visible ring because the artwork fills the circle. Stations without a usable logo keep a
+// tonal circle behind the fallback content instead of the white plate.
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+fun StationLogoCircle(
+    logoModel: Any?,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    fallbackBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    fallback: @Composable () -> Unit,
+) {
+    var logoFailed by remember(logoModel) { mutableStateOf(false) }
+    val showLogo = logoModel != null && !logoFailed
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(if (showLogo) androidx.compose.ui.graphics.Color.White else fallbackBackground),
+    ) {
+        if (showLogo) {
+            AsyncImage(
+                model = logoModel,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                onError = { logoFailed = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            fallback()
+        }
+    }
+}
+
+@Composable
 fun StationAvatar(
     station: Station,
     isActive: Boolean,
@@ -2776,36 +2776,22 @@ fun StationAvatar(
         logoPath.isNotEmpty() -> File(logoPath)
         else -> null
     }
-    var logoFailed by remember(logoModel) { mutableStateOf(false) }
-
-    val iconTint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
-                   else MaterialTheme.colorScheme.onSurfaceVariant
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(
-                if (isActive) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
+    val imageRequest = logoModel?.let {
+        remember(context, it) { ImageRequest.Builder(context).data(it).build() }
+    }
+    StationLogoCircle(
+        logoModel = imageRequest,
+        size = size,
+        modifier = modifier,
+        fallbackBackground = if (isActive) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Icon(
             imageVector = Icons.Rounded.Radio,
             contentDescription = null,
-            tint = iconTint,
+            tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+            else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(size * 0.55f),
         )
-        if (logoModel != null && !logoFailed) {
-            val imageRequest = remember(context, logoModel) { ImageRequest.Builder(context).data(logoModel).build() }
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                onError = { logoFailed = true },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
     }
 }
