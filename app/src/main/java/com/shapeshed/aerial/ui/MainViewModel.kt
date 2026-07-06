@@ -105,8 +105,14 @@ class MainViewModel(
     private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
 
+    private val _ukForYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val ukForYouStations: StateFlow<List<RegistryStation>> = _ukForYouStations.asStateFlow()
+
     private val _defaultStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val defaultStations: StateFlow<List<RegistryStation>> = _defaultStations.asStateFlow()
+
+    private val _curatedMoodStations = MutableStateFlow<Map<String, List<RegistryStation>>>(emptyMap())
+    val curatedMoodStations: StateFlow<Map<String, List<RegistryStation>>> = _curatedMoodStations.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -122,7 +128,9 @@ class MainViewModel(
                 .distinctUntilChanged()
                 .collect {
                     _featuredStations.value = registryRepository.featuredStations()
+                    _ukForYouStations.value = registryRepository.forYouStations("GB")
                     _defaultStations.value = registryRepository.defaultStations()
+                    _curatedMoodStations.value = registryRepository.curatedMoodStations()
                     _availableCountries.value = registryRepository.availableCountryCodes()
                     _allTags.value = registryRepository.availableTags()
                 }
@@ -330,6 +338,12 @@ class MainViewModel(
         runSearch(_lastSearchQuery)
     }
 
+    fun setCountryFilter(country: String) {
+        _selectedCountries.value = setOf(country)
+        persistFilters()
+        runSearch(_lastSearchQuery)
+    }
+
     fun toggleTagFilter(tag: String) {
         _selectedTags.value = _selectedTags.value.let {
             if (it.contains(tag)) it - tag else it + tag
@@ -386,6 +400,17 @@ class MainViewModel(
         viewModelScope.launch {
             val station = withContext(Dispatchers.IO) {
                 registryRepository.randomByCategory(tag.lowercase())
+            } ?: return@launch
+            playFromRegistry(station)
+        }
+    }
+
+    fun playRandomFromMood(tags: List<String>) {
+        viewModelScope.launch {
+            val station = withContext(Dispatchers.IO) {
+                tags.shuffled().firstNotNullOfOrNull { tag ->
+                    registryRepository.randomByCategory(tag.lowercase())
+                }
             } ?: return@launch
             playFromRegistry(station)
         }

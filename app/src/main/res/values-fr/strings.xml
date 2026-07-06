@@ -9,6 +9,7 @@
     <string name="action_clear">Effacer</string>
     <string name="action_save">Enregistrer</string>
     <string name="action_edit">Modifier</string>
+    <string name="save_all">Tout enregistrer</string>
 
     <!-- Search / home -->
     <string name="search_hint">Rechercher des stations</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">Cartes</string>
     <string name="home_view_list">Liste</string>
     <string name="search_stations_header">Stations</string>
+    <string name="for_you_country">Pour vous — %1$s</string>
+    <string name="view_all">Tout voir</string>
     <string name="get_started">Commencer</string>
     <string name="just_listen">Écoutez, tout simplement</string>
     <string name="find_a_station">Trouver une station</string>
     <string name="find_one_to_listen">Trouvez-en une à écouter</string>
     <string name="no_matches">Aucun résultat</string>
     <string name="no_matches_desc">Essayez une autre recherche.</string>
+    <string name="listen_by_mood">Écouter selon l’humeur</string>
+    <string name="mood_relax">Détente</string>
+    <string name="mood_relax_desc">Décompressez et lâchez prise</string>
+    <string name="mood_relax_detail_desc">Ralentissez avec de l’ambient, du jazz et des musiques douces du monde entier.</string>
+    <string name="mood_focus">Concentration</string>
+    <string name="mood_focus_desc">Restez concentré et productif</string>
+    <string name="mood_morning">Matin</string>
+    <string name="mood_morning_desc">Commencez la journée positivement</string>
+    <string name="mood_driving">Route</string>
+    <string name="mood_driving_desc">De bons compagnons de voyage</string>
+    <string name="mood_late_night">Tard le soir</string>
+    <string name="mood_late_night_desc">Musique pour les heures calmes</string>
+    <string name="mood_workout">Entraînement</string>
+    <string name="mood_workout_desc">De l’énergie pour continuer</string>
 
     <!-- Now playing -->
     <string name="close_player">Fermer le lecteur</string>

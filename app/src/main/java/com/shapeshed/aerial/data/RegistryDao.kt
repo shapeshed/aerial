@@ -27,6 +27,9 @@ abstract class RegistryDao {
     @Query("SELECT * FROM registry_stations WHERE providerId IN (:ids)")
     abstract suspend fun getByProviderIds(ids: List<String>): List<RegistryStation>
 
+    @Query("SELECT * FROM registry_stations WHERE name IN (:names)")
+    abstract suspend fun getByNames(names: List<String>): List<RegistryStation>
+
     @Query("SELECT DISTINCT countryCode FROM registry_stations WHERE countryCode != '' ORDER BY countryCode")
     abstract suspend fun distinctCountryCodes(): List<String>
 

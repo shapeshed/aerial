@@ -9,6 +9,7 @@
     <string name="action_clear">Cancella</string>
     <string name="action_save">Salva</string>
     <string name="action_edit">Modifica</string>
+    <string name="save_all">Salva tutto</string>
 
     <!-- Search / home -->
     <string name="search_hint">Cerca stazioni</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">Schede</string>
     <string name="home_view_list">Elenco</string>
     <string name="search_stations_header">Stazioni</string>
+    <string name="for_you_country">Per te — %1$s</string>
+    <string name="view_all">Vedi tutto</string>
     <string name="get_started">Inizia</string>
     <string name="just_listen">Ascolta e basta</string>
     <string name="find_a_station">Trova una stazione</string>
     <string name="find_one_to_listen">Trovane una da ascoltare</string>
     <string name="no_matches">Nessun risultato</string>
     <string name="no_matches_desc">Prova un\'altra ricerca.</string>
+    <string name="listen_by_mood">Ascolta in base all’umore</string>
+    <string name="mood_relax">Relax</string>
+    <string name="mood_relax_desc">Rilassati e lascia andare</string>
+    <string name="mood_relax_detail_desc">Rallenta con ambient, jazz e musica morbida da tutto il mondo.</string>
+    <string name="mood_focus">Concentrazione</string>
+    <string name="mood_focus_desc">Concentrati e resta produttivo</string>
+    <string name="mood_morning">Mattina</string>
+    <string name="mood_morning_desc">Inizia la giornata con positività</string>
+    <string name="mood_driving">In viaggio</string>
+    <string name="mood_driving_desc">Ottima compagnia per la strada</string>
+    <string name="mood_late_night">Notte fonda</string>
+    <string name="mood_late_night_desc">Musica per le ore tranquille</string>
+    <string name="mood_workout">Allenamento</string>
+    <string name="mood_workout_desc">Energia per continuare</string>
 
     <!-- Now playing -->
     <string name="close_player">Chiudi player</string>

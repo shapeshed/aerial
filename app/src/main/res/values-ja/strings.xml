@@ -9,6 +9,7 @@
     <string name="action_clear">クリア</string>
     <string name="action_save">保存</string>
     <string name="action_edit">編集</string>
+    <string name="save_all">すべて保存</string>
 
     <!-- Search / home -->
     <string name="search_hint">放送局を検索</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">カード</string>
     <string name="home_view_list">リスト</string>
     <string name="search_stations_header">放送局</string>
+    <string name="for_you_country">あなたへのおすすめ — %1$s</string>
+    <string name="view_all">すべて表示</string>
     <string name="get_started">はじめる</string>
     <string name="just_listen">ただ聴くだけ</string>
     <string name="find_a_station">放送局を探す</string>
     <string name="find_one_to_listen">聴きたい放送局を見つけよう</string>
     <string name="no_matches">一致するものがありません</string>
     <string name="no_matches_desc">別のキーワードで検索してください。</string>
+    <string name="listen_by_mood">気分で聴く</string>
+    <string name="mood_relax">リラックス</string>
+    <string name="mood_relax_desc">肩の力を抜いてくつろぐ</string>
+    <string name="mood_relax_detail_desc">アンビエント、ジャズ、世界の穏やかな音楽でゆっくり過ごしましょう。</string>
+    <string name="mood_focus">集中</string>
+    <string name="mood_focus_desc">集中して生産的に</string>
+    <string name="mood_morning">朝</string>
+    <string name="mood_morning_desc">前向きに一日を始める</string>
+    <string name="mood_driving">ドライブ</string>
+    <string name="mood_driving_desc">道中にぴったりの相棒</string>
+    <string name="mood_late_night">深夜</string>
+    <string name="mood_late_night_desc">静かな時間のための音楽</string>
+    <string name="mood_workout">ワークアウト</string>
+    <string name="mood_workout_desc">続けるための高いエネルギー</string>
 
     <!-- Now playing -->
     <string name="close_player">プレーヤーを閉じる</string>

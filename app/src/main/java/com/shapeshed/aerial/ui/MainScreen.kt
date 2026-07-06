@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.combinedClickable
@@ -41,6 +42,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.automirrored.rounded.ViewList
@@ -131,6 +133,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -143,6 +146,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -150,7 +154,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -200,6 +210,77 @@ private val CATEGORY_ICONS = mapOf(
     "Electronic" to Icons.Rounded.GraphicEq,
 )
 
+private enum class MoodArtwork {
+    Coast,
+    Mountains,
+    Sunrise,
+    Road,
+    City,
+    Runner,
+}
+
+private data class CuratedMood(
+    val id: String,
+    val titleRes: Int,
+    val descriptionRes: Int,
+    val detailDescriptionRes: Int = descriptionRes,
+    val tags: List<String>,
+    val icon: ImageVector,
+    val artwork: MoodArtwork,
+)
+
+private val CURATED_MOODS = listOf(
+    CuratedMood(
+        id = "relax",
+        titleRes = R.string.mood_relax,
+        descriptionRes = R.string.mood_relax_desc,
+        detailDescriptionRes = R.string.mood_relax_detail_desc,
+        tags = listOf("Jazz", "Soul", "Classical"),
+        icon = Icons.Rounded.Spa,
+        artwork = MoodArtwork.Coast,
+    ),
+    CuratedMood(
+        id = "focus",
+        titleRes = R.string.mood_focus,
+        descriptionRes = R.string.mood_focus_desc,
+        tags = listOf("Classical", "Electronic", "Jazz"),
+        icon = Icons.Rounded.GraphicEq,
+        artwork = MoodArtwork.Mountains,
+    ),
+    CuratedMood(
+        id = "morning",
+        titleRes = R.string.mood_morning,
+        descriptionRes = R.string.mood_morning_desc,
+        tags = listOf("Pop", "Soul", "News"),
+        icon = Icons.Rounded.Star,
+        artwork = MoodArtwork.Sunrise,
+    ),
+    CuratedMood(
+        id = "driving",
+        titleRes = R.string.mood_driving,
+        descriptionRes = R.string.mood_driving_desc,
+        tags = listOf("Rock", "Pop", "Country"),
+        icon = Icons.Rounded.Landscape,
+        artwork = MoodArtwork.Road,
+    ),
+    CuratedMood(
+        id = "late_night",
+        titleRes = R.string.mood_late_night,
+        descriptionRes = R.string.mood_late_night_desc,
+        tags = listOf("Jazz", "Electronic", "Soul"),
+        icon = Icons.Rounded.Nightlife,
+        artwork = MoodArtwork.City,
+    ),
+    CuratedMood(
+        id = "workout",
+        titleRes = R.string.mood_workout,
+        descriptionRes = R.string.mood_workout_desc,
+        tags = listOf("Dance", "Electronic", "Rock"),
+        icon = Icons.Rounded.ElectricBolt,
+        artwork = MoodArtwork.Runner,
+    ),
+)
+
 private data class RegistryStationKey(
     val provider: String,
     val providerId: String,
@@ -214,6 +295,25 @@ private fun Station.savedKey(): RegistryStationKey? =
     RegistryStationKey(provider, providerId).takeIf {
         it.provider.isNotBlank() && it.providerId.isNotBlank()
     }
+
+private fun RegistryStation.toPlaybackStation(): Station = Station(
+    name = name,
+    streamUrl = streamUrl,
+    logoPath = logoUrl,
+    provider = provider,
+    providerId = providerId,
+    tags = tags,
+    description = description,
+    country = country,
+    countryCode = countryCode,
+)
+
+private fun Station.matchesStation(other: Station): Boolean =
+    streamUrl == other.streamUrl ||
+        (provider.isNotBlank() &&
+            providerId.isNotBlank() &&
+            provider == other.provider &&
+            providerId == other.providerId)
 
 enum class HomeViewMode {
     Cards,
@@ -255,7 +355,9 @@ fun MainScreen(
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
+    val ukForYouStations by viewModel.ukForYouStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
+    val curatedMoodStations by viewModel.curatedMoodStations.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
     val favoritesSort by viewModel.favoritesSort.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
@@ -273,6 +375,7 @@ fun MainScreen(
     var showGenreSheet by remember { mutableStateOf(false) }
     var contextStation by remember { mutableStateOf<Station?>(null) }
     var stationToDelete by remember { mutableStateOf<Station?>(null) }
+    var selectedMoodId by rememberSaveable { mutableStateOf<String?>(null) }
     val countrySheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -297,9 +400,15 @@ fun MainScreen(
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
+    val selectedMood = selectedMoodId?.let { id -> CURATED_MOODS.firstOrNull { it.id == id } }
+    val selectedMoodStations = selectedMoodId?.let { curatedMoodStations[it] }.orEmpty()
     val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
+    val moodSwipeStations = remember(selectedMoodStations) {
+        selectedMoodStations.map { it.toPlaybackStation() }
+    }
 
     BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
+    BackHandler(enabled = selectedMood != null && !showNowPlaying) { selectedMoodId = null }
     BackHandler(enabled = isSearchExpanded && !showCountrySheet && !showGenreSheet) {
         textFieldState.edit { replace(0, length, "") }
         scope.launch { searchBarState.animateToCollapsed() }
@@ -317,6 +426,13 @@ fun MainScreen(
         viewModel.clearRecentlyAddedStation(stationId)
     }
     fun openRegistrySearch() {
+        scope.launch { searchBarState.animateToExpanded() }
+    }
+
+    fun openCountrySearch(countryCode: String) {
+        textFieldState.edit { replace(0, length, "") }
+        viewModel.searchRegistry("")
+        viewModel.setCountryFilter(countryCode)
         scope.launch { searchBarState.animateToExpanded() }
     }
 
@@ -378,7 +494,10 @@ fun MainScreen(
                 ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     ShortNavigationBarItem(
                         selected = selectedTab == TAB_HOME,
-                        onClick = { viewModel.setSelectedHomeTab(TAB_HOME) },
+                        onClick = {
+                            selectedMoodId = null
+                            viewModel.setSelectedHomeTab(TAB_HOME)
+                        },
                         icon = {
                             Icon(
                                 imageVector = if (selectedTab == TAB_HOME) Icons.Rounded.Home else Icons.Outlined.Home,
@@ -389,7 +508,10 @@ fun MainScreen(
                     )
                     ShortNavigationBarItem(
                         selected = selectedTab == TAB_FAVORITES,
-                        onClick = { viewModel.setSelectedHomeTab(TAB_FAVORITES) },
+                        onClick = {
+                            selectedMoodId = null
+                            viewModel.setSelectedHomeTab(TAB_FAVORITES)
+                        },
                         icon = {
                             Icon(
                                 imageVector = if (selectedTab == TAB_FAVORITES) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -409,27 +531,53 @@ fun MainScreen(
                     .padding(bottom = padding.calculateBottomPadding()),
             ) {
             Column(Modifier.fillMaxSize()) {
-                SearchBar(
-                    state = searchBarState,
-                    inputField = searchInputField,
-                    colors = SearchBarDefaults.containedColors(searchBarState),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(top = 8.dp, bottom = 8.dp),
-                )
+                if (selectedMood == null) {
+                    SearchBar(
+                        state = searchBarState,
+                        inputField = searchInputField,
+                        colors = SearchBarDefaults.containedColors(searchBarState),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .padding(top = 8.dp, bottom = 8.dp),
+                    )
+                }
 
                 if (!isOnline) {
                     NoNetworkState()
+                } else if (selectedMood != null) {
+                    MoodDetailScreen(
+                        mood = selectedMood,
+                        stations = selectedMoodStations,
+                        currentStation = currentStation,
+                        isPlaying = isPlaying,
+                        isBuffering = isBuffering,
+                        savedStreamUrls = savedStreamUrls,
+                        savedRegistryKeys = savedRegistryKeys,
+                        bottomPadding = stationContentBottomPadding,
+                        onBack = { selectedMoodId = null },
+                        onPlay = { selectedMoodStations.firstOrNull()?.let(viewModel::playFromRegistry) },
+                        onSave = { selectedMoodStations.forEach(viewModel::addFromRegistry) },
+                        onTogglePlayback = { viewModel.togglePlayback() },
+                        onAddStation = { viewModel.addFromRegistry(it) },
+                        onRemoveStation = { viewModel.removeFromRegistry(it) },
+                        onPlayStation = { viewModel.playFromRegistry(it) },
+                    )
                 } else if (selectedTab == TAB_HOME) {
+                    val forYouCountryCode = appLocale.country.takeIf { it.isNotBlank() } ?: "GB"
                     HomeTabContent(
                         allTags = allTags,
                         featuredStations = featuredStations,
+                        forYouStations = ukForYouStations.takeIf { forYouCountryCode.equals("GB", ignoreCase = true) }
+                            ?: featuredStations,
+                        forYouCountry = countryName(forYouCountryCode, appLocale),
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
                         onCategoryTap = { viewModel.playRandomFromCategory(it) },
+                        onMoodTap = { selectedMoodId = it.id },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it) },
+                        onForYouViewAll = { openCountrySearch(forYouCountryCode) },
                     )
                 } else {
                     FavoritesTabContent(
@@ -596,7 +744,11 @@ fun MainScreen(
                 // Swipe order frozen for the lifetime of the pane: under the Last/Most played
                 // sorts, playing a station immediately re-sorts the live list, which would make
                 // consecutive swipes ping-pong between the same two stations.
-                val swipeStations = remember { viewModel.stations.value }
+                val favoriteSwipeStations = remember { viewModel.stations.value }
+                val useMoodSwipeStations = selectedMood != null &&
+                    moodSwipeStations.size > 1 &&
+                    moodSwipeStations.any { moodStation -> station.matchesStation(moodStation) }
+                val swipeStations = if (useMoodSwipeStations) moodSwipeStations else favoriteSwipeStations
                 NowPlayingScreen(
                     station = station,
                     isPlaying = isPlaying,
@@ -1162,15 +1314,62 @@ private fun HomeEmptyState(
 private fun HomeTabContent(
     allTags: List<String>,
     featuredStations: List<com.shapeshed.aerial.data.RegistryStation>,
+    forYouStations: List<com.shapeshed.aerial.data.RegistryStation>,
+    forYouCountry: String,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onCategoryTap: (String) -> Unit,
+    onMoodTap: (CuratedMood) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
+    onForYouViewAll: () -> Unit,
 ) {
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
     ) {
+        if (forYouStations.isNotEmpty()) {
+            item("for-you-header") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.for_you_country, forYouCountry),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onForYouViewAll) {
+                        Text(text = stringResource(R.string.view_all))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+            item("for-you-row") {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    items(
+                        items = forYouStations,
+                        key = { "for-you-${it.provider}-${it.providerId}-${it.name}-${it.streamUrl}" },
+                        contentType = { "for-you-station" },
+                    ) { station ->
+                        ForYouStationCard(
+                            station = station,
+                            onClick = { onFeaturedStationTap(station) },
+                        )
+                    }
+                }
+            }
+        }
+
         if (featuredStations.isNotEmpty()) {
             item("get-started-header") {
                 Text(
@@ -1195,6 +1394,22 @@ private fun HomeTabContent(
             }
         }
 
+        item("moods-header") {
+            Text(
+                text = stringResource(R.string.listen_by_mood),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp),
+            )
+        }
+        item("moods-grid") {
+            MoodGrid(
+                moods = CURATED_MOODS,
+                onMoodTap = onMoodTap,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+
         item("just-listen-header") {
             Text(
                 text = stringResource(R.string.just_listen),
@@ -1211,6 +1426,514 @@ private fun HomeTabContent(
             )
         }
     }
+}
+
+@Composable
+private fun MoodGrid(
+    moods: List<CuratedMood>,
+    onMoodTap: (CuratedMood) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier,
+    ) {
+        moods.chunked(2).forEach { pair ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                pair.forEach { mood ->
+                    MoodCard(
+                        mood = mood,
+                        onClick = { onMoodTap(mood) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoodCard(
+    mood: CuratedMood,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.height(132.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            MoodArtwork(
+                artwork = mood.artwork,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.08f),
+                            1f to MaterialTheme.colorScheme.surface.copy(alpha = 0.44f),
+                        ),
+                    ),
+            )
+            Column(
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = mood.icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = stringResource(mood.titleRes),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(mood.descriptionRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoodDetailScreen(
+    mood: CuratedMood,
+    stations: List<RegistryStation>,
+    currentStation: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    savedStreamUrls: Set<String>,
+    savedRegistryKeys: Set<RegistryStationKey>,
+    bottomPadding: Dp,
+    onBack: () -> Unit,
+    onPlay: () -> Unit,
+    onSave: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onAddStation: (RegistryStation) -> Unit,
+    onRemoveStation: (RegistryStation) -> Unit,
+    onPlayStation: (RegistryStation) -> Unit,
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item("mood-hero") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp),
+            ) {
+                MoodArtwork(
+                    artwork = mood.artwork,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.08f),
+                                1f to MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
+                            ),
+                        ),
+                )
+                IconButton(
+                    onClick = onBack,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(start = 12.dp, top = 8.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                }
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
+                ) {
+                    Text(
+                        text = stringResource(mood.titleRes),
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(mood.detailDescriptionRes),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth(0.72f),
+                    )
+                }
+            }
+        }
+        item("mood-actions") {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+            ) {
+                Button(
+                    onClick = onPlay,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.play))
+                }
+                OutlinedButton(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.FavoriteBorder, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.save_all))
+                }
+            }
+        }
+        items(
+            items = stations,
+            key = { "${it.provider}-${it.providerId}-${it.name}-${it.streamUrl}" },
+            contentType = { "mood-station" },
+        ) { station ->
+            val isActive = currentStation?.let { active ->
+                active.streamUrl == station.streamUrl ||
+                    (active.provider.isNotBlank() &&
+                        active.providerId.isNotBlank() &&
+                        active.provider == station.provider &&
+                        active.providerId == station.providerId)
+            } ?: false
+            val isSaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
+            MoodStationRow(
+                station = station,
+                isActive = isActive,
+                isPlaying = isPlaying && isActive,
+                isBuffering = isBuffering && isActive,
+                onPlay = { onPlayStation(station) },
+                onTogglePlayback = onTogglePlayback,
+                isSaved = isSaved,
+                onToggleFavorite = {
+                    if (isSaved) onRemoveStation(station) else onAddStation(station)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoodStationRow(
+    station: RegistryStation,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    onPlay: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    isSaved: Boolean,
+    onToggleFavorite: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pauseLabel = stringResource(R.string.pause)
+    ListItem(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onPlay),
+        leadingContent = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                if (station.logoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = station.logoUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        },
+        supportingContent = {
+            if (station.country.isNotBlank()) {
+                Text(
+                    text = station.country,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = if (isPlaying) onTogglePlayback else onPlay,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    when {
+                        isBuffering -> CircularWavyProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        )
+                        isPlaying -> EqualizerBars(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(width = 28.dp, height = 22.dp)
+                                .semantics { contentDescription = pauseLabel },
+                            barCount = 3,
+                        )
+                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                    }
+                }
+                IconButton(
+                    onClick = onToggleFavorite,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = stringResource(if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites),
+                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    ) {
+        Text(
+            text = station.name,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun MoodArtwork(
+    artwork: MoodArtwork,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Canvas(modifier = modifier) {
+        val skyTop = when (artwork) {
+            MoodArtwork.Coast -> lerp(scheme.tertiaryContainer, scheme.primaryContainer, 0.18f)
+            MoodArtwork.Mountains -> lerp(scheme.secondaryContainer, scheme.surfaceVariant, 0.35f)
+            MoodArtwork.Sunrise -> lerp(scheme.tertiaryContainer, Color(0xFFFFC879), 0.32f)
+            MoodArtwork.Road -> lerp(scheme.primaryContainer, scheme.secondaryContainer, 0.36f)
+            MoodArtwork.City -> lerp(scheme.primary, scheme.surface, 0.64f)
+            MoodArtwork.Runner -> lerp(scheme.secondaryContainer, scheme.tertiaryContainer, 0.28f)
+        }
+        val skyBottom = when (artwork) {
+            MoodArtwork.City -> lerp(scheme.surface, scheme.primaryContainer, 0.4f)
+            else -> lerp(scheme.surface, skyTop, 0.58f)
+        }
+        drawRect(
+            brush = Brush.verticalGradient(
+                listOf(skyTop, skyBottom),
+            ),
+        )
+
+        val sunColor = scheme.tertiary.copy(alpha = 0.28f)
+        drawCircle(
+            color = sunColor,
+            radius = size.minDimension * 0.16f,
+            center = Offset(size.width * 0.72f, size.height * 0.35f),
+        )
+
+        when (artwork) {
+            MoodArtwork.Coast -> drawCoastMood(scheme)
+            MoodArtwork.Mountains -> drawMountainMood(scheme)
+            MoodArtwork.Sunrise -> drawSunriseMood(scheme)
+            MoodArtwork.Road -> drawRoadMood(scheme)
+            MoodArtwork.City -> drawCityMood(scheme)
+            MoodArtwork.Runner -> drawRunnerMood(scheme)
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCoastMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    drawLayeredHills(
+        back = scheme.primary.copy(alpha = 0.18f),
+        front = scheme.primary.copy(alpha = 0.34f),
+    )
+    drawRect(
+        color = scheme.primary.copy(alpha = 0.22f),
+        topLeft = Offset(0f, size.height * 0.62f),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.38f),
+    )
+    repeat(4) { index ->
+        val y = size.height * (0.68f + index * 0.07f)
+        drawLine(
+            color = scheme.onSurface.copy(alpha = 0.12f),
+            start = Offset(size.width * 0.18f, y),
+            end = Offset(size.width * 0.86f, y + size.height * 0.02f),
+            strokeWidth = 2.dp.toPx(),
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMountainMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    repeat(3) { index ->
+        val top = size.height * (0.28f + index * 0.11f)
+        val alpha = 0.16f + index * 0.1f
+        val path = Path().apply {
+            moveTo(0f, size.height)
+            lineTo(size.width * 0.22f, top + size.height * 0.18f)
+            lineTo(size.width * 0.48f, top)
+            lineTo(size.width * 0.75f, top + size.height * 0.2f)
+            lineTo(size.width, top + size.height * 0.08f)
+            lineTo(size.width, size.height)
+            close()
+        }
+        drawPath(path, scheme.primary.copy(alpha = alpha))
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunriseMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    drawLayeredHills(
+        back = scheme.tertiary.copy(alpha = 0.18f),
+        front = scheme.primary.copy(alpha = 0.24f),
+    )
+    drawCircle(
+        color = scheme.tertiary.copy(alpha = 0.26f),
+        radius = size.minDimension * 0.22f,
+        center = Offset(size.width * 0.78f, size.height * 0.66f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRoadMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    drawLayeredHills(
+        back = scheme.secondary.copy(alpha = 0.18f),
+        front = scheme.primary.copy(alpha = 0.28f),
+    )
+    val road = Path().apply {
+        moveTo(size.width * 0.46f, size.height)
+        lineTo(size.width * 0.58f, size.height * 0.55f)
+        lineTo(size.width * 0.68f, size.height * 0.55f)
+        lineTo(size.width * 0.86f, size.height)
+        close()
+    }
+    drawPath(road, scheme.onSurface.copy(alpha = 0.16f))
+    drawLine(
+        color = scheme.surface.copy(alpha = 0.72f),
+        start = Offset(size.width * 0.65f, size.height),
+        end = Offset(size.width * 0.62f, size.height * 0.6f),
+        strokeWidth = 2.dp.toPx(),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCityMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    drawRect(
+        color = scheme.primary.copy(alpha = 0.22f),
+        topLeft = Offset(0f, size.height * 0.52f),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.48f),
+    )
+    val widths = listOf(0.12f, 0.18f, 0.1f, 0.16f, 0.14f, 0.2f)
+    var x = size.width * 0.06f
+    widths.forEachIndexed { index, widthFraction ->
+        val buildingWidth = size.width * widthFraction
+        val top = size.height * (0.42f + (index % 3) * 0.08f)
+        drawRect(
+            color = scheme.onSurface.copy(alpha = 0.22f),
+            topLeft = Offset(x, top),
+            size = androidx.compose.ui.geometry.Size(buildingWidth, size.height - top),
+        )
+        x += buildingWidth + size.width * 0.035f
+    }
+    drawCircle(
+        color = scheme.tertiary.copy(alpha = 0.34f),
+        radius = size.minDimension * 0.08f,
+        center = Offset(size.width * 0.76f, size.height * 0.24f),
+    )
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRunnerMood(
+    scheme: androidx.compose.material3.ColorScheme,
+) {
+    drawLayeredHills(
+        back = scheme.secondary.copy(alpha = 0.18f),
+        front = scheme.tertiary.copy(alpha = 0.2f),
+    )
+    val bodyColor = scheme.onSurface.copy(alpha = 0.28f)
+    val center = Offset(size.width * 0.74f, size.height * 0.48f)
+    drawCircle(bodyColor, size.minDimension * 0.05f, center.copy(y = center.y - size.height * 0.12f))
+    drawLine(bodyColor, center.copy(y = center.y - size.height * 0.06f), center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), 4.dp.toPx())
+    drawLine(bodyColor, center, center.copy(x = center.x - size.width * 0.13f, y = center.y + size.height * 0.02f), 4.dp.toPx())
+    drawLine(bodyColor, center, center.copy(x = center.x + size.width * 0.1f, y = center.y + size.height * 0.06f), 4.dp.toPx())
+    drawLine(bodyColor, center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), center.copy(x = center.x - size.width * 0.15f, y = center.y + size.height * 0.24f), 4.dp.toPx())
+    drawLine(bodyColor, center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), center.copy(x = center.x + size.width * 0.1f, y = center.y + size.height * 0.24f), 4.dp.toPx())
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLayeredHills(
+    back: Color,
+    front: Color,
+) {
+    val backPath = Path().apply {
+        moveTo(0f, size.height * 0.66f)
+        cubicTo(size.width * 0.2f, size.height * 0.48f, size.width * 0.38f, size.height * 0.72f, size.width * 0.56f, size.height * 0.55f)
+        cubicTo(size.width * 0.75f, size.height * 0.38f, size.width * 0.88f, size.height * 0.58f, size.width, size.height * 0.45f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(backPath, back)
+    val frontPath = Path().apply {
+        moveTo(0f, size.height * 0.78f)
+        cubicTo(size.width * 0.18f, size.height * 0.62f, size.width * 0.32f, size.height * 0.84f, size.width * 0.5f, size.height * 0.68f)
+        cubicTo(size.width * 0.7f, size.height * 0.5f, size.width * 0.83f, size.height * 0.78f, size.width, size.height * 0.62f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(frontPath, front)
 }
 
 @Composable
@@ -1973,6 +2696,68 @@ private fun FeaturedStationCard(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
+    }
+}
+
+@Composable
+private fun ForYouStationCard(
+    station: com.shapeshed.aerial.data.RegistryStation,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.width(112.dp).height(144.dp),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.padding(12.dp).fillMaxSize(),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface),
+            ) {
+                if (station.logoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = station.logoUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Text(
+                        text = station.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val genre = station.tags.split(" ").firstOrNull { it.isNotBlank() } ?: station.country
+                if (genre.isNotBlank()) {
+                    Text(
+                        text = genre.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
     }
 }
 
