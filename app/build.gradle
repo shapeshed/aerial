@@ -109,6 +109,7 @@ dependencies {
     implementation 'io.coil-kt.coil3:coil-svg:3.5.0'
     implementation 'com.squareup.okhttp3:okhttp:5.4.0'
     implementation 'androidx.datastore:datastore-preferences:1.2.1'
+    implementation 'androidx.concurrent:concurrent-futures-ktx:1.2.0'
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
