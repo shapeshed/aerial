@@ -9,6 +9,7 @@
     <string name="action_clear">지우기</string>
     <string name="action_save">저장</string>
     <string name="action_edit">편집</string>
+    <string name="save_all">모두 저장</string>
 
     <!-- Search / home -->
     <string name="search_hint">방송국 검색</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">카드</string>
     <string name="home_view_list">목록</string>
     <string name="search_stations_header">방송국</string>
+    <string name="for_you_country">맞춤 추천 — %1$s</string>
+    <string name="view_all">모두 보기</string>
     <string name="get_started">시작하기</string>
     <string name="just_listen">그냥 들어보세요</string>
     <string name="find_a_station">방송국 찾기</string>
     <string name="find_one_to_listen">들을 방송국을 찾아보세요</string>
     <string name="no_matches">일치하는 항목 없음</string>
     <string name="no_matches_desc">다른 검색어를 시도하세요.</string>
+    <string name="listen_by_mood">분위기별 듣기</string>
+    <string name="mood_relax">휴식</string>
+    <string name="mood_relax_desc">긴장을 풀고 여유를 느껴보세요</string>
+    <string name="mood_relax_detail_desc">앰비언트, 재즈, 세계의 부드러운 음악으로 천천히 쉬어보세요.</string>
+    <string name="mood_focus">집중</string>
+    <string name="mood_focus_desc">집중하고 생산적으로 보내기</string>
+    <string name="mood_morning">아침</string>
+    <string name="mood_morning_desc">긍정적으로 하루를 시작하세요</string>
+    <string name="mood_driving">드라이브</string>
+    <string name="mood_driving_desc">길 위의 좋은 동반자</string>
+    <string name="mood_late_night">늦은 밤</string>
+    <string name="mood_late_night_desc">조용한 시간을 위한 음악</string>
+    <string name="mood_workout">운동</string>
+    <string name="mood_workout_desc">계속 움직이게 하는 에너지</string>
 
     <!-- Now playing -->
     <string name="close_player">플레이어 닫기</string>

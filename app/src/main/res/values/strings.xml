@@ -9,6 +9,7 @@
     <string name="action_clear">Clear</string>
     <string name="action_save">Save</string>
     <string name="action_edit">Edit</string>
+    <string name="save_all">Save all</string>
 
     <!-- Search / home -->
     <string name="search_hint">Search stations</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">Cards</string>
     <string name="home_view_list">List</string>
     <string name="search_stations_header">Stations</string>
+    <string name="for_you_country">For you — %1$s</string>
+    <string name="view_all">View all</string>
     <string name="get_started">Get started</string>
     <string name="just_listen">Just listen</string>
     <string name="find_a_station">Find a station</string>
     <string name="find_one_to_listen">Find one to listen to</string>
     <string name="no_matches">No matches</string>
     <string name="no_matches_desc">Try a different search.</string>
+    <string name="listen_by_mood">Listen by mood</string>
+    <string name="mood_relax">Relax</string>
+    <string name="mood_relax_desc">Unwind and let go</string>
+    <string name="mood_relax_detail_desc">Slow down with ambient, jazz and mellow music from around the world.</string>
+    <string name="mood_focus">Focus</string>
+    <string name="mood_focus_desc">Concentrate and be productive</string>
+    <string name="mood_morning">Morning</string>
+    <string name="mood_morning_desc">Start your day positively</string>
+    <string name="mood_driving">Driving</string>
+    <string name="mood_driving_desc">Great companions for the road</string>
+    <string name="mood_late_night">Late night</string>
+    <string name="mood_late_night_desc">Music for the quiet hours</string>
+    <string name="mood_workout">Workout</string>
+    <string name="mood_workout_desc">High energy to keep going</string>
 
     <!-- Now playing -->
     <string name="close_player">Close player</string>

@@ -14,8 +14,98 @@ private val FEATURED_STATIONS = listOf(
     FeaturedStation("bauer", "ki1"),             // KISS
 )
 
+private val UK_FOR_YOU_STATIONS = listOf(
+    MoodStationRef("Smooth Radio"),
+    MoodStationRef("Heart 80s", "global"),
+    MoodStationRef("Heart UK", "global"),
+    MoodStationRef("Capital FM"),
+    MoodStationRef("Heart"),
+    MoodStationRef("Greatest Hits Radio", "bauer"),
+    MoodStationRef("BBC Radio 2", "bbc"),
+    MoodStationRef("KISS", "bauer"),
+    MoodStationRef("Absolute 80s", "bauer"),
+    MoodStationRef("BBC Radio 1", "bbc"),
+)
+
 private val CURATED_TAG_ORDER = listOf(
     "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic"
+)
+
+private data class MoodStationRef(val name: String, val provider: String? = null)
+
+private val CURATED_MOOD_STATIONS = mapOf(
+    "relax" to listOf(
+        MoodStationRef("Café del Mar"),
+        MoodStationRef("Radio Paradise Mellow Mix", "curated"),
+        MoodStationRef("Soma FM Groove Salad", "curated"),
+        MoodStationRef("FIP", "curated"),
+        MoodStationRef("Bossa Jazz Brasil", "curated"),
+        MoodStationRef("Radio Schizoid - Chillout / Ambient"),
+        MoodStationRef("Jazz Sakura (asia dream radio)"),
+        MoodStationRef("KLCBS Tropical"),
+        MoodStationRef("Radio Samui Online"),
+        MoodStationRef("Cape Town Classic"),
+    ),
+    "focus" to listOf(
+        MoodStationRef("BBC Radio 3 Unwind", "bbc"),
+        MoodStationRef("Classic FM Calm", "global"),
+        MoodStationRef("Radio Schizoid - Chillout / Ambient"),
+        MoodStationRef("Ottava", "curated"),
+        MoodStationRef("KBS Classic FM"),
+        MoodStationRef("Radio Swiss Classic", "curated"),
+        MoodStationRef("MDR KLASSIK Livestream", "ard"),
+        MoodStationRef("Ambient Sleeping Pill"),
+        MoodStationRef("SomaFM Drone Zone"),
+        MoodStationRef("WDR 3 Klassik", "ard"),
+    ),
+    "morning" to listOf(
+        MoodStationRef("BBC Radio 6 Music", "bbc"),
+        MoodStationRef("KEXP 90.3 Seattle", "curated"),
+        MoodStationRef("FIP", "curated"),
+        MoodStationRef("Radio Nova", "curated"),
+        MoodStationRef("Antena 1 FM 94.7 São Paulo", "curated"),
+        MoodStationRef("Shonan Beach FM 78.9", "curated"),
+        MoodStationRef("Cool Fahrenheit", "curated"),
+        MoodStationRef("ABC Jazz", "abc"),
+        MoodStationRef("Worldwide FM"),
+        MoodStationRef("1LIVE", "ard"),
+    ),
+    "driving" to listOf(
+        MoodStationRef("Radio Paradise Main Mix", "curated"),
+        MoodStationRef("BBC Radio 6 Music", "bbc"),
+        MoodStationRef("KEXP 90.3 Seattle", "curated"),
+        MoodStationRef("NTS Radio 1", "curated"),
+        MoodStationRef("Radio Nova", "curated"),
+        MoodStationRef("Triple J", "abc"),
+        MoodStationRef("Rinse FM", "rinse"),
+        MoodStationRef("KISS", "bauer"),
+        MoodStationRef("1LIVE", "ard"),
+        MoodStationRef("FIP", "curated"),
+    ),
+    "late_night" to listOf(
+        MoodStationRef("NTS Radio 2", "curated"),
+        MoodStationRef("SomaFM Drone Zone"),
+        MoodStationRef("Nightwave Plaza", "curated"),
+        MoodStationRef("Colombia Lounge"),
+        MoodStationRef("Radio Schizoid - Chillout / Ambient"),
+        MoodStationRef("Ambient Sleeping Pill"),
+        MoodStationRef("FIP Jazz"),
+        MoodStationRef("KLCBS New Age"),
+        MoodStationRef("BBC Radio 3 Unwind", "bbc"),
+        MoodStationRef("Radio Samui Online"),
+    ),
+    "workout" to listOf(
+        MoodStationRef("BBC Radio 1 Dance", "bbc"),
+        MoodStationRef("Capital Dance", "global"),
+        MoodStationRef("Rinse FM", "rinse"),
+        MoodStationRef("FIP Electro"),
+        MoodStationRef("1LIVE DIGGI", "ard"),
+        MoodStationRef("98.8 Kiss FM Clubsets", "curated"),
+        MoodStationRef("Allzic Radio Dance Floor", "curated"),
+        MoodStationRef("Bollywood Dance"),
+        MoodStationRef("CLUB DANCE CHILE"),
+        MoodStationRef("ABC Dance"),
+    ),
 )
 
 // Turn a normalised query into an FTS4 MATCH expression: split into tokens (which also drops FTS
@@ -91,6 +181,34 @@ class RegistryRepository(private val dao: RegistryDao) {
             all.find { it.provider == featured.provider && it.providerId == featured.providerId }
         }
     }
+
+    suspend fun forYouStations(countryCode: String): List<RegistryStation> {
+        val refs = when (countryCode.uppercase()) {
+            "GB", "UK" -> UK_FOR_YOU_STATIONS
+            else -> return emptyList()
+        }
+        val candidates = dao.getByNames(refs.map { it.name })
+        return refs.mapNotNull { resolveMoodStation(it, candidates) }
+    }
+
+    suspend fun curatedMoodStations(): Map<String, List<RegistryStation>> {
+        val allRefs = CURATED_MOOD_STATIONS.values.flatten()
+        val candidates = dao.getByNames(allRefs.map { it.name }.distinct())
+        return CURATED_MOOD_STATIONS.mapValues { (_, refs) ->
+            refs.mapNotNull { target ->
+                resolveMoodStation(target, candidates)
+            }
+        }
+    }
+
+    private fun resolveMoodStation(
+        target: MoodStationRef,
+        candidates: List<RegistryStation>,
+    ): RegistryStation? =
+        target.provider
+            ?.let { provider -> candidates.firstOrNull { it.name == target.name && it.provider == provider } }
+            ?: candidates.firstOrNull { it.name == target.name && it.provider == "curated" }
+            ?: candidates.firstOrNull { it.name == target.name }
 
     // A-Z subsection shown as browse suggestions before the user has typed anything.
     // Capped to match the search query limit.

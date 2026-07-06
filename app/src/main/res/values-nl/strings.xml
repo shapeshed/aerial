@@ -9,6 +9,7 @@
     <string name="action_clear">Wissen</string>
     <string name="action_save">Opslaan</string>
     <string name="action_edit">Bewerken</string>
+    <string name="save_all">Alles opslaan</string>
 
     <!-- Search / home -->
     <string name="search_hint">Zenders zoeken</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">Kaarten</string>
     <string name="home_view_list">Lijst</string>
     <string name="search_stations_header">Stations</string>
+    <string name="for_you_country">Voor jou — %1$s</string>
+    <string name="view_all">Alles bekijken</string>
     <string name="get_started">Aan de slag</string>
     <string name="just_listen">Gewoon luisteren</string>
     <string name="find_a_station">Zoek een zender</string>
     <string name="find_one_to_listen">Zoek er een om naar te luisteren</string>
     <string name="no_matches">Geen resultaten</string>
     <string name="no_matches_desc">Probeer een andere zoekopdracht.</string>
+    <string name="listen_by_mood">Luisteren op stemming</string>
+    <string name="mood_relax">Ontspannen</string>
+    <string name="mood_relax_desc">Ontspan en laat los</string>
+    <string name="mood_relax_detail_desc">Kom tot rust met ambient, jazz en zachte muziek van over de hele wereld.</string>
+    <string name="mood_focus">Focus</string>
+    <string name="mood_focus_desc">Concentreer je en blijf productief</string>
+    <string name="mood_morning">Ochtend</string>
+    <string name="mood_morning_desc">Begin je dag positief</string>
+    <string name="mood_driving">Onderweg</string>
+    <string name="mood_driving_desc">Goede begeleiding voor onderweg</string>
+    <string name="mood_late_night">Late avond</string>
+    <string name="mood_late_night_desc">Muziek voor stille uren</string>
+    <string name="mood_workout">Workout</string>
+    <string name="mood_workout_desc">Energie om door te gaan</string>
 
     <!-- Now playing -->
     <string name="close_player">Speler sluiten</string>

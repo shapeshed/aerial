@@ -9,6 +9,7 @@
     <string name="action_clear">Löschen</string>
     <string name="action_save">Speichern</string>
     <string name="action_edit">Bearbeiten</string>
+    <string name="save_all">Alle speichern</string>
 
     <!-- Search / home -->
     <string name="search_hint">Sender suchen</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">Karten</string>
     <string name="home_view_list">Liste</string>
     <string name="search_stations_header">Stationen</string>
+    <string name="for_you_country">Für dich — %1$s</string>
+    <string name="view_all">Alle anzeigen</string>
     <string name="get_started">Loslegen</string>
     <string name="just_listen">Einfach zuhören</string>
     <string name="find_a_station">Sender finden</string>
     <string name="find_one_to_listen">Finde einen zum Anhören</string>
     <string name="no_matches">Keine Treffer</string>
     <string name="no_matches_desc">Versuche eine andere Suche.</string>
+    <string name="listen_by_mood">Nach Stimmung hören</string>
+    <string name="mood_relax">Entspannen</string>
+    <string name="mood_relax_desc">Abschalten und loslassen</string>
+    <string name="mood_relax_detail_desc">Entschleunige mit Ambient, Jazz und sanfter Musik aus aller Welt.</string>
+    <string name="mood_focus">Fokus</string>
+    <string name="mood_focus_desc">Konzentriert und produktiv bleiben</string>
+    <string name="mood_morning">Morgen</string>
+    <string name="mood_morning_desc">Positiv in den Tag starten</string>
+    <string name="mood_driving">Fahren</string>
+    <string name="mood_driving_desc">Gute Begleitung für unterwegs</string>
+    <string name="mood_late_night">Späte Nacht</string>
+    <string name="mood_late_night_desc">Musik für ruhige Stunden</string>
+    <string name="mood_workout">Workout</string>
+    <string name="mood_workout_desc">Energie zum Weitermachen</string>
 
     <!-- Now playing -->
     <string name="close_player">Player schließen</string>

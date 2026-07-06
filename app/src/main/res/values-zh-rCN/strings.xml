@@ -9,6 +9,7 @@
     <string name="action_clear">清除</string>
     <string name="action_save">保存</string>
     <string name="action_edit">编辑</string>
+    <string name="save_all">全部保存</string>
 
     <!-- Search / home -->
     <string name="search_hint">搜索电台</string>
@@ -35,12 +36,28 @@
     <string name="home_view_cards">卡片</string>
     <string name="home_view_list">列表</string>
     <string name="search_stations_header">电台</string>
+    <string name="for_you_country">为你推荐 — %1$s</string>
+    <string name="view_all">查看全部</string>
     <string name="get_started">开始使用</string>
     <string name="just_listen">尽情聆听</string>
     <string name="find_a_station">查找电台</string>
     <string name="find_one_to_listen">找一个来收听</string>
     <string name="no_matches">无匹配结果</string>
     <string name="no_matches_desc">请尝试其他搜索。</string>
+    <string name="listen_by_mood">按心情收听</string>
+    <string name="mood_relax">放松</string>
+    <string name="mood_relax_desc">放慢节奏，释放压力</string>
+    <string name="mood_relax_detail_desc">用来自世界各地的氛围、爵士和柔和音乐放慢节奏。</string>
+    <string name="mood_focus">专注</string>
+    <string name="mood_focus_desc">保持专注和高效</string>
+    <string name="mood_morning">清晨</string>
+    <string name="mood_morning_desc">积极开启新的一天</string>
+    <string name="mood_driving">驾驶</string>
+    <string name="mood_driving_desc">路上的好伙伴</string>
+    <string name="mood_late_night">深夜</string>
+    <string name="mood_late_night_desc">适合安静时光的音乐</string>
+    <string name="mood_workout">锻炼</string>
+    <string name="mood_workout_desc">保持前进的高能量</string>
 
     <!-- Now playing -->
     <string name="close_player">关闭播放器</string>

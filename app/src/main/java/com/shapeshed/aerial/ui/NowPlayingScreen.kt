@@ -86,6 +86,17 @@ import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
+import kotlin.math.abs
+
+private fun Station.matchesStation(other: Station): Boolean =
+    (id != 0L && id == other.id) ||
+        streamUrl == other.streamUrl ||
+        (provider.isNotBlank() &&
+            providerId.isNotBlank() &&
+            provider == other.provider &&
+            providerId == other.providerId)
+
+private fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -115,8 +126,8 @@ fun NowPlayingScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     // Horizontal paging steps through swipeStations (the favourites in their selected sort
     // order). A non-favourite station isn't in the list, so the artwork stays static for it.
-    val swipeIndex = remember(swipeStations, station.id) {
-        swipeStations.indexOfFirst { it.id == station.id }
+    val swipeIndex = remember(swipeStations, station) {
+        swipeStations.indexOfFirst { it.matchesStation(station) }
     }
     var showTrackDetail by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
@@ -247,27 +258,36 @@ fun NowPlayingScreen(
                     // Real pager over the frozen favourites order: the neighbour's artwork is a
                     // prepared page that slides in with the finger; settling switches playback.
                     // The rest of the pane stays static.
-                    val pagerState = rememberPagerState(initialPage = swipeIndex) { swipeStations.size }
+                    val virtualPageCount = Int.MAX_VALUE
+                    val initialPage = remember(swipeStations, swipeIndex) {
+                        val midpoint = virtualPageCount / 2
+                        midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
+                    }
+                    val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
                     LaunchedEffect(pagerState.settledPage) {
-                        val target = swipeStations.getOrNull(pagerState.settledPage) ?: return@LaunchedEffect
-                        if (target.id != station.id) onPlayStation(target)
+                        val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
+                        if (!target.matchesStation(station)) onPlayStation(target)
                     }
                     // Keep the pager in step when the station changes some other way (e.g. the
                     // media notification or a tap on the favourites grid behind the pane).
                     LaunchedEffect(swipeIndex) {
-                        if (pagerState.currentPage != swipeIndex && !pagerState.isScrollInProgress) {
-                            pagerState.animateScrollToPage(swipeIndex)
+                        val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
+                        if (currentIndex != swipeIndex && !pagerState.isScrollInProgress) {
+                            val forwardDelta = circularPageIndex(swipeIndex - currentIndex, swipeStations.size)
+                            val backwardDelta = forwardDelta - swipeStations.size
+                            val delta = if (abs(backwardDelta) < forwardDelta) backwardDelta else forwardDelta
+                            pagerState.animateScrollToPage(pagerState.currentPage + delta)
                         }
                     }
                     HorizontalPager(
                         state = pagerState,
                         pageSpacing = 24.dp,
                     ) { page ->
-                        val pageStation = swipeStations[page]
+                        val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
                         StationArtworkSurface(
                             station = pageStation,
                             shape = artworkShape,
-                            artworkModel = mainArtworkModel.takeIf { pageStation.id == station.id && !mainArtworkFailed },
+                            artworkModel = mainArtworkModel.takeIf { pageStation.matchesStation(station) && !mainArtworkFailed },
                             onArtworkError = { mainArtworkFailed = true },
                         )
                     }
