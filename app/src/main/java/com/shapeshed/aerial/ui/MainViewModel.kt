@@ -34,6 +34,9 @@ import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
@@ -105,8 +108,16 @@ class MainViewModel(
     private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
 
-    private val _ukForYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val ukForYouStations: StateFlow<List<RegistryStation>> = _ukForYouStations.asStateFlow()
+    // For You is loaded for the device locale's country: a curated selection where one
+    // exists, otherwise a random sample of that country's stations with artwork. Keyed by
+    // country (distinctUntilChanged below) so the random pick stays stable for the session.
+    private val _forYouCountry = MutableStateFlow("GB")
+    private val _forYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val forYouStations: StateFlow<List<RegistryStation>> = _forYouStations.asStateFlow()
+
+    fun setForYouCountry(countryCode: String) {
+        if (countryCode.isNotBlank()) _forYouCountry.value = countryCode
+    }
 
     private val _defaultStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val defaultStations: StateFlow<List<RegistryStation>> = _defaultStations.asStateFlow()
@@ -128,11 +139,20 @@ class MainViewModel(
                 .distinctUntilChanged()
                 .collect {
                     _featuredStations.value = registryRepository.featuredStations()
-                    _ukForYouStations.value = registryRepository.forYouStations("GB")
                     _defaultStations.value = registryRepository.defaultStations()
                     _curatedMoodStations.value = registryRepository.curatedMoodStations()
                     _availableCountries.value = registryRepository.availableCountryCodes()
                     _allTags.value = registryRepository.availableTags()
+                }
+        }
+        viewModelScope.launch {
+            combine(
+                registryRepository.countAsFlow().filter { it > 0 }.distinctUntilChanged(),
+                _forYouCountry,
+            ) { _, country -> country }
+                .distinctUntilChanged()
+                .collect { country ->
+                    _forYouStations.value = registryRepository.forYouStations(country)
                 }
         }
         viewModelScope.launch {
@@ -296,6 +316,13 @@ class MainViewModel(
     val showStreamBitrate: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[SHOW_STREAM_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val favoritesGridColumns: StateFlow<Int> = dataStore.data
+        .map { prefs ->
+            (prefs[FAVORITES_GRID_COLUMNS_KEY] ?: FAVORITES_GRID_COLUMNS_DEFAULT)
+                .coerceIn(FAVORITES_GRID_COLUMNS_RANGE)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FAVORITES_GRID_COLUMNS_DEFAULT)
 
     fun setHomeViewMode(mode: HomeViewMode) {
         viewModelScope.launch {

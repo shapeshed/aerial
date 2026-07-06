@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
-
     <!-- Common actions -->
     <string name="action_back">Terug</string>
     <string name="action_remove">Verwijderen</string>
@@ -10,7 +9,6 @@
     <string name="action_save">Opslaan</string>
     <string name="action_edit">Bewerken</string>
     <string name="save_all">Alles opslaan</string>
-
     <!-- Search / home -->
     <string name="search_hint">Zenders zoeken</string>
     <string name="clear_search">Zoekopdracht wissen</string>
@@ -36,15 +34,13 @@
     <string name="home_view_cards">Kaarten</string>
     <string name="home_view_list">Lijst</string>
     <string name="search_stations_header">Stations</string>
-    <string name="for_you_country">Voor jou — %1$s</string>
     <string name="view_all">Alles bekijken</string>
-    <string name="get_started">Aan de slag</string>
     <string name="just_listen">Gewoon luisteren</string>
     <string name="find_a_station">Zoek een zender</string>
     <string name="find_one_to_listen">Zoek er een om naar te luisteren</string>
     <string name="no_matches">Geen resultaten</string>
     <string name="no_matches_desc">Probeer een andere zoekopdracht.</string>
-    <string name="listen_by_mood">Luisteren op stemming</string>
+    <string name="listen_by_mood">Passend bij je stemming</string>
     <string name="mood_relax">Ontspannen</string>
     <string name="mood_relax_desc">Ontspan en laat los</string>
     <string name="mood_relax_detail_desc">Kom tot rust met ambient, jazz en zachte muziek van over de hele wereld.</string>
@@ -58,14 +54,12 @@
     <string name="mood_late_night_desc">Muziek voor stille uren</string>
     <string name="mood_workout">Workout</string>
     <string name="mood_workout_desc">Energie om door te gaan</string>
-
     <!-- Now playing -->
     <string name="close_player">Speler sluiten</string>
     <string name="add_to_favorites">Aan favorieten toevoegen</string>
     <string name="share_station">Zender delen</string>
     <string name="copy_track_info">Nummerinfo kopiëren</string>
     <string name="stream_bitrate_format">%1$d kbps</string>
-
     <!-- Settings -->
     <string name="show_whats_playing">Toon wat er speelt</string>
     <string name="show_whats_playing_desc">Toont nummer, artiest en albumhoes indien beschikbaar</string>
@@ -79,7 +73,6 @@
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Taal</string>
     <string name="language_system_default">Systeemstandaard</string>
-
     <!-- Station edit -->
     <string name="edit_station">Zender bewerken</string>
     <string name="add_station">Zender toevoegen</string>
@@ -90,7 +83,6 @@
     <string name="remove_icon_message">Het zenderpictogram wordt verwijderd.</string>
     <string name="field_name">Naam</string>
     <string name="field_stream_url">Stream-URL</string>
-
     <!-- Sleep timer -->
     <string name="sleep_timer">Slaaptimer</string>
     <string name="sleep_add_15">+15 min</string>
@@ -116,4 +108,8 @@
     <string name="sort_az">A tot Z</string>
     <string name="sort_last_played">Laatst afgespeeld</string>
     <string name="sort_most_played">Meest afgespeeld</string>
+    <string name="for_you">Voor jou</string>
+    <string name="favorites_grid_columns">Rasterbreedte van favorieten</string>
+    <string name="favorites_grid_columns_desc">Kolommen in de kaartweergave</string>
+    <string name="stats_summary">%1$s zenders uit %2$s landen. Gegevens zijn afkomstig van radio-browser.info en andere aanbieders.</string>
 </resources>

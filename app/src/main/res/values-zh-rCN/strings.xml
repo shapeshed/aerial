@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
-
     <!-- Common actions -->
     <string name="action_back">返回</string>
     <string name="action_remove">移除</string>
@@ -10,7 +9,6 @@
     <string name="action_save">保存</string>
     <string name="action_edit">编辑</string>
     <string name="save_all">全部保存</string>
-
     <!-- Search / home -->
     <string name="search_hint">搜索电台</string>
     <string name="clear_search">清除搜索</string>
@@ -36,15 +34,13 @@
     <string name="home_view_cards">卡片</string>
     <string name="home_view_list">列表</string>
     <string name="search_stations_header">电台</string>
-    <string name="for_you_country">为你推荐 — %1$s</string>
     <string name="view_all">查看全部</string>
-    <string name="get_started">开始使用</string>
     <string name="just_listen">尽情聆听</string>
     <string name="find_a_station">查找电台</string>
     <string name="find_one_to_listen">找一个来收听</string>
     <string name="no_matches">无匹配结果</string>
     <string name="no_matches_desc">请尝试其他搜索。</string>
-    <string name="listen_by_mood">按心情收听</string>
+    <string name="listen_by_mood">匹配你的心情</string>
     <string name="mood_relax">放松</string>
     <string name="mood_relax_desc">放慢节奏，释放压力</string>
     <string name="mood_relax_detail_desc">用来自世界各地的氛围、爵士和柔和音乐放慢节奏。</string>
@@ -58,14 +54,12 @@
     <string name="mood_late_night_desc">适合安静时光的音乐</string>
     <string name="mood_workout">锻炼</string>
     <string name="mood_workout_desc">保持前进的高能量</string>
-
     <!-- Now playing -->
     <string name="close_player">关闭播放器</string>
     <string name="add_to_favorites">添加到收藏</string>
     <string name="share_station">分享电台</string>
     <string name="copy_track_info">复制曲目信息</string>
     <string name="stream_bitrate_format">%1$d kbps</string>
-
     <!-- Settings -->
     <string name="show_whats_playing">显示正在播放</string>
     <string name="show_whats_playing_desc">在可用时显示歌曲、艺人和封面</string>
@@ -79,7 +73,6 @@
     <string name="version_format">Aerial %1$s</string>
     <string name="language">语言</string>
     <string name="language_system_default">系统默认</string>
-
     <!-- Station edit -->
     <string name="edit_station">编辑电台</string>
     <string name="add_station">添加电台</string>
@@ -90,7 +83,6 @@
     <string name="remove_icon_message">将移除电台图标。</string>
     <string name="field_name">名称</string>
     <string name="field_stream_url">流媒体地址</string>
-
     <!-- Sleep timer -->
     <string name="sleep_timer">睡眠定时器</string>
     <string name="sleep_add_15">+15 分钟</string>
@@ -116,4 +108,8 @@
     <string name="sort_az">按字母顺序</string>
     <string name="sort_last_played">最近播放</string>
     <string name="sort_most_played">播放最多</string>
+    <string name="for_you">为你推荐</string>
+    <string name="favorites_grid_columns">收藏网格宽度</string>
+    <string name="favorites_grid_columns_desc">卡片视图的列数</string>
+    <string name="stats_summary">来自 %2$s 个国家/地区的 %1$s 个电台。数据来自 radio-browser.info 及其他电台提供方。</string>
 </resources>

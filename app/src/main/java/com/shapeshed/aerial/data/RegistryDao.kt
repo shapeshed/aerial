@@ -24,6 +24,9 @@ abstract class RegistryDao {
     @Query("SELECT * FROM registry_stations WHERE LOWER(tags) LIKE '%' || LOWER(:tag) || '%' ORDER BY RANDOM() LIMIT 1")
     abstract suspend fun randomStationByTag(tag: String): RegistryStation?
 
+    @Query("SELECT * FROM registry_stations WHERE LOWER(countryCode) = LOWER(:countryCode) AND logoUrl != '' ORDER BY RANDOM() LIMIT :limit")
+    abstract suspend fun randomByCountryWithLogo(countryCode: String, limit: Int): List<RegistryStation>
+
     @Query("SELECT * FROM registry_stations WHERE providerId IN (:ids)")
     abstract suspend fun getByProviderIds(ids: List<String>): List<RegistryStation>
 

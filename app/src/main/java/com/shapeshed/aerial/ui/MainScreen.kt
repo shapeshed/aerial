@@ -138,6 +138,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -158,7 +159,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -355,11 +358,12 @@ fun MainScreen(
     val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
-    val ukForYouStations by viewModel.ukForYouStations.collectAsStateWithLifecycle()
+    val forYouStations by viewModel.forYouStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
     val curatedMoodStations by viewModel.curatedMoodStations.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
     val favoritesSort by viewModel.favoritesSort.collectAsStateWithLifecycle()
+    val favoritesGridColumns by viewModel.favoritesGridColumns.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
@@ -565,19 +569,25 @@ fun MainScreen(
                         onPlayStation = { viewModel.playFromRegistry(it) },
                     )
                 } else if (selectedTab == TAB_HOME) {
+                    // The For You row is the locale country's selection (curated or a random
+                    // sample with artwork), headed by the country name; if the registry has
+                    // nothing for that country it falls back to the featured stations under
+                    // a plain "For you" header.
                     val forYouCountryCode = appLocale.country.takeIf { it.isNotBlank() } ?: "GB"
+                    LaunchedEffect(forYouCountryCode) { viewModel.setForYouCountry(forYouCountryCode) }
+                    val hasCountrySelection = forYouStations.isNotEmpty()
                     HomeTabContent(
                         allTags = allTags,
-                        featuredStations = featuredStations,
-                        forYouStations = ukForYouStations.takeIf { forYouCountryCode.equals("GB", ignoreCase = true) }
-                            ?: featuredStations,
-                        forYouCountry = countryName(forYouCountryCode, appLocale),
+                        forYouStations = forYouStations.ifEmpty { featuredStations },
+                        forYouCountry = countryName(forYouCountryCode, appLocale).takeIf { hasCountrySelection },
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
                         onCategoryTap = { viewModel.playRandomFromCategory(it) },
                         onMoodTap = { selectedMoodId = it.id },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it) },
-                        onForYouViewAll = { openCountrySearch(forYouCountryCode) },
+                        onForYouViewAll = {
+                            if (hasCountrySelection) openCountrySearch(forYouCountryCode) else openRegistrySearch()
+                        },
                     )
                 } else {
                     FavoritesTabContent(
@@ -587,6 +597,7 @@ fun MainScreen(
                         isBuffering = isBuffering,
                         homeViewMode = homeViewMode,
                         favoritesSort = favoritesSort,
+                        gridColumns = favoritesGridColumns,
                         listState = favoritesListState,
                         bottomPadding = stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
@@ -1417,9 +1428,9 @@ private fun HomeEmptyState(
 @Composable
 private fun HomeTabContent(
     allTags: List<String>,
-    featuredStations: List<com.shapeshed.aerial.data.RegistryStation>,
     forYouStations: List<com.shapeshed.aerial.data.RegistryStation>,
-    forYouCountry: String,
+    // Null when the selection isn't country-specific; the header drops the country.
+    forYouCountry: String?,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onCategoryTap: (String) -> Unit,
@@ -1440,17 +1451,21 @@ private fun HomeTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.for_you_country, forYouCountry),
+                        // The localized country name is the header; plain "For you" when
+                        // the selection isn't country-specific.
+                        text = forYouCountry ?: stringResource(R.string.for_you),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onForYouViewAll) {
-                        Text(text = stringResource(R.string.view_all))
+                    IconButton(
+                        onClick = onForYouViewAll,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
+                            // The icon carries the action's label for screen readers.
+                            contentDescription = stringResource(R.string.view_all),
                         )
                     }
                 }
@@ -1466,30 +1481,6 @@ private fun HomeTabContent(
                         contentType = { "for-you-station" },
                     ) { station ->
                         ForYouStationCard(
-                            station = station,
-                            onClick = { onFeaturedStationTap(station) },
-                        )
-                    }
-                }
-            }
-        }
-
-        if (featuredStations.isNotEmpty()) {
-            item("get-started-header") {
-                Text(
-                    text = stringResource(R.string.get_started),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-                )
-            }
-            item("get-started-row") {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                ) {
-                    items(featuredStations) { station ->
-                        FeaturedStationCard(
                             station = station,
                             onClick = { onFeaturedStationTap(station) },
                         )
@@ -1566,12 +1557,10 @@ private fun MoodCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Stock filled card (spec container colour and medium corner radius), matching the
+    // For You tiles; the artwork covers the container so only the shape shows.
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-        shape = MaterialTheme.shapes.large,
         modifier = modifier.height(132.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1785,9 +1774,13 @@ private fun MoodStationRow(
             }
         },
         supportingContent = {
-            if (station.country.isNotBlank()) {
+            // Localized country from the ISO code, matching the search result rows.
+            val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+                ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
+                ?: station.country
+            if (countryLabel.isNotBlank()) {
                 Text(
-                    text = station.country,
+                    text = countryLabel,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1845,32 +1838,9 @@ private fun MoodArtwork(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Canvas(modifier = modifier) {
-        val skyTop = when (artwork) {
-            MoodArtwork.Coast -> lerp(scheme.tertiaryContainer, scheme.primaryContainer, 0.18f)
-            MoodArtwork.Mountains -> lerp(scheme.secondaryContainer, scheme.surfaceVariant, 0.35f)
-            MoodArtwork.Sunrise -> lerp(scheme.tertiaryContainer, Color(0xFFFFC879), 0.32f)
-            MoodArtwork.Road -> lerp(scheme.primaryContainer, scheme.secondaryContainer, 0.36f)
-            MoodArtwork.City -> lerp(scheme.primary, scheme.surface, 0.64f)
-            MoodArtwork.Runner -> lerp(scheme.secondaryContainer, scheme.tertiaryContainer, 0.28f)
-        }
-        val skyBottom = when (artwork) {
-            MoodArtwork.City -> lerp(scheme.surface, scheme.primaryContainer, 0.4f)
-            else -> lerp(scheme.surface, skyTop, 0.58f)
-        }
-        drawRect(
-            brush = Brush.verticalGradient(
-                listOf(skyTop, skyBottom),
-            ),
-        )
-
-        val sunColor = scheme.tertiary.copy(alpha = 0.28f)
-        drawCircle(
-            color = sunColor,
-            radius = size.minDimension * 0.16f,
-            center = Offset(size.width * 0.72f, size.height * 0.35f),
-        )
-
+    // clipToBounds: the scenes draw glows and rotated shapes that may exceed the canvas,
+    // and not every host (e.g. the mood detail header) clips with a shape.
+    Canvas(modifier = modifier.clipToBounds()) {
         when (artwork) {
             MoodArtwork.Coast -> drawCoastMood(scheme)
             MoodArtwork.Mountains -> drawMountainMood(scheme)
@@ -1882,151 +1852,500 @@ private fun MoodArtwork(
     }
 }
 
+// The scenes below are drawn entirely from the Material colour scheme so they re-tint with
+// the wallpaper palette. Each mood owns its sky, light source, and landscape rather than
+// sharing generic layers, and every position is a fixed fraction of the canvas so the art
+// is deterministic across sizes.
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSky(
+    top: Color,
+    mid: Color,
+    bottom: Color,
+) {
+    drawRect(brush = Brush.verticalGradient(0f to top, 0.55f to mid, 1f to bottom))
+}
+
+// A light source with a soft radial halo fading to nothing around a solid core.
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlow(
+    color: Color,
+    center: Offset,
+    coreRadius: Float,
+    glowRadius: Float,
+    coreAlpha: Float = 0.8f,
+    glowAlpha: Float = 0.4f,
+) {
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(color.copy(alpha = glowAlpha), color.copy(alpha = 0f)),
+            center = center,
+            radius = glowRadius,
+        ),
+        radius = glowRadius,
+        center = center,
+    )
+    drawCircle(color.copy(alpha = coreAlpha), coreRadius, center)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBird(
+    color: Color,
+    center: Offset,
+    span: Float,
+    strokeWidth: Float,
+) {
+    val wing = Path().apply {
+        moveTo(center.x - span, center.y)
+        quadraticTo(center.x - span * 0.5f, center.y - span * 0.7f, center.x, center.y)
+        quadraticTo(center.x + span * 0.5f, center.y - span * 0.7f, center.x + span, center.y)
+    }
+    drawPath(wing, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth, cap = StrokeCap.Round))
+}
+
+// Calm sea at golden hour: low sun, glitter path on the water, headlands, gulls.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCoastMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    drawLayeredHills(
-        back = scheme.primary.copy(alpha = 0.18f),
-        front = scheme.primary.copy(alpha = 0.34f),
+    val horizon = size.height * 0.55f
+    drawSky(
+        top = lerp(scheme.tertiaryContainer, scheme.primaryContainer, 0.3f),
+        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.15f),
+        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.5f),
     )
+    drawGlow(
+        color = scheme.tertiary,
+        center = Offset(size.width * 0.70f, horizon - size.height * 0.13f),
+        coreRadius = size.minDimension * 0.085f,
+        glowRadius = size.minDimension * 0.34f,
+    )
+    // Sea with depth, brightest at the horizon.
     drawRect(
-        color = scheme.primary.copy(alpha = 0.22f),
-        topLeft = Offset(0f, size.height * 0.62f),
-        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.38f),
+        brush = Brush.verticalGradient(
+            horizon / size.height to lerp(scheme.primaryContainer, scheme.tertiary, 0.25f).copy(alpha = 0.55f),
+            1f to scheme.primary.copy(alpha = 0.35f),
+        ),
+        topLeft = Offset(0f, horizon),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height - horizon),
     )
-    repeat(4) { index ->
-        val y = size.height * (0.68f + index * 0.07f)
+    drawLine(
+        color = scheme.tertiaryContainer.copy(alpha = 0.6f),
+        start = Offset(0f, horizon),
+        end = Offset(size.width, horizon),
+        strokeWidth = 1.5.dp.toPx(),
+    )
+    // Sun glitter: tapering dashes down the water.
+    val glitterX = size.width * 0.70f
+    repeat(5) { index ->
+        val t = index / 4f
+        val y = horizon + size.height * (0.05f + 0.075f * index)
+        val half = size.width * (0.055f - 0.008f * index)
         drawLine(
-            color = scheme.onSurface.copy(alpha = 0.12f),
-            start = Offset(size.width * 0.18f, y),
-            end = Offset(size.width * 0.86f, y + size.height * 0.02f),
-            strokeWidth = 2.dp.toPx(),
+            color = scheme.tertiary.copy(alpha = 0.5f - 0.08f * index),
+            start = Offset(glitterX - half + size.width * 0.01f * t, y),
+            end = Offset(glitterX + half, y),
+            strokeWidth = (2.5f - 0.3f * index).dp.toPx(),
+            cap = StrokeCap.Round,
         )
     }
+    // Headland sliding in from the left.
+    val headland = Path().apply {
+        moveTo(0f, horizon)
+        cubicTo(size.width * 0.10f, horizon - size.height * 0.10f, size.width * 0.22f, horizon - size.height * 0.02f, size.width * 0.34f, horizon)
+        lineTo(0f, horizon)
+        close()
+    }
+    drawPath(headland, scheme.primary.copy(alpha = 0.45f))
+    drawBird(scheme.onSurface.copy(alpha = 0.4f), Offset(size.width * 0.30f, size.height * 0.24f), size.minDimension * 0.035f, 1.8.dp.toPx())
+    drawBird(scheme.onSurface.copy(alpha = 0.3f), Offset(size.width * 0.40f, size.height * 0.18f), size.minDimension * 0.025f, 1.5.dp.toPx())
 }
 
+// Still, hazy ranges receding into mist, with snow on the far peaks.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMountainMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    repeat(3) { index ->
-        val top = size.height * (0.28f + index * 0.11f)
-        val alpha = 0.16f + index * 0.1f
-        val path = Path().apply {
-            moveTo(0f, size.height)
-            lineTo(size.width * 0.22f, top + size.height * 0.18f)
-            lineTo(size.width * 0.48f, top)
-            lineTo(size.width * 0.75f, top + size.height * 0.2f)
-            lineTo(size.width, top + size.height * 0.08f)
-            lineTo(size.width, size.height)
+    val skyTop = lerp(scheme.secondaryContainer, scheme.surfaceVariant, 0.35f)
+    drawSky(
+        top = skyTop,
+        mid = lerp(skyTop, scheme.surface, 0.45f),
+        bottom = lerp(scheme.surface, scheme.secondaryContainer, 0.35f),
+    )
+    drawGlow(
+        color = scheme.secondary,
+        center = Offset(size.width * 0.26f, size.height * 0.20f),
+        coreRadius = size.minDimension * 0.05f,
+        glowRadius = size.minDimension * 0.2f,
+        coreAlpha = 0.35f,
+        glowAlpha = 0.2f,
+    )
+    // Back range, faded into the sky, with snow caps.
+    val backTop = size.height * 0.34f
+    val back = Path().apply {
+        moveTo(0f, size.height * 0.62f)
+        lineTo(size.width * 0.24f, backTop)
+        lineTo(size.width * 0.42f, size.height * 0.56f)
+        lineTo(size.width * 0.62f, size.height * 0.40f)
+        lineTo(size.width * 0.80f, size.height * 0.58f)
+        lineTo(size.width, size.height * 0.48f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(back, lerp(skyTop, scheme.secondary, 0.35f).copy(alpha = 0.7f))
+    // Snow caps on the two tallest back peaks.
+    listOf(
+        Offset(size.width * 0.24f, backTop) to size.width * 0.05f,
+        Offset(size.width * 0.62f, size.height * 0.40f) to size.width * 0.04f,
+    ).forEach { (peak, halfWidth) ->
+        val cap = Path().apply {
+            moveTo(peak.x - halfWidth, peak.y + halfWidth * 0.9f)
+            lineTo(peak.x, peak.y)
+            lineTo(peak.x + halfWidth, peak.y + halfWidth * 0.9f)
             close()
         }
-        drawPath(path, scheme.primary.copy(alpha = alpha))
+        drawPath(cap, lerp(scheme.surface, scheme.onSurface, 0.08f).copy(alpha = 0.75f))
     }
+    // Mist band between the ranges.
+    drawRect(
+        brush = Brush.verticalGradient(
+            0.58f to scheme.surface.copy(alpha = 0f),
+            0.68f to scheme.surface.copy(alpha = 0.35f),
+            0.78f to scheme.surface.copy(alpha = 0f),
+        ),
+    )
+    // Front ridge, strongest.
+    val front = Path().apply {
+        moveTo(0f, size.height * 0.86f)
+        lineTo(size.width * 0.20f, size.height * 0.64f)
+        lineTo(size.width * 0.40f, size.height * 0.80f)
+        lineTo(size.width * 0.58f, size.height * 0.62f)
+        lineTo(size.width * 0.78f, size.height * 0.82f)
+        lineTo(size.width, size.height * 0.70f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(front, scheme.secondary.copy(alpha = 0.55f))
 }
 
+// Big sun lifting out of rolling hills, halo rings widening into the morning sky.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunriseMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    drawLayeredHills(
-        back = scheme.tertiary.copy(alpha = 0.18f),
-        front = scheme.primary.copy(alpha = 0.24f),
+    drawSky(
+        top = lerp(scheme.primaryContainer, scheme.surface, 0.25f),
+        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.2f),
+        bottom = lerp(scheme.tertiary, scheme.tertiaryContainer, 0.35f),
     )
-    drawCircle(
-        color = scheme.tertiary.copy(alpha = 0.26f),
-        radius = size.minDimension * 0.22f,
-        center = Offset(size.width * 0.78f, size.height * 0.66f),
+    val sunCenter = Offset(size.width * 0.5f, size.height * 0.60f)
+    // Halo rings around the rising sun.
+    listOf(0.30f to 0.10f, 0.42f to 0.06f).forEach { (radiusFraction, alpha) ->
+        drawCircle(
+            color = scheme.tertiary.copy(alpha = alpha),
+            radius = size.minDimension * radiusFraction,
+            center = sunCenter,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+        )
+    }
+    drawGlow(
+        color = scheme.tertiary,
+        center = sunCenter,
+        coreRadius = size.minDimension * 0.17f,
+        glowRadius = size.minDimension * 0.48f,
+        coreAlpha = 0.85f,
+        glowAlpha = 0.5f,
     )
+    drawBird(scheme.onSurface.copy(alpha = 0.35f), Offset(size.width * 0.76f, size.height * 0.26f), size.minDimension * 0.03f, 1.8.dp.toPx())
+    // Hills drawn after the sun so it rises from behind them.
+    val backHill = Path().apply {
+        moveTo(0f, size.height * 0.72f)
+        cubicTo(size.width * 0.25f, size.height * 0.60f, size.width * 0.45f, size.height * 0.74f, size.width * 0.68f, size.height * 0.66f)
+        cubicTo(size.width * 0.85f, size.height * 0.60f, size.width * 0.94f, size.height * 0.68f, size.width, size.height * 0.64f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(backHill, lerp(scheme.tertiary, scheme.primary, 0.55f).copy(alpha = 0.5f))
+    val frontHill = Path().apply {
+        moveTo(0f, size.height * 0.88f)
+        cubicTo(size.width * 0.22f, size.height * 0.76f, size.width * 0.48f, size.height * 0.92f, size.width * 0.72f, size.height * 0.80f)
+        cubicTo(size.width * 0.88f, size.height * 0.73f, size.width * 0.96f, size.height * 0.80f, size.width, size.height * 0.78f)
+        lineTo(size.width, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(frontHill, scheme.primary.copy(alpha = 0.5f))
 }
 
+// Open road to a vanishing point on the horizon, driving into the light.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRoadMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    drawLayeredHills(
-        back = scheme.secondary.copy(alpha = 0.18f),
-        front = scheme.primary.copy(alpha = 0.28f),
+    val horizon = size.height * 0.52f
+    val vanish = Offset(size.width * 0.60f, horizon)
+    drawSky(
+        top = lerp(scheme.primaryContainer, scheme.secondaryContainer, 0.4f),
+        mid = lerp(scheme.primaryContainer, scheme.tertiaryContainer, 0.45f),
+        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.55f),
     )
-    val road = Path().apply {
-        moveTo(size.width * 0.46f, size.height)
-        lineTo(size.width * 0.58f, size.height * 0.55f)
-        lineTo(size.width * 0.68f, size.height * 0.55f)
-        lineTo(size.width * 0.86f, size.height)
+    drawGlow(
+        color = scheme.tertiary,
+        center = vanish.copy(y = horizon - size.height * 0.04f),
+        coreRadius = size.minDimension * 0.06f,
+        glowRadius = size.minDimension * 0.3f,
+        coreAlpha = 0.6f,
+    )
+    // Distant ridge on the skyline.
+    val ridge = Path().apply {
+        moveTo(0f, horizon)
+        lineTo(size.width * 0.18f, horizon - size.height * 0.07f)
+        lineTo(size.width * 0.38f, horizon - size.height * 0.015f)
+        lineTo(size.width * 0.86f, horizon - size.height * 0.09f)
+        lineTo(size.width, horizon - size.height * 0.03f)
+        lineTo(size.width, horizon)
         close()
     }
-    drawPath(road, scheme.onSurface.copy(alpha = 0.16f))
-    drawLine(
-        color = scheme.surface.copy(alpha = 0.72f),
-        start = Offset(size.width * 0.65f, size.height),
-        end = Offset(size.width * 0.62f, size.height * 0.6f),
-        strokeWidth = 2.dp.toPx(),
+    drawPath(ridge, scheme.secondary.copy(alpha = 0.35f))
+    // Ground plane.
+    drawRect(
+        brush = Brush.verticalGradient(
+            horizon / size.height to scheme.secondaryContainer.copy(alpha = 0.5f),
+            1f to scheme.secondary.copy(alpha = 0.45f),
+        ),
+        topLeft = Offset(0f, horizon),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height - horizon),
     )
+    // Road converging on the vanishing point.
+    val road = Path().apply {
+        moveTo(size.width * 0.24f, size.height)
+        lineTo(vanish.x - size.width * 0.012f, vanish.y)
+        lineTo(vanish.x + size.width * 0.012f, vanish.y)
+        lineTo(size.width * 0.88f, size.height)
+        close()
+    }
+    drawPath(
+        road,
+        brush = Brush.verticalGradient(
+            horizon / size.height to scheme.onSurface.copy(alpha = 0.18f),
+            1f to scheme.onSurface.copy(alpha = 0.34f),
+        ),
+    )
+    // Centre line dashes shrinking with distance.
+    val dashes = listOf(0.97f to 0.885f, 0.83f to 0.755f, 0.71f to 0.665f, 0.62f to 0.585f)
+    dashes.forEachIndexed { index, (startT, endT) ->
+        fun along(t: Float): Offset {
+            val bottomCentre = Offset(size.width * 0.56f, size.height)
+            return Offset(
+                bottomCentre.x + (vanish.x - bottomCentre.x) * (1f - t),
+                size.height + (vanish.y - size.height) * (1f - t),
+            )
+        }
+        drawLine(
+            color = lerp(scheme.surface, scheme.tertiaryContainer, 0.4f).copy(alpha = 0.85f - 0.12f * index),
+            start = along(startT),
+            end = along(endT),
+            strokeWidth = (3.5f - 0.7f * index).dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
 }
 
+// Night skyline: stars, a haloed moon, two building rows, and lit windows.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCityMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    drawRect(
-        color = scheme.primary.copy(alpha = 0.22f),
-        topLeft = Offset(0f, size.height * 0.52f),
-        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.48f),
+    drawSky(
+        top = lerp(scheme.surface, scheme.primary, 0.10f),
+        mid = lerp(scheme.surface, scheme.primary, 0.22f),
+        bottom = lerp(scheme.surface, scheme.primaryContainer, 0.5f),
     )
-    val widths = listOf(0.12f, 0.18f, 0.1f, 0.16f, 0.14f, 0.2f)
-    var x = size.width * 0.06f
-    widths.forEachIndexed { index, widthFraction ->
-        val buildingWidth = size.width * widthFraction
-        val top = size.height * (0.42f + (index % 3) * 0.08f)
-        drawRect(
-            color = scheme.onSurface.copy(alpha = 0.22f),
-            topLeft = Offset(x, top),
-            size = androidx.compose.ui.geometry.Size(buildingWidth, size.height - top),
+    // Stars: fixed constellation, brighter high up.
+    listOf(
+        Offset(0.10f, 0.14f), Offset(0.22f, 0.08f), Offset(0.33f, 0.20f), Offset(0.45f, 0.10f),
+        Offset(0.55f, 0.24f), Offset(0.63f, 0.07f), Offset(0.87f, 0.12f), Offset(0.94f, 0.26f),
+        Offset(0.16f, 0.30f), Offset(0.50f, 0.33f),
+    ).forEachIndexed { index, fraction ->
+        drawCircle(
+            color = lerp(scheme.surface, scheme.onSurface, 0.85f).copy(alpha = if (index % 3 == 0) 0.6f else 0.35f),
+            radius = (if (index % 4 == 0) 1.6f else 1.1f).dp.toPx(),
+            center = Offset(size.width * fraction.x, size.height * fraction.y),
         )
-        x += buildingWidth + size.width * 0.035f
     }
-    drawCircle(
-        color = scheme.tertiary.copy(alpha = 0.34f),
-        radius = size.minDimension * 0.08f,
-        center = Offset(size.width * 0.76f, size.height * 0.24f),
+    drawGlow(
+        color = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.3f),
+        center = Offset(size.width * 0.76f, size.height * 0.20f),
+        coreRadius = size.minDimension * 0.07f,
+        glowRadius = size.minDimension * 0.22f,
+        coreAlpha = 0.9f,
+        glowAlpha = 0.3f,
+    )
+    // Back row of towers, faded into the night haze.
+    val backTowers = listOf(0.00f to 0.48f, 0.14f to 0.38f, 0.30f to 0.52f, 0.47f to 0.42f, 0.66f to 0.55f, 0.84f to 0.44f)
+    backTowers.forEach { (leftFraction, topFraction) ->
+        drawRect(
+            color = lerp(scheme.surface, scheme.primary, 0.28f).copy(alpha = 0.55f),
+            topLeft = Offset(size.width * leftFraction, size.height * topFraction),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.12f, size.height * (1f - topFraction)),
+        )
+    }
+    // Front skyline with an antenna beacon, plus gridded lit windows.
+    val frontBuildings = listOf(
+        Triple(0.04f, 0.14f, 0.58f),
+        Triple(0.21f, 0.17f, 0.48f),
+        Triple(0.41f, 0.12f, 0.64f),
+        Triple(0.56f, 0.18f, 0.52f),
+        Triple(0.77f, 0.16f, 0.60f),
+    )
+    val buildingColor = lerp(scheme.surface, scheme.primary, 0.14f)
+    frontBuildings.forEachIndexed { buildingIndex, (leftFraction, widthFraction, topFraction) ->
+        val left = size.width * leftFraction
+        val towerWidth = size.width * widthFraction
+        val top = size.height * topFraction
+        drawRect(
+            color = buildingColor,
+            topLeft = Offset(left, top),
+            size = androidx.compose.ui.geometry.Size(towerWidth, size.height - top),
+        )
+        if (buildingIndex == 1) {
+            val mastX = left + towerWidth * 0.5f
+            val mastTop = top - size.height * 0.09f
+            drawLine(
+                color = buildingColor,
+                start = Offset(mastX, top),
+                end = Offset(mastX, mastTop),
+                strokeWidth = 2.dp.toPx(),
+            )
+            drawCircle(
+                color = scheme.tertiary.copy(alpha = 0.9f),
+                radius = 1.8.dp.toPx(),
+                center = Offset(mastX, mastTop),
+            )
+        }
+        // Windows: a regular grid of small panes in the tower's upper half — mostly lit,
+        // a deterministic few dark — leaving the base calm behind the card text.
+        val columns = if (widthFraction > 0.15f) 3 else 2
+        val rows = 4
+        val paneWidth = towerWidth * 0.14f
+        val paneHeight = size.height * 0.022f
+        repeat(columns * rows) { windowIndex ->
+            if ((windowIndex * 7 + buildingIndex * 5) % 5 == 0) return@repeat
+            val column = windowIndex % columns
+            val row = windowIndex / columns
+            drawRect(
+                color = scheme.tertiary.copy(alpha = 0.6f),
+                topLeft = Offset(
+                    left + towerWidth * (0.16f + column * (0.68f / columns)),
+                    top + size.height * (0.035f + row * 0.055f),
+                ),
+                size = androidx.compose.ui.geometry.Size(paneWidth, paneHeight),
+            )
+        }
+    }
+    // Grounding band so the skyline settles into a dark street level.
+    drawRect(
+        brush = Brush.verticalGradient(
+            0.82f to scheme.surface.copy(alpha = 0f),
+            1f to scheme.surface.copy(alpha = 0.85f),
+        ),
     )
 }
 
+// Runner at first light: leaning silhouette mid-stride with motion trails.
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRunnerMood(
     scheme: androidx.compose.material3.ColorScheme,
 ) {
-    drawLayeredHills(
-        back = scheme.secondary.copy(alpha = 0.18f),
-        front = scheme.tertiary.copy(alpha = 0.2f),
+    drawSky(
+        top = lerp(scheme.secondaryContainer, scheme.tertiaryContainer, 0.3f),
+        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.12f),
+        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.5f),
     )
-    val bodyColor = scheme.onSurface.copy(alpha = 0.28f)
-    val center = Offset(size.width * 0.74f, size.height * 0.48f)
-    drawCircle(bodyColor, size.minDimension * 0.05f, center.copy(y = center.y - size.height * 0.12f))
-    drawLine(bodyColor, center.copy(y = center.y - size.height * 0.06f), center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), 4.dp.toPx())
-    drawLine(bodyColor, center, center.copy(x = center.x - size.width * 0.13f, y = center.y + size.height * 0.02f), 4.dp.toPx())
-    drawLine(bodyColor, center, center.copy(x = center.x + size.width * 0.1f, y = center.y + size.height * 0.06f), 4.dp.toPx())
-    drawLine(bodyColor, center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), center.copy(x = center.x - size.width * 0.15f, y = center.y + size.height * 0.24f), 4.dp.toPx())
-    drawLine(bodyColor, center.copy(x = center.x - size.width * 0.04f, y = center.y + size.height * 0.1f), center.copy(x = center.x + size.width * 0.1f, y = center.y + size.height * 0.24f), 4.dp.toPx())
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLayeredHills(
-    back: Color,
-    front: Color,
-) {
-    val backPath = Path().apply {
-        moveTo(0f, size.height * 0.66f)
-        cubicTo(size.width * 0.2f, size.height * 0.48f, size.width * 0.38f, size.height * 0.72f, size.width * 0.56f, size.height * 0.55f)
-        cubicTo(size.width * 0.75f, size.height * 0.38f, size.width * 0.88f, size.height * 0.58f, size.width, size.height * 0.45f)
+    drawGlow(
+        color = scheme.tertiary,
+        center = Offset(size.width * 0.22f, size.height * 0.38f),
+        coreRadius = size.minDimension * 0.10f,
+        glowRadius = size.minDimension * 0.32f,
+        coreAlpha = 0.7f,
+    )
+    // Rolling ground.
+    val ground = Path().apply {
+        moveTo(0f, size.height * 0.80f)
+        cubicTo(size.width * 0.3f, size.height * 0.72f, size.width * 0.6f, size.height * 0.82f, size.width, size.height * 0.74f)
         lineTo(size.width, size.height)
         lineTo(0f, size.height)
         close()
     }
-    drawPath(backPath, back)
-    val frontPath = Path().apply {
-        moveTo(0f, size.height * 0.78f)
-        cubicTo(size.width * 0.18f, size.height * 0.62f, size.width * 0.32f, size.height * 0.84f, size.width * 0.5f, size.height * 0.68f)
-        cubicTo(size.width * 0.7f, size.height * 0.5f, size.width * 0.83f, size.height * 0.78f, size.width, size.height * 0.62f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
+    drawPath(ground, scheme.secondary.copy(alpha = 0.4f))
+    // A running shoe mid-flight, toe kicked up, with motion trails behind the heel.
+    val body = lerp(scheme.onSurface, scheme.primary, 0.25f).copy(alpha = 0.8f)
+    val midsoleColor = lerp(scheme.surface, scheme.onSurface, 0.12f).copy(alpha = 0.9f)
+    val m = size.minDimension
+    val c = Offset(size.width * 0.63f, size.height * 0.50f)
+    rotate(degrees = -12f, pivot = c) {
+        val heelX = c.x - m * 0.175f
+        val toeX = c.x + m * 0.185f
+        val soleTop = c.y + m * 0.035f
+        // Midsole then outsole beneath it.
+        drawRoundRect(
+            color = midsoleColor,
+            topLeft = Offset(heelX, soleTop),
+            size = androidx.compose.ui.geometry.Size(toeX - heelX, m * 0.035f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(m * 0.018f),
+        )
+        drawRoundRect(
+            color = body,
+            topLeft = Offset(heelX, soleTop + m * 0.030f),
+            size = androidx.compose.ui.geometry.Size(toeX - heelX, m * 0.022f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(m * 0.011f),
+        )
+        // Upper: tall heel collar sweeping down to a low toe box.
+        val upper = Path().apply {
+            moveTo(heelX, soleTop)
+            lineTo(heelX, c.y - m * 0.075f)
+            quadraticTo(heelX + m * 0.015f, c.y - m * 0.105f, heelX + m * 0.06f, c.y - m * 0.10f)
+            quadraticTo(heelX + m * 0.13f, c.y - m * 0.09f, c.x + m * 0.04f, c.y - m * 0.035f)
+            quadraticTo(c.x + m * 0.115f, c.y + m * 0.005f, toeX, soleTop - m * 0.002f)
+            lineTo(heelX, soleTop)
+            close()
+        }
+        drawPath(upper, body)
+        // Collar opening.
+        drawLine(
+            color = midsoleColor.copy(alpha = 0.7f),
+            start = Offset(heelX + m * 0.055f, c.y - m * 0.092f),
+            end = Offset(heelX + m * 0.105f, c.y - m * 0.062f),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        // Laces across the instep.
+        repeat(3) { index ->
+            val t = index * m * 0.038f
+            drawLine(
+                color = midsoleColor,
+                start = Offset(c.x - m * 0.035f + t, c.y - m * 0.070f + t * 0.55f),
+                end = Offset(c.x + m * 0.005f + t, c.y - m * 0.098f + t * 0.55f),
+                strokeWidth = 2.2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        // Side accent stripe.
+        val accent = Path().apply {
+            moveTo(heelX + m * 0.03f, c.y - m * 0.005f)
+            quadraticTo(c.x - m * 0.02f, c.y + m * 0.028f, c.x + m * 0.09f, c.y - m * 0.012f)
+        }
+        drawPath(
+            accent,
+            scheme.tertiary.copy(alpha = 0.85f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
+        )
     }
-    drawPath(frontPath, front)
+    // Motion trails behind the heel.
+    repeat(3) { index ->
+        val y = c.y - m * (0.055f - 0.05f * index)
+        drawLine(
+            color = body.copy(alpha = 0.35f - 0.08f * index),
+            start = Offset(c.x - m * (0.34f + 0.045f * index), y),
+            end = Offset(c.x - m * (0.21f + 0.02f * index), y),
+            strokeWidth = (3.2f - 0.5f * index).dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
 }
 
 @Composable
@@ -2047,6 +2366,7 @@ private fun FavoritesTabContent(
     isBuffering: Boolean,
     homeViewMode: HomeViewMode,
     favoritesSort: FavoritesSort,
+    gridColumns: Int,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
@@ -2058,7 +2378,9 @@ private fun FavoritesTabContent(
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val activeTileColor = MaterialTheme.colorScheme.primaryContainer
     val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-    val favoriteRows = remember(stations) { (0 until stations.size + 1).toList().chunked(3) }
+    val favoriteRows = remember(stations, gridColumns) {
+        (0 until stations.size + 1).toList().chunked(gridColumns)
+    }
     val showFavoriteActivityIndicators by remember {
         derivedStateOf { !listState.isScrollInProgress }
     }
@@ -2119,6 +2441,7 @@ private fun FavoritesTabContent(
             ) { rowIndices ->
                 FavoriteStationCardRow(
                     rowIndices = rowIndices,
+                    columns = gridColumns,
                     isLastRow = rowIndices == favoriteRows.last(),
                     stations = stations,
                     currentStation = currentStation,
@@ -2259,6 +2582,7 @@ private fun HomeViewModeToggle(
 @Composable
 private fun FavoriteStationCardRow(
     rowIndices: List<Int>,
+    columns: Int,
     isLastRow: Boolean,
     stations: List<Station>,
     currentStation: Station?,
@@ -2303,7 +2627,7 @@ private fun FavoriteStationCardRow(
                 AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
             }
         }
-        repeat(3 - rowIndices.size) {
+        repeat(columns - rowIndices.size) {
             Spacer(modifier = Modifier.weight(1f))
         }
     }
@@ -2425,10 +2749,16 @@ private fun StationTile(
             else -> null
         }
         var logoFailed by remember(logoModel) { mutableStateOf(false) }
+        val showLogo = logoModel != null && !logoFailed
 
         Surface(
-            color = tileColor,
-            shape = MaterialTheme.shapes.extraLarge,
+            // Same plate treatment as the other artwork surfaces: the light adaptive plate
+            // behind rendered logos (visible only through transparency), tonal otherwise.
+            color = if (showLogo) stationLogoPlateColor() else tileColor,
+            // Medium card radius like the other cards: a fixed 28dp reads far rounder on
+            // the small tiles of a 4-5 column grid, so keep the modest spec radius at
+            // every grid width.
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
@@ -2441,19 +2771,21 @@ private fun StationTile(
                 ),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    imageVector = Icons.Rounded.Radio,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(48.dp),
-                )
+                if (!showLogo) {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(48.dp),
+                    )
+                }
                 if (logoModel != null && !logoFailed) {
                     AsyncImage(
                         model = logoModel,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         onError = { logoFailed = true },
-                        modifier = Modifier.fillMaxSize().padding(14.dp),
+                        modifier = Modifier.fillMaxSize(),
                     )
                     if (isActive) {
                         Box(
@@ -2500,7 +2832,7 @@ private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Surface(
             onClick = onClick,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = MaterialTheme.shapes.medium,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         ) {
@@ -2747,64 +3079,16 @@ private fun FilterPickerSheetContent(
 }
 
 @Composable
-private fun FeaturedStationCard(
-    station: com.shapeshed.aerial.data.RegistryStation,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.width(96.dp),
-    ) {
-        Surface(
-            onClick = onClick,
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                if (station.logoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = station.logoUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        text = station.name.take(1).uppercase(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        Text(
-            text = station.name,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-    }
-}
-
-@Composable
 private fun ForYouStationCard(
     station: com.shapeshed.aerial.data.RegistryStation,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    // Filled card per the M3 card spec — surfaceContainerHighest container on the medium
+    // corner radius, no outline or elevation — the spec's type for tappable content tiles.
+    Card(
         onClick = onClick,
-        // Tonal, border-less container on the expressive extra-large radius, matching the
-        // app's other tiles.
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.width(140.dp).height(132.dp),
+        modifier = modifier.width(140.dp).height(116.dp),
     ) {
         Column(
             verticalArrangement = Arrangement.SpaceBetween,
@@ -2820,33 +3104,31 @@ private fun ForYouStationCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val genre = station.tags.split(" ").firstOrNull { it.isNotBlank() } ?: station.country
-                if (genre.isNotBlank()) {
-                    Text(
-                        text = genre.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
-// Circular station logo on a white plate. The plate shows through transparent regions of
+// Plate behind station artwork: near-white for legibility of arbitrary third-party logos
+// (a dark tonal plate would swallow dark transparent marks), tinted toward the dynamic
+// palette so it follows the system theme like the rest of the app.
+@Composable
+fun stationLogoPlateColor(): androidx.compose.ui.graphics.Color = lerp(
+    androidx.compose.ui.graphics.Color.White,
+    MaterialTheme.colorScheme.primaryContainer,
+    0.22f,
+)
+
+// Circular station logo on a light plate. The plate shows through transparent regions of
 // third-party artwork so every logo sits on a consistent background, and it is never a
 // visible ring because the artwork fills the circle. Stations without a usable logo keep a
-// tonal circle behind the fallback content instead of the white plate.
+// tonal circle behind the fallback content instead of the plate.
 @Composable
 fun StationLogoCircle(
     logoModel: Any?,
@@ -2862,7 +3144,7 @@ fun StationLogoCircle(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(if (showLogo) androidx.compose.ui.graphics.Color.White else fallbackBackground),
+            .background(if (showLogo) stationLogoPlateColor() else fallbackBackground),
     ) {
         if (showLogo) {
             AsyncImage(

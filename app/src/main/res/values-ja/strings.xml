@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
-
     <!-- Common actions -->
     <string name="action_back">戻る</string>
     <string name="action_remove">削除</string>
@@ -10,7 +9,6 @@
     <string name="action_save">保存</string>
     <string name="action_edit">編集</string>
     <string name="save_all">すべて保存</string>
-
     <!-- Search / home -->
     <string name="search_hint">放送局を検索</string>
     <string name="clear_search">検索をクリア</string>
@@ -36,15 +34,13 @@
     <string name="home_view_cards">カード</string>
     <string name="home_view_list">リスト</string>
     <string name="search_stations_header">放送局</string>
-    <string name="for_you_country">あなたへのおすすめ — %1$s</string>
     <string name="view_all">すべて表示</string>
-    <string name="get_started">はじめる</string>
     <string name="just_listen">ただ聴くだけ</string>
     <string name="find_a_station">放送局を探す</string>
     <string name="find_one_to_listen">聴きたい放送局を見つけよう</string>
     <string name="no_matches">一致するものがありません</string>
     <string name="no_matches_desc">別のキーワードで検索してください。</string>
-    <string name="listen_by_mood">気分で聴く</string>
+    <string name="listen_by_mood">気分に合わせて</string>
     <string name="mood_relax">リラックス</string>
     <string name="mood_relax_desc">肩の力を抜いてくつろぐ</string>
     <string name="mood_relax_detail_desc">アンビエント、ジャズ、世界の穏やかな音楽でゆっくり過ごしましょう。</string>
@@ -58,14 +54,12 @@
     <string name="mood_late_night_desc">静かな時間のための音楽</string>
     <string name="mood_workout">ワークアウト</string>
     <string name="mood_workout_desc">続けるための高いエネルギー</string>
-
     <!-- Now playing -->
     <string name="close_player">プレーヤーを閉じる</string>
     <string name="add_to_favorites">お気に入りに追加</string>
     <string name="share_station">放送局を共有</string>
     <string name="copy_track_info">曲情報をコピー</string>
     <string name="stream_bitrate_format">%1$d kbps</string>
-
     <!-- Settings -->
     <string name="show_whats_playing">再生中の曲を表示</string>
     <string name="show_whats_playing_desc">利用可能な場合、曲名・アーティスト・アートワークを表示</string>
@@ -79,7 +73,6 @@
     <string name="version_format">Aerial %1$s</string>
     <string name="language">言語</string>
     <string name="language_system_default">システムのデフォルト</string>
-
     <!-- Station edit -->
     <string name="edit_station">放送局を編集</string>
     <string name="add_station">放送局を追加</string>
@@ -90,7 +83,6 @@
     <string name="remove_icon_message">放送局のアイコンを削除します。</string>
     <string name="field_name">名前</string>
     <string name="field_stream_url">ストリームURL</string>
-
     <!-- Sleep timer -->
     <string name="sleep_timer">スリープタイマー</string>
     <string name="sleep_add_15">+15分</string>
@@ -116,4 +108,8 @@
     <string name="sort_az">A〜Z順</string>
     <string name="sort_last_played">最近再生した順</string>
     <string name="sort_most_played">再生回数順</string>
+    <string name="for_you">あなたへのおすすめ</string>
+    <string name="favorites_grid_columns">お気に入りのグリッド幅</string>
+    <string name="favorites_grid_columns_desc">カード表示の列数</string>
+    <string name="stats_summary">%2$sか国の%1$sステーション。データは radio-browser.info などの提供元から取得しています。</string>
 </resources>

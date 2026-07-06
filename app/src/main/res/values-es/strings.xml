@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Aerial</string>
-
     <!-- Common actions -->
     <string name="action_back">Atrás</string>
     <string name="action_remove">Quitar</string>
@@ -10,7 +9,6 @@
     <string name="action_save">Guardar</string>
     <string name="action_edit">Editar</string>
     <string name="save_all">Guardar todo</string>
-
     <!-- Search / home -->
     <string name="search_hint">Buscar emisoras</string>
     <string name="clear_search">Borrar búsqueda</string>
@@ -36,15 +34,13 @@
     <string name="home_view_cards">Tarjetas</string>
     <string name="home_view_list">Lista</string>
     <string name="search_stations_header">Emisoras</string>
-    <string name="for_you_country">Para ti — %1$s</string>
     <string name="view_all">Ver todo</string>
-    <string name="get_started">Empezar</string>
     <string name="just_listen">Solo escucha</string>
     <string name="find_a_station">Buscar una emisora</string>
     <string name="find_one_to_listen">Encuentra una para escuchar</string>
     <string name="no_matches">Sin resultados</string>
     <string name="no_matches_desc">Prueba otra búsqueda.</string>
-    <string name="listen_by_mood">Escuchar según el ánimo</string>
+    <string name="listen_by_mood">Según tu estado de ánimo</string>
     <string name="mood_relax">Relajarse</string>
     <string name="mood_relax_desc">Desconecta y déjate llevar</string>
     <string name="mood_relax_detail_desc">Baja el ritmo con ambient, jazz y música suave de todo el mundo.</string>
@@ -58,14 +54,12 @@
     <string name="mood_late_night_desc">Música para las horas tranquilas</string>
     <string name="mood_workout">Entreno</string>
     <string name="mood_workout_desc">Energía para seguir</string>
-
     <!-- Now playing -->
     <string name="close_player">Cerrar reproductor</string>
     <string name="add_to_favorites">Añadir a favoritos</string>
     <string name="share_station">Compartir emisora</string>
     <string name="copy_track_info">Copiar info de la pista</string>
     <string name="stream_bitrate_format">%1$d kbps</string>
-
     <!-- Settings -->
     <string name="show_whats_playing">Mostrar qué suena</string>
     <string name="show_whats_playing_desc">Muestra la canción, el artista y la portada cuando estén disponibles</string>
@@ -79,7 +73,6 @@
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Idioma</string>
     <string name="language_system_default">Predeterminado del sistema</string>
-
     <!-- Station edit -->
     <string name="edit_station">Editar emisora</string>
     <string name="add_station">Añadir emisora</string>
@@ -90,7 +83,6 @@
     <string name="remove_icon_message">Se quitará el icono de la emisora.</string>
     <string name="field_name">Nombre</string>
     <string name="field_stream_url">URL de emisión</string>
-
     <!-- Sleep timer -->
     <string name="sleep_timer">Temporizador</string>
     <string name="sleep_add_15">+15 min</string>
@@ -116,4 +108,8 @@
     <string name="sort_az">De la A a la Z</string>
     <string name="sort_last_played">Reproducida recientemente</string>
     <string name="sort_most_played">Más reproducida</string>
+    <string name="for_you">Para ti</string>
+    <string name="favorites_grid_columns">Ancho de la cuadrícula de favoritos</string>
+    <string name="favorites_grid_columns_desc">Columnas en la vista de tarjetas</string>
+    <string name="stats_summary">%1$s emisoras de %2$s países. Los datos provienen de radio-browser.info y otros proveedores de emisoras.</string>
 </resources>

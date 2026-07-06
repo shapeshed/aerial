@@ -10,7 +10,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
+import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
@@ -24,7 +28,10 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -48,8 +55,36 @@ class SettingsViewModel(
         .map { it[SHOW_STREAM_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val favoritesGridColumns = dataStore.data
+        .map { (it[FAVORITES_GRID_COLUMNS_KEY] ?: FAVORITES_GRID_COLUMNS_DEFAULT).coerceIn(FAVORITES_GRID_COLUMNS_RANGE) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FAVORITES_GRID_COLUMNS_DEFAULT)
+
+    fun setFavoritesGridColumns(columns: Int) {
+        viewModelScope.launch {
+            dataStore.edit { it[FAVORITES_GRID_COLUMNS_KEY] = columns.coerceIn(FAVORITES_GRID_COLUMNS_RANGE) }
+        }
+    }
+
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
+
+    // Registry statistics for the settings screen; loaded once, the bundled registry
+    // doesn't change within a session.
+    private val _registryStationCount = MutableStateFlow(0)
+    val registryStationCount: StateFlow<Int> = _registryStationCount.asStateFlow()
+
+    private val _registryCountryCount = MutableStateFlow(0)
+    val registryCountryCount: StateFlow<Int> = _registryCountryCount.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val registryRepository = getApplication<AerialApp>().registryRepository
+            withContext(Dispatchers.IO) {
+                _registryStationCount.value = registryRepository.count()
+                _registryCountryCount.value = registryRepository.availableCountryCodes().size
+            }
+        }
+    }
 
     fun setEnrichMetadata(enabled: Boolean) {
         viewModelScope.launch {

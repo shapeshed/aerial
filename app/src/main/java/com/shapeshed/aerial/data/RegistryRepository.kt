@@ -14,6 +14,8 @@ private val FEATURED_STATIONS = listOf(
     FeaturedStation("bauer", "ki1"),             // KISS
 )
 
+private const val FOR_YOU_RANDOM_COUNT = 10
+
 private val UK_FOR_YOU_STATIONS = listOf(
     MoodStationRef("Smooth Radio"),
     MoodStationRef("Heart 80s", "global"),
@@ -121,6 +123,8 @@ class RegistryRepository(private val dao: RegistryDao) {
 
     fun countAsFlow(): Flow<Int> = dao.countAsFlow()
 
+    suspend fun count(): Int = dao.count()
+
     suspend fun isEmpty(): Boolean = dao.count() == 0
 
     suspend fun randomByCategory(tag: String): RegistryStation? = dao.randomStationByTag(tag)
@@ -185,10 +189,16 @@ class RegistryRepository(private val dao: RegistryDao) {
     suspend fun forYouStations(countryCode: String): List<RegistryStation> {
         val refs = when (countryCode.uppercase()) {
             "GB", "UK" -> UK_FOR_YOU_STATIONS
-            else -> return emptyList()
+            else -> emptyList()
         }
-        val candidates = dao.getByNames(refs.map { it.name })
-        return refs.mapNotNull { resolveMoodStation(it, candidates) }
+        if (refs.isNotEmpty()) {
+            val candidates = dao.getByNames(refs.map { it.name })
+            val curated = refs.mapNotNull { resolveMoodStation(it, candidates) }
+            if (curated.isNotEmpty()) return curated
+        }
+        // No curated selection for this country: a random sample of its stations that
+        // have artwork, so the row still feels local.
+        return dao.randomByCountryWithLogo(countryCode, FOR_YOU_RANDOM_COUNT)
     }
 
     suspend fun curatedMoodStations(): Map<String, List<RegistryStation>> {
