@@ -111,5 +111,4 @@
     <string name="for_you">맞춤 추천</string>
     <string name="favorites_grid_columns">즐겨찾기 그리드 너비</string>
     <string name="favorites_grid_columns_desc">카드 보기의 열 수</string>
-    <string name="stats_summary">%2$s개국의 방송국 %1$s개. 데이터는 radio-browser.info 및 기타 제공자로부터 제공받습니다.</string>
 </resources>

@@ -111,5 +111,4 @@
     <string name="for_you">Para você</string>
     <string name="favorites_grid_columns">Largura da grade de favoritos</string>
     <string name="favorites_grid_columns_desc">Colunas na visualização de cartões</string>
-    <string name="stats_summary">%1$s estações de %2$s países. Os dados vêm de radio-browser.info e de outros provedores.</string>
 </resources>

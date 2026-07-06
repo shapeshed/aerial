@@ -113,5 +113,4 @@
     <string name="for_you">For you</string>
     <string name="favorites_grid_columns">Favorites grid width</string>
     <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
-    <string name="stats_summary">%1$s stations from %2$s countries. Station data is sourced from radio-browser.info and other station providers.</string>
 </resources>

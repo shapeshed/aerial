@@ -58,8 +58,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
-    val registryStationCount by viewModel.registryStationCount.collectAsStateWithLifecycle()
-    val registryCountryCount by viewModel.registryCountryCount.collectAsStateWithLifecycle()
     val favoritesGridColumns by viewModel.favoritesGridColumns.collectAsStateWithLifecycle()
     val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
@@ -213,21 +211,6 @@ fun SettingsScreen(
                 HorizontalDivider()
             }
             item(contentType = "footer") {
-                val numberFormat = remember { java.text.NumberFormat.getIntegerInstance() }
-                Text(
-                    text = stringResource(
-                        R.string.stats_summary,
-                        numberFormat.format(registryStationCount),
-                        numberFormat.format(registryCountryCount),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 24.dp),
-                )
                 Text(
                     text = stringResource(R.string.version_format, versionName),
                     style = MaterialTheme.typography.bodySmall,
@@ -235,7 +218,7 @@ fun SettingsScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 24.dp),
+                        .padding(vertical = 24.dp),
                 )
             }
         }
