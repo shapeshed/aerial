@@ -123,8 +123,6 @@ class RegistryRepository(private val dao: RegistryDao) {
 
     fun countAsFlow(): Flow<Int> = dao.countAsFlow()
 
-    suspend fun count(): Int = dao.count()
-
     suspend fun isEmpty(): Boolean = dao.count() == 0
 
     suspend fun randomByCategory(tag: String): RegistryStation? = dao.randomStationByTag(tag)

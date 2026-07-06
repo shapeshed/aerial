@@ -111,5 +111,4 @@
     <string name="for_you">Für dich</string>
     <string name="favorites_grid_columns">Rasterbreite der Favoriten</string>
     <string name="favorites_grid_columns_desc">Spalten in der Kartenansicht</string>
-    <string name="stats_summary">%1$s Sender aus %2$s Ländern. Senderdaten stammen von radio-browser.info und weiteren Anbietern.</string>
 </resources>

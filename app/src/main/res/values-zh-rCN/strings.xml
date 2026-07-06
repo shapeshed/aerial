@@ -111,5 +111,4 @@
     <string name="for_you">为你推荐</string>
     <string name="favorites_grid_columns">收藏网格宽度</string>
     <string name="favorites_grid_columns_desc">卡片视图的列数</string>
-    <string name="stats_summary">来自 %2$s 个国家/地区的 %1$s 个电台。数据来自 radio-browser.info 及其他电台提供方。</string>
 </resources>

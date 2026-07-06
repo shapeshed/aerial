@@ -111,5 +111,4 @@
     <string name="for_you">Para ti</string>
     <string name="favorites_grid_columns">Ancho de la cuadrícula de favoritos</string>
     <string name="favorites_grid_columns_desc">Columnas en la vista de tarjetas</string>
-    <string name="stats_summary">%1$s emisoras de %2$s países. Los datos provienen de radio-browser.info y otros proveedores de emisoras.</string>
 </resources>

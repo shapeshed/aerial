@@ -111,5 +111,4 @@
     <string name="for_you">Per te</string>
     <string name="favorites_grid_columns">Larghezza della griglia dei preferiti</string>
     <string name="favorites_grid_columns_desc">Colonne nella vista a schede</string>
-    <string name="stats_summary">%1$s stazioni da %2$s paesi. I dati provengono da radio-browser.info e da altri fornitori di stazioni.</string>
 </resources>

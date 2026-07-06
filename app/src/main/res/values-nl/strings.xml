@@ -111,5 +111,4 @@
     <string name="for_you">Voor jou</string>
     <string name="favorites_grid_columns">Rasterbreedte van favorieten</string>
     <string name="favorites_grid_columns_desc">Kolommen in de kaartweergave</string>
-    <string name="stats_summary">%1$s zenders uit %2$s landen. Gegevens zijn afkomstig van radio-browser.info en andere aanbieders.</string>
 </resources>
