@@ -423,15 +423,6 @@ class MainViewModel(
         runSearch(_lastSearchQuery)
     }
 
-    fun playRandomFromCategory(tag: String) {
-        viewModelScope.launch {
-            val station = withContext(Dispatchers.IO) {
-                registryRepository.randomByCategory(tag.lowercase())
-            } ?: return@launch
-            playFromRegistry(station)
-        }
-    }
-
     fun playRandomFromMood(tags: List<String>) {
         viewModelScope.launch {
             val station = withContext(Dispatchers.IO) {

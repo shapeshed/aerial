@@ -35,9 +35,6 @@
     <string name="home_view_list">リスト</string>
     <string name="search_stations_header">放送局</string>
     <string name="view_all">すべて表示</string>
-    <string name="just_listen">ただ聴くだけ</string>
-    <string name="find_a_station">放送局を探す</string>
-    <string name="find_one_to_listen">聴きたい放送局を見つけよう</string>
     <string name="no_matches">一致するものがありません</string>
     <string name="no_matches_desc">別のキーワードで検索してください。</string>
     <string name="listen_by_mood">気分に合わせて</string>
@@ -111,4 +108,6 @@
     <string name="for_you">あなたへのおすすめ</string>
     <string name="favorites_grid_columns">お気に入りのグリッド幅</string>
     <string name="favorites_grid_columns_desc">カード表示の列数</string>
+    <string name="no_favorites">お気に入りはまだありません</string>
+    <string name="no_favorites_desc">お気に入りの放送局を追加すると、ここからすぐに見つけられます</string>
 </resources>

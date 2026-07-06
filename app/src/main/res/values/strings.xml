@@ -35,9 +35,6 @@
     <string name="home_view_list">List</string>
     <string name="search_stations_header">Stations</string>
     <string name="view_all">View all</string>
-    <string name="just_listen">Just listen</string>
-    <string name="find_a_station">Find a station</string>
-    <string name="find_one_to_listen">Find one to listen to</string>
     <string name="no_matches">No matches</string>
     <string name="no_matches_desc">Try a different search.</string>
     <string name="listen_by_mood">Match your mood</string>
@@ -113,4 +110,6 @@
     <string name="for_you">For you</string>
     <string name="favorites_grid_columns">Favorites grid width</string>
     <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
+    <string name="no_favorites">No favourites yet</string>
+    <string name="no_favorites_desc">Add stations you love to easily find them here</string>
 </resources>

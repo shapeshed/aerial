@@ -35,9 +35,6 @@
     <string name="home_view_list">Lista</string>
     <string name="search_stations_header">Estações</string>
     <string name="view_all">Ver tudo</string>
-    <string name="just_listen">É só ouvir</string>
-    <string name="find_a_station">Encontrar uma estação</string>
-    <string name="find_one_to_listen">Encontre uma para ouvir</string>
     <string name="no_matches">Nenhum resultado</string>
     <string name="no_matches_desc">Tente outra busca.</string>
     <string name="listen_by_mood">Combine com seu humor</string>
@@ -111,4 +108,6 @@
     <string name="for_you">Para você</string>
     <string name="favorites_grid_columns">Largura da grade de favoritos</string>
     <string name="favorites_grid_columns_desc">Colunas na visualização de cartões</string>
+    <string name="no_favorites">Ainda sem favoritos</string>
+    <string name="no_favorites_desc">Adicione as estações que você gosta para encontrá-las facilmente aqui</string>
 </resources>

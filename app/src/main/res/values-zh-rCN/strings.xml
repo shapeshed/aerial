@@ -35,9 +35,6 @@
     <string name="home_view_list">列表</string>
     <string name="search_stations_header">电台</string>
     <string name="view_all">查看全部</string>
-    <string name="just_listen">尽情聆听</string>
-    <string name="find_a_station">查找电台</string>
-    <string name="find_one_to_listen">找一个来收听</string>
     <string name="no_matches">无匹配结果</string>
     <string name="no_matches_desc">请尝试其他搜索。</string>
     <string name="listen_by_mood">匹配你的心情</string>
@@ -111,4 +108,6 @@
     <string name="for_you">为你推荐</string>
     <string name="favorites_grid_columns">收藏网格宽度</string>
     <string name="favorites_grid_columns_desc">卡片视图的列数</string>
+    <string name="no_favorites">暂无收藏</string>
+    <string name="no_favorites_desc">添加喜欢的电台，方便在此快速找到</string>
 </resources>

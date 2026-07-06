@@ -13,7 +13,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.combinedClickable
@@ -29,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,7 +43,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
@@ -64,16 +63,12 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.WifiOff
-import androidx.compose.material.icons.rounded.SportsSoccer
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.ElectricBolt
-import androidx.compose.material.icons.rounded.Piano
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Nightlife
-import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.BeachAccess
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.Landscape
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -151,17 +146,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -199,37 +191,18 @@ private fun rememberTagLabels(): Map<String, String> = mapOf(
     "Electronic" to stringResource(R.string.tag_electronic),
 )
 
-// Fixed tag→icon map — hoisted to avoid allocating a new Map on every CategoryGrid recomposition.
-private val CATEGORY_ICONS = mapOf(
-    "News" to Icons.AutoMirrored.Rounded.Article,
-    "Sport" to Icons.Rounded.SportsSoccer,
-    "Pop" to Icons.Rounded.Star,
-    "Rock" to Icons.Rounded.ElectricBolt,
-    "Jazz" to Icons.Rounded.Piano,
-    "Classical" to Icons.Rounded.LibraryMusic,
-    "Dance" to Icons.Rounded.Nightlife,
-    "Soul" to Icons.Rounded.Spa,
-    "Country" to Icons.Rounded.Landscape,
-    "Electronic" to Icons.Rounded.GraphicEq,
-)
-
-private enum class MoodArtwork {
-    Coast,
-    Mountains,
-    Sunrise,
-    Road,
-    City,
-    Runner,
-}
-
+// One consistent tonal surface for every mood tile, per M3 guidance: primary/secondary/
+// tertiary are meant for small high-emphasis elements (buttons, FABs, selected states), not
+// large fills, and rotating colours across a grid of peer items — none more important than
+// another — is a decorative pattern, not a functional use of colour. The icon and label are
+// what tell the six moods apart, matching how every other card in this app (For You, search
+// rows, favourites tiles) uses one steady surface rather than per-item colour.
 private data class CuratedMood(
     val id: String,
     val titleRes: Int,
     val descriptionRes: Int,
     val detailDescriptionRes: Int = descriptionRes,
-    val tags: List<String>,
     val icon: ImageVector,
-    val artwork: MoodArtwork,
 )
 
 private val CURATED_MOODS = listOf(
@@ -238,49 +211,37 @@ private val CURATED_MOODS = listOf(
         titleRes = R.string.mood_relax,
         descriptionRes = R.string.mood_relax_desc,
         detailDescriptionRes = R.string.mood_relax_detail_desc,
-        tags = listOf("Jazz", "Soul", "Classical"),
-        icon = Icons.Rounded.Spa,
-        artwork = MoodArtwork.Coast,
+        icon = Icons.Rounded.BeachAccess,
     ),
     CuratedMood(
         id = "focus",
         titleRes = R.string.mood_focus,
         descriptionRes = R.string.mood_focus_desc,
-        tags = listOf("Classical", "Electronic", "Jazz"),
-        icon = Icons.Rounded.GraphicEq,
-        artwork = MoodArtwork.Mountains,
+        icon = Icons.Rounded.Psychology,
     ),
     CuratedMood(
         id = "morning",
         titleRes = R.string.mood_morning,
         descriptionRes = R.string.mood_morning_desc,
-        tags = listOf("Pop", "Soul", "News"),
-        icon = Icons.Rounded.Star,
-        artwork = MoodArtwork.Sunrise,
+        icon = Icons.Rounded.WbSunny,
     ),
     CuratedMood(
         id = "driving",
         titleRes = R.string.mood_driving,
         descriptionRes = R.string.mood_driving_desc,
-        tags = listOf("Rock", "Pop", "Country"),
         icon = Icons.Rounded.Landscape,
-        artwork = MoodArtwork.Road,
     ),
     CuratedMood(
         id = "late_night",
         titleRes = R.string.mood_late_night,
         descriptionRes = R.string.mood_late_night_desc,
-        tags = listOf("Jazz", "Electronic", "Soul"),
-        icon = Icons.Rounded.Nightlife,
-        artwork = MoodArtwork.City,
+        icon = Icons.Rounded.NightsStay,
     ),
     CuratedMood(
         id = "workout",
         titleRes = R.string.mood_workout,
         descriptionRes = R.string.mood_workout_desc,
-        tags = listOf("Dance", "Electronic", "Rock"),
-        icon = Icons.Rounded.ElectricBolt,
-        artwork = MoodArtwork.Runner,
+        icon = Icons.Rounded.FitnessCenter,
     ),
 )
 
@@ -577,12 +538,10 @@ fun MainScreen(
                     LaunchedEffect(forYouCountryCode) { viewModel.setForYouCountry(forYouCountryCode) }
                     val hasCountrySelection = forYouStations.isNotEmpty()
                     HomeTabContent(
-                        allTags = allTags,
                         forYouStations = forYouStations.ifEmpty { featuredStations },
                         forYouCountry = countryName(forYouCountryCode, appLocale).takeIf { hasCountrySelection },
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
-                        onCategoryTap = { viewModel.playRandomFromCategory(it) },
                         onMoodTap = { selectedMoodId = it.id },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it) },
                         onForYouViewAll = {
@@ -601,9 +560,10 @@ fun MainScreen(
                         listState = favoritesListState,
                         bottomPadding = stationContentBottomPadding,
                         onPlay = { viewModel.play(it) },
+                        onTogglePlayback = { viewModel.togglePlayback() },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
                         onSortSelected = { viewModel.setFavoritesSort(it) },
-                        onAddTapped = ::openRegistrySearch,
                         onStationLongPress = { contextStation = it },
                     )
                 }
@@ -1382,6 +1342,7 @@ private fun NoNetworkState() {
 private fun HomeEmptyState(
     text: String,
     supportingText: String,
+    icon: ImageVector = Icons.Rounded.Radio,
 ) {
     Box(
         modifier = Modifier
@@ -1400,7 +1361,7 @@ private fun HomeEmptyState(
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(
-                        imageVector = Icons.Rounded.Radio,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(36.dp),
@@ -1427,13 +1388,11 @@ private fun HomeEmptyState(
 
 @Composable
 private fun HomeTabContent(
-    allTags: List<String>,
     forYouStations: List<com.shapeshed.aerial.data.RegistryStation>,
     // Null when the selection isn't country-specific; the header drops the country.
     forYouCountry: String?,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
-    onCategoryTap: (String) -> Unit,
     onMoodTap: (CuratedMood) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
@@ -1501,23 +1460,7 @@ private fun HomeTabContent(
             MoodGrid(
                 moods = CURATED_MOODS,
                 onMoodTap = onMoodTap,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
-
-        item("just-listen-header") {
-            Text(
-                text = stringResource(R.string.just_listen),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
-            )
-        }
-        item("just-listen-pills") {
-            CategoryGrid(
-                tags = allTags.take(10),
-                onCategoryTap = onCategoryTap,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
     }
@@ -1557,63 +1500,52 @@ private fun MoodCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Stock filled card (spec container colour and medium corner radius), matching the
-    // For You tiles; the artwork covers the container so only the shape shows.
+    // Same neutral tonal surface as the favourites station tiles, rather than an accent
+    // colour — text/icon pairing matches how every other neutral surface in the app reads
+    // (onSurface for primary text, onSurfaceVariant for supporting text and icon glyphs).
+    val background = MaterialTheme.colorScheme.surfaceContainerHigh
+    val titleColor = MaterialTheme.colorScheme.onSurface
+    val supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
     Card(
         onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = background, contentColor = titleColor),
         modifier = modifier.height(132.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            MoodArtwork(
-                artwork = mood.artwork,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
+            // Top-right, clear of the title/description anchored bottom-left, so the icon
+            // never sits behind the text on these narrow tiles. Card clips its content to its
+            // own shape, so the oversized icon is simply cut off at the corner — no manual
+            // clipping needed to get the "bleeding off the edge" effect.
+            Icon(
+                imageVector = mood.icon,
+                contentDescription = null,
+                tint = supportingColor.copy(alpha = 0.4f),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.08f),
-                            1f to MaterialTheme.colorScheme.surface.copy(alpha = 0.44f),
-                        ),
-                    ),
+                    .size(108.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 24.dp, y = (-24).dp),
             )
             Column(
-                verticalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.Bottom,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(14.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = CircleShape,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = mood.icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        text = stringResource(mood.titleRes),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(mood.descriptionRes),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Text(
+                    text = stringResource(mood.titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = titleColor,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(mood.descriptionRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = supportingColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -1642,27 +1574,33 @@ private fun MoodDetailScreen(
         modifier = Modifier.fillMaxSize(),
     ) {
         item("mood-hero") {
+            // Same neutral tonal surface as the favourites station tiles and the grid tiles
+            // above, rather than an accent colour.
+            val background = MaterialTheme.colorScheme.surfaceContainerHigh
+            val titleColor = MaterialTheme.colorScheme.onSurface
+            val supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(360.dp),
+                    .height(280.dp)
+                    // The oversized icon is deliberately offset past this box's own edge to
+                    // bleed off the corner; without clipping, that overflow paints straight
+                    // into the content below instead of stopping at the header.
+                    .clipToBounds()
+                    .background(background),
             ) {
-                MoodArtwork(
-                    artwork = mood.artwork,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                Box(
+                Icon(
+                    imageVector = mood.icon,
+                    contentDescription = null,
+                    tint = supportingColor.copy(alpha = 0.4f),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.08f),
-                                1f to MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
-                            ),
-                        ),
+                        .size(220.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 48.dp, y = 48.dp),
                 )
                 IconButton(
                     onClick = onBack,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = titleColor),
                     shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
@@ -1679,12 +1617,12 @@ private fun MoodDetailScreen(
                     Text(
                         text = stringResource(mood.titleRes),
                         style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = titleColor,
                     )
                     Text(
                         text = stringResource(mood.detailDescriptionRes),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = supportingColor,
                         modifier = Modifier.fillMaxWidth(0.72f),
                     )
                 }
@@ -1833,522 +1771,6 @@ private fun MoodStationRow(
 }
 
 @Composable
-private fun MoodArtwork(
-    artwork: MoodArtwork,
-    modifier: Modifier = Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    // clipToBounds: the scenes draw glows and rotated shapes that may exceed the canvas,
-    // and not every host (e.g. the mood detail header) clips with a shape.
-    Canvas(modifier = modifier.clipToBounds()) {
-        when (artwork) {
-            MoodArtwork.Coast -> drawCoastMood(scheme)
-            MoodArtwork.Mountains -> drawMountainMood(scheme)
-            MoodArtwork.Sunrise -> drawSunriseMood(scheme)
-            MoodArtwork.Road -> drawRoadMood(scheme)
-            MoodArtwork.City -> drawCityMood(scheme)
-            MoodArtwork.Runner -> drawRunnerMood(scheme)
-        }
-    }
-}
-
-// The scenes below are drawn entirely from the Material colour scheme so they re-tint with
-// the wallpaper palette. Each mood owns its sky, light source, and landscape rather than
-// sharing generic layers, and every position is a fixed fraction of the canvas so the art
-// is deterministic across sizes.
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSky(
-    top: Color,
-    mid: Color,
-    bottom: Color,
-) {
-    drawRect(brush = Brush.verticalGradient(0f to top, 0.55f to mid, 1f to bottom))
-}
-
-// A light source with a soft radial halo fading to nothing around a solid core.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlow(
-    color: Color,
-    center: Offset,
-    coreRadius: Float,
-    glowRadius: Float,
-    coreAlpha: Float = 0.8f,
-    glowAlpha: Float = 0.4f,
-) {
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(color.copy(alpha = glowAlpha), color.copy(alpha = 0f)),
-            center = center,
-            radius = glowRadius,
-        ),
-        radius = glowRadius,
-        center = center,
-    )
-    drawCircle(color.copy(alpha = coreAlpha), coreRadius, center)
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBird(
-    color: Color,
-    center: Offset,
-    span: Float,
-    strokeWidth: Float,
-) {
-    val wing = Path().apply {
-        moveTo(center.x - span, center.y)
-        quadraticTo(center.x - span * 0.5f, center.y - span * 0.7f, center.x, center.y)
-        quadraticTo(center.x + span * 0.5f, center.y - span * 0.7f, center.x + span, center.y)
-    }
-    drawPath(wing, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth, cap = StrokeCap.Round))
-}
-
-// Calm sea at golden hour: low sun, glitter path on the water, headlands, gulls.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCoastMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    val horizon = size.height * 0.55f
-    drawSky(
-        top = lerp(scheme.tertiaryContainer, scheme.primaryContainer, 0.3f),
-        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.15f),
-        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.5f),
-    )
-    drawGlow(
-        color = scheme.tertiary,
-        center = Offset(size.width * 0.70f, horizon - size.height * 0.13f),
-        coreRadius = size.minDimension * 0.085f,
-        glowRadius = size.minDimension * 0.34f,
-    )
-    // Sea with depth, brightest at the horizon.
-    drawRect(
-        brush = Brush.verticalGradient(
-            horizon / size.height to lerp(scheme.primaryContainer, scheme.tertiary, 0.25f).copy(alpha = 0.55f),
-            1f to scheme.primary.copy(alpha = 0.35f),
-        ),
-        topLeft = Offset(0f, horizon),
-        size = androidx.compose.ui.geometry.Size(size.width, size.height - horizon),
-    )
-    drawLine(
-        color = scheme.tertiaryContainer.copy(alpha = 0.6f),
-        start = Offset(0f, horizon),
-        end = Offset(size.width, horizon),
-        strokeWidth = 1.5.dp.toPx(),
-    )
-    // Sun glitter: tapering dashes down the water.
-    val glitterX = size.width * 0.70f
-    repeat(5) { index ->
-        val t = index / 4f
-        val y = horizon + size.height * (0.05f + 0.075f * index)
-        val half = size.width * (0.055f - 0.008f * index)
-        drawLine(
-            color = scheme.tertiary.copy(alpha = 0.5f - 0.08f * index),
-            start = Offset(glitterX - half + size.width * 0.01f * t, y),
-            end = Offset(glitterX + half, y),
-            strokeWidth = (2.5f - 0.3f * index).dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
-    // Headland sliding in from the left.
-    val headland = Path().apply {
-        moveTo(0f, horizon)
-        cubicTo(size.width * 0.10f, horizon - size.height * 0.10f, size.width * 0.22f, horizon - size.height * 0.02f, size.width * 0.34f, horizon)
-        lineTo(0f, horizon)
-        close()
-    }
-    drawPath(headland, scheme.primary.copy(alpha = 0.45f))
-    drawBird(scheme.onSurface.copy(alpha = 0.4f), Offset(size.width * 0.30f, size.height * 0.24f), size.minDimension * 0.035f, 1.8.dp.toPx())
-    drawBird(scheme.onSurface.copy(alpha = 0.3f), Offset(size.width * 0.40f, size.height * 0.18f), size.minDimension * 0.025f, 1.5.dp.toPx())
-}
-
-// Still, hazy ranges receding into mist, with snow on the far peaks.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMountainMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    val skyTop = lerp(scheme.secondaryContainer, scheme.surfaceVariant, 0.35f)
-    drawSky(
-        top = skyTop,
-        mid = lerp(skyTop, scheme.surface, 0.45f),
-        bottom = lerp(scheme.surface, scheme.secondaryContainer, 0.35f),
-    )
-    drawGlow(
-        color = scheme.secondary,
-        center = Offset(size.width * 0.26f, size.height * 0.20f),
-        coreRadius = size.minDimension * 0.05f,
-        glowRadius = size.minDimension * 0.2f,
-        coreAlpha = 0.35f,
-        glowAlpha = 0.2f,
-    )
-    // Back range, faded into the sky, with snow caps.
-    val backTop = size.height * 0.34f
-    val back = Path().apply {
-        moveTo(0f, size.height * 0.62f)
-        lineTo(size.width * 0.24f, backTop)
-        lineTo(size.width * 0.42f, size.height * 0.56f)
-        lineTo(size.width * 0.62f, size.height * 0.40f)
-        lineTo(size.width * 0.80f, size.height * 0.58f)
-        lineTo(size.width, size.height * 0.48f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
-    }
-    drawPath(back, lerp(skyTop, scheme.secondary, 0.35f).copy(alpha = 0.7f))
-    // Snow caps on the two tallest back peaks.
-    listOf(
-        Offset(size.width * 0.24f, backTop) to size.width * 0.05f,
-        Offset(size.width * 0.62f, size.height * 0.40f) to size.width * 0.04f,
-    ).forEach { (peak, halfWidth) ->
-        val cap = Path().apply {
-            moveTo(peak.x - halfWidth, peak.y + halfWidth * 0.9f)
-            lineTo(peak.x, peak.y)
-            lineTo(peak.x + halfWidth, peak.y + halfWidth * 0.9f)
-            close()
-        }
-        drawPath(cap, lerp(scheme.surface, scheme.onSurface, 0.08f).copy(alpha = 0.75f))
-    }
-    // Mist band between the ranges.
-    drawRect(
-        brush = Brush.verticalGradient(
-            0.58f to scheme.surface.copy(alpha = 0f),
-            0.68f to scheme.surface.copy(alpha = 0.35f),
-            0.78f to scheme.surface.copy(alpha = 0f),
-        ),
-    )
-    // Front ridge, strongest.
-    val front = Path().apply {
-        moveTo(0f, size.height * 0.86f)
-        lineTo(size.width * 0.20f, size.height * 0.64f)
-        lineTo(size.width * 0.40f, size.height * 0.80f)
-        lineTo(size.width * 0.58f, size.height * 0.62f)
-        lineTo(size.width * 0.78f, size.height * 0.82f)
-        lineTo(size.width, size.height * 0.70f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
-    }
-    drawPath(front, scheme.secondary.copy(alpha = 0.55f))
-}
-
-// Big sun lifting out of rolling hills, halo rings widening into the morning sky.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSunriseMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    drawSky(
-        top = lerp(scheme.primaryContainer, scheme.surface, 0.25f),
-        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.2f),
-        bottom = lerp(scheme.tertiary, scheme.tertiaryContainer, 0.35f),
-    )
-    val sunCenter = Offset(size.width * 0.5f, size.height * 0.60f)
-    // Halo rings around the rising sun.
-    listOf(0.30f to 0.10f, 0.42f to 0.06f).forEach { (radiusFraction, alpha) ->
-        drawCircle(
-            color = scheme.tertiary.copy(alpha = alpha),
-            radius = size.minDimension * radiusFraction,
-            center = sunCenter,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
-        )
-    }
-    drawGlow(
-        color = scheme.tertiary,
-        center = sunCenter,
-        coreRadius = size.minDimension * 0.17f,
-        glowRadius = size.minDimension * 0.48f,
-        coreAlpha = 0.85f,
-        glowAlpha = 0.5f,
-    )
-    drawBird(scheme.onSurface.copy(alpha = 0.35f), Offset(size.width * 0.76f, size.height * 0.26f), size.minDimension * 0.03f, 1.8.dp.toPx())
-    // Hills drawn after the sun so it rises from behind them.
-    val backHill = Path().apply {
-        moveTo(0f, size.height * 0.72f)
-        cubicTo(size.width * 0.25f, size.height * 0.60f, size.width * 0.45f, size.height * 0.74f, size.width * 0.68f, size.height * 0.66f)
-        cubicTo(size.width * 0.85f, size.height * 0.60f, size.width * 0.94f, size.height * 0.68f, size.width, size.height * 0.64f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
-    }
-    drawPath(backHill, lerp(scheme.tertiary, scheme.primary, 0.55f).copy(alpha = 0.5f))
-    val frontHill = Path().apply {
-        moveTo(0f, size.height * 0.88f)
-        cubicTo(size.width * 0.22f, size.height * 0.76f, size.width * 0.48f, size.height * 0.92f, size.width * 0.72f, size.height * 0.80f)
-        cubicTo(size.width * 0.88f, size.height * 0.73f, size.width * 0.96f, size.height * 0.80f, size.width, size.height * 0.78f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
-    }
-    drawPath(frontHill, scheme.primary.copy(alpha = 0.5f))
-}
-
-// Open road to a vanishing point on the horizon, driving into the light.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRoadMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    val horizon = size.height * 0.52f
-    val vanish = Offset(size.width * 0.60f, horizon)
-    drawSky(
-        top = lerp(scheme.primaryContainer, scheme.secondaryContainer, 0.4f),
-        mid = lerp(scheme.primaryContainer, scheme.tertiaryContainer, 0.45f),
-        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.55f),
-    )
-    drawGlow(
-        color = scheme.tertiary,
-        center = vanish.copy(y = horizon - size.height * 0.04f),
-        coreRadius = size.minDimension * 0.06f,
-        glowRadius = size.minDimension * 0.3f,
-        coreAlpha = 0.6f,
-    )
-    // Distant ridge on the skyline.
-    val ridge = Path().apply {
-        moveTo(0f, horizon)
-        lineTo(size.width * 0.18f, horizon - size.height * 0.07f)
-        lineTo(size.width * 0.38f, horizon - size.height * 0.015f)
-        lineTo(size.width * 0.86f, horizon - size.height * 0.09f)
-        lineTo(size.width, horizon - size.height * 0.03f)
-        lineTo(size.width, horizon)
-        close()
-    }
-    drawPath(ridge, scheme.secondary.copy(alpha = 0.35f))
-    // Ground plane.
-    drawRect(
-        brush = Brush.verticalGradient(
-            horizon / size.height to scheme.secondaryContainer.copy(alpha = 0.5f),
-            1f to scheme.secondary.copy(alpha = 0.45f),
-        ),
-        topLeft = Offset(0f, horizon),
-        size = androidx.compose.ui.geometry.Size(size.width, size.height - horizon),
-    )
-    // Road converging on the vanishing point.
-    val road = Path().apply {
-        moveTo(size.width * 0.24f, size.height)
-        lineTo(vanish.x - size.width * 0.012f, vanish.y)
-        lineTo(vanish.x + size.width * 0.012f, vanish.y)
-        lineTo(size.width * 0.88f, size.height)
-        close()
-    }
-    drawPath(
-        road,
-        brush = Brush.verticalGradient(
-            horizon / size.height to scheme.onSurface.copy(alpha = 0.18f),
-            1f to scheme.onSurface.copy(alpha = 0.34f),
-        ),
-    )
-    // Centre line dashes shrinking with distance.
-    val dashes = listOf(0.97f to 0.885f, 0.83f to 0.755f, 0.71f to 0.665f, 0.62f to 0.585f)
-    dashes.forEachIndexed { index, (startT, endT) ->
-        fun along(t: Float): Offset {
-            val bottomCentre = Offset(size.width * 0.56f, size.height)
-            return Offset(
-                bottomCentre.x + (vanish.x - bottomCentre.x) * (1f - t),
-                size.height + (vanish.y - size.height) * (1f - t),
-            )
-        }
-        drawLine(
-            color = lerp(scheme.surface, scheme.tertiaryContainer, 0.4f).copy(alpha = 0.85f - 0.12f * index),
-            start = along(startT),
-            end = along(endT),
-            strokeWidth = (3.5f - 0.7f * index).dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-// Night skyline: stars, a haloed moon, two building rows, and lit windows.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCityMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    drawSky(
-        top = lerp(scheme.surface, scheme.primary, 0.10f),
-        mid = lerp(scheme.surface, scheme.primary, 0.22f),
-        bottom = lerp(scheme.surface, scheme.primaryContainer, 0.5f),
-    )
-    // Stars: fixed constellation, brighter high up.
-    listOf(
-        Offset(0.10f, 0.14f), Offset(0.22f, 0.08f), Offset(0.33f, 0.20f), Offset(0.45f, 0.10f),
-        Offset(0.55f, 0.24f), Offset(0.63f, 0.07f), Offset(0.87f, 0.12f), Offset(0.94f, 0.26f),
-        Offset(0.16f, 0.30f), Offset(0.50f, 0.33f),
-    ).forEachIndexed { index, fraction ->
-        drawCircle(
-            color = lerp(scheme.surface, scheme.onSurface, 0.85f).copy(alpha = if (index % 3 == 0) 0.6f else 0.35f),
-            radius = (if (index % 4 == 0) 1.6f else 1.1f).dp.toPx(),
-            center = Offset(size.width * fraction.x, size.height * fraction.y),
-        )
-    }
-    drawGlow(
-        color = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.3f),
-        center = Offset(size.width * 0.76f, size.height * 0.20f),
-        coreRadius = size.minDimension * 0.07f,
-        glowRadius = size.minDimension * 0.22f,
-        coreAlpha = 0.9f,
-        glowAlpha = 0.3f,
-    )
-    // Back row of towers, faded into the night haze.
-    val backTowers = listOf(0.00f to 0.48f, 0.14f to 0.38f, 0.30f to 0.52f, 0.47f to 0.42f, 0.66f to 0.55f, 0.84f to 0.44f)
-    backTowers.forEach { (leftFraction, topFraction) ->
-        drawRect(
-            color = lerp(scheme.surface, scheme.primary, 0.28f).copy(alpha = 0.55f),
-            topLeft = Offset(size.width * leftFraction, size.height * topFraction),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.12f, size.height * (1f - topFraction)),
-        )
-    }
-    // Front skyline with an antenna beacon, plus gridded lit windows.
-    val frontBuildings = listOf(
-        Triple(0.04f, 0.14f, 0.58f),
-        Triple(0.21f, 0.17f, 0.48f),
-        Triple(0.41f, 0.12f, 0.64f),
-        Triple(0.56f, 0.18f, 0.52f),
-        Triple(0.77f, 0.16f, 0.60f),
-    )
-    val buildingColor = lerp(scheme.surface, scheme.primary, 0.14f)
-    frontBuildings.forEachIndexed { buildingIndex, (leftFraction, widthFraction, topFraction) ->
-        val left = size.width * leftFraction
-        val towerWidth = size.width * widthFraction
-        val top = size.height * topFraction
-        drawRect(
-            color = buildingColor,
-            topLeft = Offset(left, top),
-            size = androidx.compose.ui.geometry.Size(towerWidth, size.height - top),
-        )
-        if (buildingIndex == 1) {
-            val mastX = left + towerWidth * 0.5f
-            val mastTop = top - size.height * 0.09f
-            drawLine(
-                color = buildingColor,
-                start = Offset(mastX, top),
-                end = Offset(mastX, mastTop),
-                strokeWidth = 2.dp.toPx(),
-            )
-            drawCircle(
-                color = scheme.tertiary.copy(alpha = 0.9f),
-                radius = 1.8.dp.toPx(),
-                center = Offset(mastX, mastTop),
-            )
-        }
-        // Windows: a regular grid of small panes in the tower's upper half — mostly lit,
-        // a deterministic few dark — leaving the base calm behind the card text.
-        val columns = if (widthFraction > 0.15f) 3 else 2
-        val rows = 4
-        val paneWidth = towerWidth * 0.14f
-        val paneHeight = size.height * 0.022f
-        repeat(columns * rows) { windowIndex ->
-            if ((windowIndex * 7 + buildingIndex * 5) % 5 == 0) return@repeat
-            val column = windowIndex % columns
-            val row = windowIndex / columns
-            drawRect(
-                color = scheme.tertiary.copy(alpha = 0.6f),
-                topLeft = Offset(
-                    left + towerWidth * (0.16f + column * (0.68f / columns)),
-                    top + size.height * (0.035f + row * 0.055f),
-                ),
-                size = androidx.compose.ui.geometry.Size(paneWidth, paneHeight),
-            )
-        }
-    }
-    // Grounding band so the skyline settles into a dark street level.
-    drawRect(
-        brush = Brush.verticalGradient(
-            0.82f to scheme.surface.copy(alpha = 0f),
-            1f to scheme.surface.copy(alpha = 0.85f),
-        ),
-    )
-}
-
-// Runner at first light: leaning silhouette mid-stride with motion trails.
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRunnerMood(
-    scheme: androidx.compose.material3.ColorScheme,
-) {
-    drawSky(
-        top = lerp(scheme.secondaryContainer, scheme.tertiaryContainer, 0.3f),
-        mid = lerp(scheme.tertiaryContainer, scheme.tertiary, 0.12f),
-        bottom = lerp(scheme.surface, scheme.tertiaryContainer, 0.5f),
-    )
-    drawGlow(
-        color = scheme.tertiary,
-        center = Offset(size.width * 0.22f, size.height * 0.38f),
-        coreRadius = size.minDimension * 0.10f,
-        glowRadius = size.minDimension * 0.32f,
-        coreAlpha = 0.7f,
-    )
-    // Rolling ground.
-    val ground = Path().apply {
-        moveTo(0f, size.height * 0.80f)
-        cubicTo(size.width * 0.3f, size.height * 0.72f, size.width * 0.6f, size.height * 0.82f, size.width, size.height * 0.74f)
-        lineTo(size.width, size.height)
-        lineTo(0f, size.height)
-        close()
-    }
-    drawPath(ground, scheme.secondary.copy(alpha = 0.4f))
-    // A running shoe mid-flight, toe kicked up, with motion trails behind the heel.
-    val body = lerp(scheme.onSurface, scheme.primary, 0.25f).copy(alpha = 0.8f)
-    val midsoleColor = lerp(scheme.surface, scheme.onSurface, 0.12f).copy(alpha = 0.9f)
-    val m = size.minDimension
-    val c = Offset(size.width * 0.63f, size.height * 0.50f)
-    rotate(degrees = -12f, pivot = c) {
-        val heelX = c.x - m * 0.175f
-        val toeX = c.x + m * 0.185f
-        val soleTop = c.y + m * 0.035f
-        // Midsole then outsole beneath it.
-        drawRoundRect(
-            color = midsoleColor,
-            topLeft = Offset(heelX, soleTop),
-            size = androidx.compose.ui.geometry.Size(toeX - heelX, m * 0.035f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(m * 0.018f),
-        )
-        drawRoundRect(
-            color = body,
-            topLeft = Offset(heelX, soleTop + m * 0.030f),
-            size = androidx.compose.ui.geometry.Size(toeX - heelX, m * 0.022f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(m * 0.011f),
-        )
-        // Upper: tall heel collar sweeping down to a low toe box.
-        val upper = Path().apply {
-            moveTo(heelX, soleTop)
-            lineTo(heelX, c.y - m * 0.075f)
-            quadraticTo(heelX + m * 0.015f, c.y - m * 0.105f, heelX + m * 0.06f, c.y - m * 0.10f)
-            quadraticTo(heelX + m * 0.13f, c.y - m * 0.09f, c.x + m * 0.04f, c.y - m * 0.035f)
-            quadraticTo(c.x + m * 0.115f, c.y + m * 0.005f, toeX, soleTop - m * 0.002f)
-            lineTo(heelX, soleTop)
-            close()
-        }
-        drawPath(upper, body)
-        // Collar opening.
-        drawLine(
-            color = midsoleColor.copy(alpha = 0.7f),
-            start = Offset(heelX + m * 0.055f, c.y - m * 0.092f),
-            end = Offset(heelX + m * 0.105f, c.y - m * 0.062f),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        // Laces across the instep.
-        repeat(3) { index ->
-            val t = index * m * 0.038f
-            drawLine(
-                color = midsoleColor,
-                start = Offset(c.x - m * 0.035f + t, c.y - m * 0.070f + t * 0.55f),
-                end = Offset(c.x + m * 0.005f + t, c.y - m * 0.098f + t * 0.55f),
-                strokeWidth = 2.2.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
-        // Side accent stripe.
-        val accent = Path().apply {
-            moveTo(heelX + m * 0.03f, c.y - m * 0.005f)
-            quadraticTo(c.x - m * 0.02f, c.y + m * 0.028f, c.x + m * 0.09f, c.y - m * 0.012f)
-        }
-        drawPath(
-            accent,
-            scheme.tertiary.copy(alpha = 0.85f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
-        )
-    }
-    // Motion trails behind the heel.
-    repeat(3) { index ->
-        val y = c.y - m * (0.055f - 0.05f * index)
-        drawLine(
-            color = body.copy(alpha = 0.35f - 0.08f * index),
-            start = Offset(c.x - m * (0.34f + 0.045f * index), y),
-            end = Offset(c.x - m * (0.21f + 0.02f * index), y),
-            strokeWidth = (3.2f - 0.5f * index).dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-@Composable
 private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
     when (sort) {
         FavoritesSort.AZ -> R.string.sort_az
@@ -2370,16 +1792,29 @@ private fun FavoritesTabContent(
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
+    onTogglePlayback: () -> Unit,
+    onToggleFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
-    onAddTapped: () -> Unit,
     onStationLongPress: (Station) -> Unit,
 ) {
+    // Matches Drive's "No starred files": just the illustration and caption, no sort/view
+    // controls (meaningless with nothing to sort) and no button — the search bar above is
+    // always the way in.
+    if (stations.isEmpty()) {
+        HomeEmptyState(
+            text = stringResource(R.string.no_favorites),
+            supportingText = stringResource(R.string.no_favorites_desc),
+            icon = Icons.Rounded.FavoriteBorder,
+        )
+        return
+    }
+
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val activeTileColor = MaterialTheme.colorScheme.primaryContainer
     val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val favoriteRows = remember(stations, gridColumns) {
-        (0 until stations.size + 1).toList().chunked(gridColumns)
+        stations.indices.toList().chunked(gridColumns)
     }
     val showFavoriteActivityIndicators by remember {
         derivedStateOf { !listState.isScrollInProgress }
@@ -2452,7 +1887,6 @@ private fun FavoritesTabContent(
                     activeTileColor = activeTileColor,
                     tileContentColor = tileContentColor,
                     onPlay = onPlay,
-                    onAddTapped = onAddTapped,
                     onStationLongPress = onStationLongPress,
                 )
             }
@@ -2470,13 +1904,10 @@ private fun FavoritesTabContent(
                     isBuffering = isBuffering && isActive,
                     // Stable false for inactive rows — see the card-mode note above.
                     showActivityIndicator = showFavoriteActivityIndicators && isActive,
-                    onClick = { onPlay(station) },
+                    onPlay = { onPlay(station) },
+                    onTogglePlayback = onTogglePlayback,
+                    onToggleFavorite = { onToggleFavorite(station) },
                     onLongClick = { onStationLongPress(station) },
-                )
-            }
-            item("favorite-list-add", contentType = "favorite-list-add") {
-                AddStationListRow(
-                    onClick = onAddTapped,
                 )
             }
         }
@@ -2593,7 +2024,6 @@ private fun FavoriteStationCardRow(
     activeTileColor: androidx.compose.ui.graphics.Color,
     tileContentColor: androidx.compose.ui.graphics.Color,
     onPlay: (Station) -> Unit,
-    onAddTapped: () -> Unit,
     onStationLongPress: (Station) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2606,59 +2036,26 @@ private fun FavoriteStationCardRow(
         ),
     ) {
         rowIndices.forEach { idx ->
-            if (idx < stations.size) {
-                val station = stations[idx]
-                val isActive = currentStation?.id == station.id
-                StationTile(
-                    station = station,
-                    tileColor = if (isActive) activeTileColor else tileColor,
-                    contentColor = tileContentColor,
-                    isActive = isActive,
-                    isPlaying = isPlaying && isActive,
-                    isBuffering = isBuffering && isActive,
-                    // Only the active tile can show an indicator, so inactive tiles get a
-                    // stable false and skip the recomposition when scrolling starts/stops.
-                    showActivityIndicator = showActivityIndicator && isActive,
-                    onClick = { onPlay(station) },
-                    onLongClick = { onStationLongPress(station) },
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                AddTile(onClick = onAddTapped, modifier = Modifier.weight(1f))
-            }
+            val station = stations[idx]
+            val isActive = currentStation?.id == station.id
+            StationTile(
+                station = station,
+                tileColor = if (isActive) activeTileColor else tileColor,
+                contentColor = tileContentColor,
+                isActive = isActive,
+                isPlaying = isPlaying && isActive,
+                isBuffering = isBuffering && isActive,
+                // Only the active tile can show an indicator, so inactive tiles get a
+                // stable false and skip the recomposition when scrolling starts/stops.
+                showActivityIndicator = showActivityIndicator && isActive,
+                onClick = { onPlay(station) },
+                onLongClick = { onStationLongPress(station) },
+                modifier = Modifier.weight(1f),
+            )
         }
         repeat(columns - rowIndices.size) {
             Spacer(modifier = Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-private fun AddStationListRow(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ListItem(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        leadingContent = {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        },
-        supportingContent = { Text(stringResource(R.string.find_one_to_listen)) },
-    ) {
-        Text(stringResource(R.string.find_a_station))
     }
 }
 
@@ -2669,10 +2066,13 @@ private fun StationListRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     showActivityIndicator: Boolean,
-    onClick: () -> Unit,
+    onPlay: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val pauseLabel = stringResource(R.string.pause)
     val haptic = LocalHapticFeedback.current
     val appLocale = LocalConfiguration.current.locales[0]
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
@@ -2682,7 +2082,7 @@ private fun StationListRow(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
+                onClick = onPlay,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick()
@@ -2701,18 +2101,43 @@ private fun StationListRow(
             }
         },
         trailingContent = {
-            when {
-                !showActivityIndicator -> Unit
-                isBuffering -> CircularWavyProgressIndicator(
-                    modifier = Modifier.size(26.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                )
-                isActive && isPlaying -> EqualizerBars(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(width = 30.dp, height = 24.dp),
-                    barCount = 3,
-                )
+            // Same preview-play + favourite pattern as the mood and search rows: a dedicated
+            // button toggles playback in place (rather than only via the row tap), and the
+            // heart removes the row directly. The glyph — not the button itself — is gated by
+            // showActivityIndicator, so the animated equalizer bars still skip recomposition
+            // during scroll (see the card-grid note elsewhere) without hiding a functional
+            // control; a still-correct tap lands even on the rare frame where the icon lags.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    when {
+                        showActivityIndicator && isBuffering -> CircularWavyProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        )
+                        showActivityIndicator && isActive && isPlaying -> EqualizerBars(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(width = 28.dp, height = 22.dp)
+                                .semantics { contentDescription = pauseLabel },
+                            barCount = 3,
+                        )
+                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                    }
+                }
+                IconButton(
+                    onClick = onToggleFavorite,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    Icon(
+                        imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.save_to_favorites),
+                        tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
     ) {
@@ -2820,86 +2245,6 @@ private fun StationTile(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
         )
-    }
-}
-
-@Composable
-private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier,
-    ) {
-        Surface(
-            onClick = onClick,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = MaterialTheme.shapes.medium,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = stringResource(R.string.find_a_station),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-        }
-        Text(
-            text = stringResource(R.string.find_one_to_listen),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
-        )
-    }
-}
-
-@Composable
-private fun CategoryGrid(
-    tags: List<String>,
-    onCategoryTap: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (tags.isEmpty()) return
-    val tagLabels = rememberTagLabels()
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        tags.chunked(2).forEach { pair ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                pair.forEach { tag ->
-                    Card(
-                        onClick = { onCategoryTap(tag) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.weight(1f).height(72.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
-                        ) {
-                            Icon(
-                                imageVector = CATEGORY_ICONS[tag] ?: Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(tagLabels[tag] ?: tag, style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
     }
 }
 
