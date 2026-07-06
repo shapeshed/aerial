@@ -808,11 +808,16 @@ fun MainScreen(
                             stations = defaultStations,
                             savedStreamUrls = savedStreamUrls,
                             savedRegistryKeys = savedRegistryKeys,
+                            currentStation = currentStation,
+                            isPlaying = isPlaying,
+                            isBuffering = isBuffering,
                             onPlay = { station ->
                                 viewModel.playFromRegistry(station)
                                 textFieldState.edit { replace(0, length, "") }
                                 scope.launch { searchBarState.animateToCollapsed() }
                             },
+                            onPreviewPlay = { viewModel.playFromRegistry(it) },
+                            onTogglePlayback = { viewModel.togglePlayback() },
                             onAdd = { viewModel.addFromRegistry(it) },
                             onRemove = { viewModel.removeFromRegistry(it) },
                         )
@@ -823,11 +828,18 @@ fun MainScreen(
                         results = registrySearchResults,
                         savedStreamUrls = savedStreamUrls,
                         savedRegistryKeys = savedRegistryKeys,
+                        currentStation = currentStation,
+                        isPlaying = isPlaying,
+                        isBuffering = isBuffering,
                         onFavoritePlay = { station ->
                             viewModel.saveRecentSearch(searchQueryText)
                             viewModel.play(station)
                             textFieldState.edit { replace(0, length, "") }
                             scope.launch { searchBarState.animateToCollapsed() }
+                        },
+                        onFavoritePreviewPlay = { station ->
+                            viewModel.saveRecentSearch(searchQueryText)
+                            viewModel.play(station)
                         },
                         onPlay = { station ->
                             viewModel.saveRecentSearch(searchQueryText)
@@ -835,6 +847,11 @@ fun MainScreen(
                             textFieldState.edit { replace(0, length, "") }
                             scope.launch { searchBarState.animateToCollapsed() }
                         },
+                        onPreviewPlay = { station ->
+                            viewModel.saveRecentSearch(searchQueryText)
+                            viewModel.playFromRegistry(station)
+                        },
+                        onTogglePlayback = { viewModel.togglePlayback() },
                         onAdd = { viewModel.addFromRegistry(it) },
                         onRemove = { viewModel.removeFromRegistry(it) },
                         bottomPadding = 0.dp,
@@ -944,7 +961,12 @@ private fun DefaultSearchResults(
     stations: List<RegistryStation>,
     savedStreamUrls: Set<String>,
     savedRegistryKeys: Set<RegistryStationKey>,
+    currentStation: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     onPlay: (RegistryStation) -> Unit,
+    onPreviewPlay: (RegistryStation) -> Unit,
+    onTogglePlayback: () -> Unit,
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
 ) {
@@ -955,15 +977,29 @@ private fun DefaultSearchResults(
             key = { it.id },
             contentType = { "registry-result" },
         ) { station ->
+            val isActive = currentStation.matches(station)
             RegistryResultItem(
                 station = station,
                 alreadySaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys,
+                isPlaying = isPlaying && isActive,
+                isBuffering = isBuffering && isActive,
                 onTap = { onPlay(station) },
+                onPreviewPlay = { onPreviewPlay(station) },
+                onTogglePlayback = onTogglePlayback,
                 onAdd = { onAdd(station) },
                 onRemove = { onRemove(station) },
             )
         }
     }
+}
+
+// Whether the playing station is this registry entry, matching by stream URL with a
+// provider-key fallback for saved stations whose URL was corrected locally.
+private fun Station?.matches(registryStation: RegistryStation): Boolean {
+    if (this == null) return false
+    if (streamUrl == registryStation.streamUrl) return true
+    val key = registryStation.savedKey() ?: return false
+    return savedKey() == key
 }
 
 @Composable
@@ -1005,8 +1041,14 @@ private fun RegistrySearchResults(
     results: List<RegistryStation>,
     savedStreamUrls: Set<String>,
     savedRegistryKeys: Set<RegistryStationKey>,
+    currentStation: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     onFavoritePlay: (Station) -> Unit,
+    onFavoritePreviewPlay: (Station) -> Unit,
     onPlay: (RegistryStation) -> Unit,
+    onPreviewPlay: (RegistryStation) -> Unit,
+    onTogglePlayback: () -> Unit,
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp,
@@ -1079,9 +1121,15 @@ private fun RegistrySearchResults(
                     key = { "favorite-${it.id}" },
                     contentType = { "favorite-result" },
                 ) { station ->
+                    val isActive = currentStation != null &&
+                        (currentStation.id == station.id || currentStation.streamUrl == station.streamUrl)
                     FavoriteResultItem(
                         station = station,
+                        isPlaying = isPlaying && isActive,
+                        isBuffering = isBuffering && isActive,
                         onTap = { onFavoritePlay(station) },
+                        onPreviewPlay = { onFavoritePreviewPlay(station) },
+                        onTogglePlayback = onTogglePlayback,
                     )
                 }
                 if (results.isNotEmpty()) {
@@ -1101,10 +1149,15 @@ private fun RegistrySearchResults(
                 contentType = { "registry-result" },
             ) { station ->
                 val alreadySaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
+                val isActive = currentStation.matches(station)
                 RegistryResultItem(
                     station = station,
                     alreadySaved = alreadySaved,
+                    isPlaying = isPlaying && isActive,
+                    isBuffering = isBuffering && isActive,
                     onTap = { onPlay(station) },
+                    onPreviewPlay = { onPreviewPlay(station) },
+                    onTogglePlayback = onTogglePlayback,
                     onAdd = { onAdd(station) },
                     onRemove = { onRemove(station) },
                 )
@@ -1116,8 +1169,13 @@ private fun RegistrySearchResults(
 @Composable
 private fun FavoriteResultItem(
     station: Station,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     onTap: () -> Unit,
+    onPreviewPlay: () -> Unit,
+    onTogglePlayback: () -> Unit,
 ) {
+    val pauseLabel = stringResource(R.string.pause)
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
         ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
         ?: station.country
@@ -1138,12 +1196,41 @@ private fun FavoriteResultItem(
             }
         } else null,
         trailingContent = {
-            Icon(
-                imageVector = Icons.Rounded.Favorite,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = if (isPlaying) onTogglePlayback else onPreviewPlay,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    when {
+                        isBuffering -> CircularWavyProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        )
+                        isPlaying -> EqualizerBars(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(width = 28.dp, height = 22.dp)
+                                .semantics { contentDescription = pauseLabel },
+                            barCount = 3,
+                        )
+                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                    }
+                }
+                // Static badge, but sized like the icon buttons in the registry rows so the
+                // play/heart columns align across the whole results list.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Favorite,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         },
     ) {
         Text(
@@ -1159,10 +1246,15 @@ private fun FavoriteResultItem(
 private fun RegistryResultItem(
     station: RegistryStation,
     alreadySaved: Boolean,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     onTap: () -> Unit,
+    onPreviewPlay: () -> Unit,
+    onTogglePlayback: () -> Unit,
     onAdd: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    val pauseLabel = stringResource(R.string.pause)
     // Localize the country from its ISO code (falling back to the registry's own name).
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
         ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
@@ -1186,6 +1278,29 @@ private fun RegistryResultItem(
             { Text(countryLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else null,
         trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Preview control (mood-row style): plays in place without closing the search
+            // sheet so the station can be auditioned before saving it.
+            IconButton(
+                onClick = if (isPlaying) onTogglePlayback else onPreviewPlay,
+                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+            ) {
+                when {
+                    isBuffering -> CircularWavyProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    )
+                    isPlaying -> EqualizerBars(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(width = 28.dp, height = 22.dp)
+                            .semantics { contentDescription = pauseLabel },
+                        barCount = 3,
+                    )
+                    else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                }
+            }
             IconButton(
                 onClick = if (alreadySaved) onRemove else onAdd,
                 shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
@@ -1196,6 +1311,7 @@ private fun RegistryResultItem(
                     tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
+            }
             }
         },
     ) {
