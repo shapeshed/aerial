@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -64,6 +65,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,12 +82,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
+import java.io.File
 import kotlin.math.abs
 
 private fun Station.matchesStation(other: Station): Boolean =
@@ -97,6 +103,17 @@ private fun Station.matchesStation(other: Station): Boolean =
             providerId == other.providerId)
 
 private fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
+
+// A station's own saved logo, resolved the same way StationAvatar does. Used as full-bleed
+// artwork for swipe-pager pages that aren't the actively playing station: those have no live
+// "now playing" metadata (that pipeline only feeds the active MediaController), but the
+// station's own logo is still real artwork — showing it full-bleed keeps every page visually
+// consistent, instead of falling back to the small circular avatar meant for list rows.
+private fun Station.ownLogoModel(): Any? = when {
+    logoPath.startsWith("http") -> logoPath
+    logoPath.isNotEmpty() -> File(logoPath)
+    else -> null
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -124,6 +141,7 @@ fun NowPlayingScreen(
     val shareStationLabel = stringResource(R.string.share_station)
     val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val dismissScope = rememberCoroutineScope()
     // Horizontal paging steps through swipeStations (the favourites in their selected sort
     // order). A non-favourite station isn't in the list, so the artwork stays static for it.
     val swipeIndex = remember(swipeStations, station) {
@@ -165,6 +183,17 @@ fun NowPlayingScreen(
     // when the enricher supplied its own artwork. Otherwise the main image already is the
     // station logo, so the small logo badge would just duplicate it.
     val mainArtworkIsDistinct = nowPlayingInfo?.artworkData != null || !nowPlayingInfo?.artworkUrl.isNullOrBlank()
+    // When there's no distinct enrichment artwork, mainArtworkModel is just whatever play()
+    // wrote into the MediaItem for system media surfaces: the station's own logo if it has
+    // one, or the app icon as a last resort if it doesn't. That value also arrives
+    // asynchronously (play() clears it, and it only repopulates once the media session's
+    // metadata callback fires again), so using it here would both flash through the small
+    // circular avatar for a frame after every swipe and, for a logo-less station, "upgrade"
+    // to showing the app's launcher icon as if it were the station's own artwork. Resolving
+    // the station's own logo directly — synchronously, no gap — avoids both: it's the exact
+    // image the pager already showed for this page before it became active, and it's simply
+    // absent (falling back to the avatar, not the app icon) for a station with no logo.
+    val activeArtworkModel = if (mainArtworkIsDistinct) mainArtworkModel else station.ownLogoModel()
     val trackArtworkModel = when {
         track?.artworkData != null -> track.artworkData
         track?.artworkUrl?.isNotBlank() == true -> track.artworkUrl
@@ -172,7 +201,7 @@ fun NowPlayingScreen(
         !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
         else -> null
     }
-    var mainArtworkFailed by remember(mainArtworkModel) { mutableStateOf(false) }
+    var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
     // The track flows reset asynchronously when the station changes, so for a frame or two
     // the previous station's song can pair with the new station. Hide the track card from
@@ -214,6 +243,18 @@ fun NowPlayingScreen(
                     onDragEnd = {
                         if (dragOffsetY >= dismissThresholdPx) {
                             onDismiss()
+                            // Deferred, not immediate: resetting dragOffsetY synchronously here
+                            // would zero out this graphicsLayer's translationY on the same frame
+                            // the outer AnimatedVisibility's own exit slide starts from *its*
+                            // zero baseline, so the pane visibly snapped up before sliding back
+                            // down. Waiting until well after the exit animation has finished
+                            // avoids that flicker, while still guaranteeing the offset is clean
+                            // before a fast reopen — the scenario this reset exists for — could
+                            // plausibly reuse this composable's state mid-exit.
+                            dismissScope.launch {
+                                delay(500)
+                                dragOffsetY = 0f
+                            }
                         } else {
                             dragOffsetY = 0f
                         }
@@ -284,18 +325,32 @@ fun NowPlayingScreen(
                         pageSpacing = 24.dp,
                     ) { page ->
                         val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
-                        StationArtworkSurface(
-                            station = pageStation,
-                            shape = artworkShape,
-                            artworkModel = mainArtworkModel.takeIf { pageStation.matchesStation(station) && !mainArtworkFailed },
-                            onArtworkError = { mainArtworkFailed = true },
-                        )
+                        if (pageStation.matchesStation(station)) {
+                            StationArtworkSurface(
+                                station = pageStation,
+                                shape = artworkShape,
+                                artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
+                                onArtworkError = { mainArtworkFailed = true },
+                            )
+                        } else {
+                            // Own logo, full-bleed — not the small circular avatar, and not
+                            // sharing mainArtworkFailed with the active page (a neighbour's
+                            // logo failing to load must not blank out the real artwork above).
+                            val ownLogoModel = pageStation.ownLogoModel()
+                            var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
+                            StationArtworkSurface(
+                                station = pageStation,
+                                shape = artworkShape,
+                                artworkModel = ownLogoModel.takeIf { !ownLogoFailed },
+                                onArtworkError = { ownLogoFailed = true },
+                            )
+                        }
                     }
                 } else {
                     StationArtworkSurface(
                         station = station,
                         shape = artworkShape,
-                        artworkModel = mainArtworkModel.takeIf { !mainArtworkFailed },
+                        artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
                         onArtworkError = { mainArtworkFailed = true },
                     )
                 }
@@ -713,10 +768,20 @@ private fun StationArtworkSurface(
             .fillMaxWidth()
             .aspectRatio(1f),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             if (artworkModel != null) {
+                val context = LocalContext.current
+                // Crossfade rather than pop: activeArtworkModel legitimately changes after a
+                // swipe settles (station logo shown first, upgraded to real enrichment artwork
+                // once the metadata pipeline catches up), and a hard cut reads as a flash.
+                val request = remember(context, artworkModel) {
+                    ImageRequest.Builder(context)
+                        .data(artworkModel)
+                        .crossfade(300)
+                        .build()
+                }
                 AsyncImage(
-                    model = artworkModel,
+                    model = request,
                     contentDescription = null,
                     // Fit (not Crop) so non-square artwork isn't cropped; the
                     // surface colour fills the letterbox space.
@@ -725,10 +790,15 @@ private fun StationArtworkSurface(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
+                // Sized relative to the surface rather than a fixed dp value: every station
+                // in the swipe pager besides the one actually playing falls back to this
+                // avatar (only the active station has live "now playing" artwork), so a
+                // fixed size reads as jarringly smaller than the full-bleed artwork on the
+                // active page.
                 StationAvatar(
                     station = station,
                     isActive = true,
-                    size = 200.dp,
+                    size = maxWidth * 0.56f,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }

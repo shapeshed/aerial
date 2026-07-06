@@ -735,7 +735,19 @@ class MainViewModel(
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
             try {
-                val dest = logoFileForUrl(url, dir, conn.contentType)
+                // A dead/moved logo URL can respond with a redirect or an HTML error page
+                // instead of an image (e.g. a 301 whose body is just an nginx redirect
+                // notice) — without this check that body gets saved to disk as if it were
+                // the logo. On rejection the caller falls back to the raw URL, which Coil's
+                // own HTTP client can still resolve correctly at render time (it isn't
+                // restricted to same-protocol redirects the way HttpURLConnection is).
+                val contentType = conn.contentType?.substringBefore(';')?.trim()
+                if (conn.responseCode != HttpURLConnection.HTTP_OK ||
+                    (contentType != null && !contentType.startsWith("image/"))
+                ) {
+                    return null
+                }
+                val dest = logoFileForUrl(url, dir, contentType)
                 conn.inputStream.use { input ->
                     dest.outputStream().use { output -> input.copyTo(output) }
                 }
