@@ -33,7 +33,11 @@ private val CURATED_TAG_ORDER = listOf(
     "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic"
 )
 
-private data class MoodStationRef(val name: String, val provider: String? = null)
+// providerId pins a ref to one exact registry row so it survives a station being renamed
+// upstream on a future registry refresh (name alone would silently stop resolving). Curated
+// entries have no stable id (providerId is always "" in that bucket), so those refs still
+// fall back to matching by name.
+private data class MoodStationRef(val name: String, val provider: String? = null, val providerId: String? = null)
 
 private val CURATED_MOOD_STATIONS = mapOf(
     "relax" to listOf(
@@ -49,16 +53,18 @@ private val CURATED_MOOD_STATIONS = mapOf(
         MoodStationRef("Cape Town Classic"),
     ),
     "focus" to listOf(
-        MoodStationRef("BBC Radio 3 Unwind", "bbc"),
-        MoodStationRef("Classic FM Calm", "global"),
-        MoodStationRef("Radio Schizoid - Chillout / Ambient"),
-        MoodStationRef("Ottava", "curated"),
-        MoodStationRef("KBS Classic FM"),
-        MoodStationRef("Radio Swiss Classic", "curated"),
-        MoodStationRef("MDR KLASSIK Livestream", "ard"),
-        MoodStationRef("Ambient Sleeping Pill"),
-        MoodStationRef("SomaFM Drone Zone"),
-        MoodStationRef("WDR 3 Klassik", "ard"),
+        MoodStationRef("freeCodeCamp Code Radio", "radio-browser", "60ede1ca-d7fa-4a36-a047-aec873b9be41"),
+        MoodStationRef("Box Lofi Radio", "radio-browser", "a5213a32-d614-47bc-8d52-70a2b6eed8e1"),
+        MoodStationRef("FluxFM Chillhop – Chill Beats and LoFi HipHop", "radio-browser", "58d3cce6-62b5-43f1-8f41-8d024998aabc"),
+        MoodStationRef("SomaFM Groove Salad", "radio-browser", "960cf833-0601-11e8-ae97-52543be04c81"),
+        MoodStationRef("SomaFM Beat Blender", "radio-browser", "960eb232-0601-11e8-ae97-52543be04c81"),
+        // No stable id in the "curated" bucket (providerId is always ""), so this one still
+        // resolves by name.
+        MoodStationRef("A Strangely Isolated Place", "curated"),
+        MoodStationRef("Systrum Sistum - SSR1", "radio-browser", "37e6772a-5ab7-429d-84bc-fedc606cc8c4"),
+        MoodStationRef("Slow Focus | NTS", "radio-browser", "d5468df4-e6d0-11e9-a96c-52543be04c81"),
+        MoodStationRef("Sheet Music | NTS", "radio-browser", "1e0ad463-0dbc-4913-b12d-7d0b7300882b"),
+        MoodStationRef("Radio Swiss Jazz", "curated"),
     ),
     "morning" to listOf(
         MoodStationRef("BBC Radio 6 Music", "bbc"),
@@ -97,16 +103,19 @@ private val CURATED_MOOD_STATIONS = mapOf(
         MoodStationRef("Radio Samui Online"),
     ),
     "workout" to listOf(
-        MoodStationRef("BBC Radio 1 Dance", "bbc"),
-        MoodStationRef("Capital Dance", "global"),
-        MoodStationRef("Rinse FM", "rinse"),
-        MoodStationRef("FIP Electro"),
-        MoodStationRef("1LIVE DIGGI", "ard"),
-        MoodStationRef("98.8 Kiss FM Clubsets", "curated"),
-        MoodStationRef("Allzic Radio Dance Floor", "curated"),
-        MoodStationRef("Bollywood Dance"),
-        MoodStationRef("CLUB DANCE CHILE"),
-        MoodStationRef("ABC Dance"),
+        // International variant, not the UK-only feed.
+        MoodStationRef("BBC Radio 1 Dance (International)", "bbc", "bbc_radio_one_dance_int"),
+        MoodStationRef("Radio FG 98.2", "radio-browser", "4a1bbe28-0675-43bb-98dc-fae037b0b026"),
+        MoodStationRef("54house.fm Clubstream", "radio-browser", "a20e7f55-661e-4f4c-b87f-a087c64633f8"),
+        MoodStationRef("Technolovers - TECHNO", "radio-browser", "2100610c-13c2-4536-879f-6a88ccb07dc8"),
+        // No stable id in the "curated" bucket (providerId is always ""), so this one still
+        // resolves by name.
+        MoodStationRef("Techno.FM", "curated"),
+        MoodStationRef("Bassdrive", "radio-browser", "960cc332-0601-11e8-ae97-52543be04c81"),
+        MoodStationRef("Kool FM", "rinse", "kool"),
+        MoodStationRef("Pure Ibiza Radio", "radio-browser", "26edc6b6-d221-4814-a6a9-0dd5d5d365d2"),
+        MoodStationRef("FIP Electro", "radio-browser", "ceba99fe-a1e5-4f2b-b9af-105d8eb7697d"),
+        MoodStationRef("Point Blank FM", "radio-browser", "9957dc39-7c25-499c-8a9c-5ce871924316"),
     ),
 )
 
@@ -201,7 +210,9 @@ class RegistryRepository(private val dao: RegistryDao) {
 
     suspend fun curatedMoodStations(): Map<String, List<RegistryStation>> {
         val allRefs = CURATED_MOOD_STATIONS.values.flatten()
-        val candidates = dao.getByNames(allRefs.map { it.name }.distinct())
+        val (idRefs, nameRefs) = allRefs.partition { !it.providerId.isNullOrBlank() }
+        val candidates = dao.getByProviderIds(idRefs.map { it.providerId!! }.distinct()) +
+            dao.getByNames(nameRefs.map { it.name }.distinct())
         return CURATED_MOOD_STATIONS.mapValues { (_, refs) ->
             refs.mapNotNull { target ->
                 resolveMoodStation(target, candidates)
@@ -212,11 +223,15 @@ class RegistryRepository(private val dao: RegistryDao) {
     private fun resolveMoodStation(
         target: MoodStationRef,
         candidates: List<RegistryStation>,
-    ): RegistryStation? =
-        target.provider
+    ): RegistryStation? {
+        if (!target.providerId.isNullOrBlank()) {
+            return candidates.firstOrNull { it.provider == target.provider && it.providerId == target.providerId }
+        }
+        return target.provider
             ?.let { provider -> candidates.firstOrNull { it.name == target.name && it.provider == provider } }
             ?: candidates.firstOrNull { it.name == target.name && it.provider == "curated" }
             ?: candidates.firstOrNull { it.name == target.name }
+    }
 
     // A-Z subsection shown as browse suggestions before the user has typed anything.
     // Capped to match the search query limit.
