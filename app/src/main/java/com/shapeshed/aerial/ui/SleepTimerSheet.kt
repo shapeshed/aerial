@@ -42,19 +42,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.shapeshed.aerial.BuildConfig
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.SleepTimerState
 
 private const val MINUTE_MS = 60_000L
 
-val SLEEP_TIMER_PRESETS_MS: List<Long> = listOf(
-    30_000L,
-    15 * MINUTE_MS,
-    30 * MINUTE_MS,
-    45 * MINUTE_MS,
-    60 * MINUTE_MS,
-    90 * MINUTE_MS,
-)
+// The 30s preset is a debug-only shortcut for testing sleep timer expiry without waiting on a
+// real duration — it must never appear in a release build.
+val SLEEP_TIMER_PRESETS_MS: List<Long> = buildList {
+    if (BuildConfig.DEBUG) add(30_000L)
+    add(15 * MINUTE_MS)
+    add(30 * MINUTE_MS)
+    add(45 * MINUTE_MS)
+    add(60 * MINUTE_MS)
+    add(90 * MINUTE_MS)
+}
 
 /** Formats remaining milliseconds as H:MM:SS (or M:SS under an hour), rounding seconds up. */
 fun formatSleepRemaining(ms: Long): String {
