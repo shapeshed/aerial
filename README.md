@@ -20,14 +20,11 @@ Aerial is a lightweight Android radio player.
 
 ## Features
 
-- Discover stations from the Aerial registry with featured stations, country and genre filters, and quick genre playback.
-- Add stations manually when a stream URL is known.
-- Play live streams with Android media controls.
-- Save and browse favorite stations as home screen tiles.
-- Show song, artist, and artwork when stations provide playback details.
-- Store station logos locally for faster loading.
-- Export and import stations and saved logos as a zip backup.
-- Adaptive launcher icon with Android themed icon support.
+- Explore curated radio collections for different moods and listening moments.
+- Save favorite stations and keep them close in a simple home view.
+- Play live radio with artwork, track details, and Android media controls when available.
+- Set a sleep timer so playback stops automatically.
+- Keep listening private with no ads, analytics, tracking SDKs, Firebase, or accounts.
 
 ## Support
 
