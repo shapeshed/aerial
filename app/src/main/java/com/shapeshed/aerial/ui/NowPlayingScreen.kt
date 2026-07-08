@@ -282,316 +282,327 @@ fun NowPlayingScreen(
             )
         },
     ) { padding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { traversalIndex = 1f },
-            ) {
-                if (swipeIndex != -1 && swipeStations.size > 1) {
-                    // Real pager over the frozen favourites order: the neighbour's artwork is a
-                    // prepared page that slides in with the finger; settling switches playback.
-                    // The rest of the pane stays static.
-                    val virtualPageCount = Int.MAX_VALUE
-                    val initialPage = remember(swipeStations, swipeIndex) {
-                        val midpoint = virtualPageCount / 2
-                        midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
-                    }
-                    val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
-                    LaunchedEffect(pagerState.settledPage) {
-                        val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
-                        if (!target.matchesStation(station)) onPlayStation(target)
-                    }
-                    // Keep the pager in step when the station changes some other way (e.g. the
-                    // media notification or a tap on the favourites grid behind the pane).
-                    LaunchedEffect(swipeIndex) {
-                        val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
-                        if (currentIndex != swipeIndex && !pagerState.isScrollInProgress) {
-                            val forwardDelta = circularPageIndex(swipeIndex - currentIndex, swipeStations.size)
-                            val backwardDelta = forwardDelta - swipeStations.size
-                            val delta = if (abs(backwardDelta) < forwardDelta) backwardDelta else forwardDelta
-                            pagerState.animateScrollToPage(pagerState.currentPage + delta)
-                        }
-                    }
-                    HorizontalPager(
-                        state = pagerState,
-                        pageSpacing = 24.dp,
-                    ) { page ->
-                        val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
-                        if (pageStation.matchesStation(station)) {
-                            StationArtworkSurface(
-                                station = pageStation,
-                                shape = artworkShape,
-                                artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
-                                onArtworkError = { mainArtworkFailed = true },
-                            )
-                        } else {
-                            // Own logo, full-bleed — not the small circular avatar, and not
-                            // sharing mainArtworkFailed with the active page (a neighbour's
-                            // logo failing to load must not blank out the real artwork above).
-                            val ownLogoModel = pageStation.ownLogoModel()
-                            var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
-                            StationArtworkSurface(
-                                station = pageStation,
-                                shape = artworkShape,
-                                artworkModel = ownLogoModel.takeIf { !ownLogoFailed },
-                                onArtworkError = { ownLogoFailed = true },
-                            )
-                        }
-                    }
-                } else {
-                    StationArtworkSurface(
-                        station = station,
-                        shape = artworkShape,
-                        artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
-                        onArtworkError = { mainArtworkFailed = true },
-                    )
-                }
-                if (mainArtworkModel != null && !mainArtworkFailed && mainArtworkIsDistinct) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 6.dp,
-                        tonalElevation = 2.dp,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 12.dp, end = 12.dp)
-                            .size(56.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            StationAvatar(
-                                station = station,
-                                isActive = false,
-                                size = 44.dp,
-                            )
-                        }
-                    }
-                }
-                if (bitrateLabel != null) {
-                    StreamBitratePill(
-                        text = bitrateLabel,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 12.dp, bottom = 12.dp),
-                    )
-                }
-            }
-            // Every block below reserves its space even when empty (blank text keeps its
-            // line height, the track card keeps a fixed slot) so the centred column doesn't
-            // jump vertically when swiping between stations with different metadata.
-            Spacer(Modifier.height(28.dp))
-            Text(
-                text = if (nowPlayingInfo != null) station.name else "",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = programmeTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { traversalIndex = 2f },
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = programmeSubtitle?.takeIf { it != programmeTitle } ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { traversalIndex = 3f },
-            )
-            Spacer(Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+            // Cap the artwork to a share of the pane's height rather than letting it fill the
+            // full width unconditionally — on a wide landscape/tablet window (the new nav rail
+            // layout) that let the square artwork blow up to the pane's full width and dominate
+            // the screen.
+            val artworkSize = (maxHeight * 0.42f).coerceAtMost(maxWidth)
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.Center,
             ) {
                 Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    FilledTonalIconButton(
-                        onClick = onToggleFavorite,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier
-                            .size(56.dp)
-                            .semantics { traversalIndex = 4f },
-                    ) {
-                        Icon(
-                            imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
-                            tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                        )
-                    }
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    FilledIconButton(
-                        onClick = onToggle,
-                        enabled = !isBuffering,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .semantics { traversalIndex = 5f },
-                        shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) {
-                        val motionScheme = MaterialTheme.motionScheme
-                        AnimatedContent(
-                            targetState = isBuffering to isPlaying,
-                            transitionSpec = {
-                                (fadeIn(motionScheme.defaultEffectsSpec()) +
-                                    scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
-                                    .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
-                            },
-                            label = "playPause",
-                        ) { (buffering, playing) ->
-                            if (buffering) {
-                                CircularWavyProgressIndicator(
-                                    modifier = Modifier.size(42.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                                    modifier = Modifier.size(44.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    FilledTonalIconButton(
-                        onClick = {
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, station.name)
-                                putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
-                            }
-                            context.startActivity(
-                                Intent.createChooser(sendIntent, shareStationLabel),
-                            )
-                        },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        modifier = Modifier
-                            .size(56.dp)
-                            .semantics { traversalIndex = 6f },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = stringResource(R.string.share_station),
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(20.dp))
-            // Fixed-height slot whether or not track info exists — the card fades in and
-            // out inside it, so the layout above never shifts. Fully qualified because the
-            // enclosing ColumnScope's AnimatedVisibility extension shadows the top-level one.
-            Box(modifier = Modifier.fillMaxWidth().height(80.dp)) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showTrackBlock,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 1.dp,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTrackDetail = true },
+                        .align(Alignment.CenterHorizontally)
+                        .size(artworkSize)
+                        .semantics { traversalIndex = 1f },
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.size(52.dp),
-                        ) {
-                            if (trackArtworkModel != null && !trackArtworkFailed) {
-                                // Same light adaptive plate as the other artwork surfaces,
-                                // visible only through transparent artwork.
-                                AsyncImage(
-                                    model = trackArtworkModel,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    onError = { trackArtworkFailed = true },
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(stationLogoPlateColor()),
+                    if (swipeIndex != -1 && swipeStations.size > 1) {
+                        // Real pager over the frozen favourites order: the neighbour's artwork is a
+                        // prepared page that slides in with the finger; settling switches playback.
+                        // The rest of the pane stays static.
+                        val virtualPageCount = Int.MAX_VALUE
+                        val initialPage = remember(swipeStations, swipeIndex) {
+                            val midpoint = virtualPageCount / 2
+                            midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
+                        }
+                        val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
+                        LaunchedEffect(pagerState.settledPage) {
+                            val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
+                            if (!target.matchesStation(station)) onPlayStation(target)
+                        }
+                        // Keep the pager in step when the station changes some other way (e.g. the
+                        // media notification or a tap on the favourites grid behind the pane).
+                        LaunchedEffect(swipeIndex) {
+                            val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
+                            if (currentIndex != swipeIndex && !pagerState.isScrollInProgress) {
+                                val forwardDelta = circularPageIndex(swipeIndex - currentIndex, swipeStations.size)
+                                val backwardDelta = forwardDelta - swipeStations.size
+                                val delta = if (abs(backwardDelta) < forwardDelta) backwardDelta else forwardDelta
+                                pagerState.animateScrollToPage(pagerState.currentPage + delta)
+                            }
+                        }
+                        HorizontalPager(
+                            state = pagerState,
+                            pageSpacing = 24.dp,
+                        ) { page ->
+                            val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
+                            if (pageStation.matchesStation(station)) {
+                                StationArtworkSurface(
+                                    station = pageStation,
+                                    shape = artworkShape,
+                                    artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
+                                    onArtworkError = { mainArtworkFailed = true },
                                 )
                             } else {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    tonalElevation = 2.dp,
-                                    modifier = Modifier.size(44.dp),
-                                ) {
-                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Radio,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            modifier = Modifier.size(22.dp),
-                                        )
-                                    }
+                                // Own logo, full-bleed — not the small circular avatar, and not
+                                // sharing mainArtworkFailed with the active page (a neighbour's
+                                // logo failing to load must not blank out the real artwork above).
+                                val ownLogoModel = pageStation.ownLogoModel()
+                                var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
+                                StationArtworkSurface(
+                                    station = pageStation,
+                                    shape = artworkShape,
+                                    artworkModel = ownLogoModel.takeIf { !ownLogoFailed },
+                                    onArtworkError = { ownLogoFailed = true },
+                                )
+                            }
+                        }
+                    } else {
+                        StationArtworkSurface(
+                            station = station,
+                            shape = artworkShape,
+                            artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
+                            onArtworkError = { mainArtworkFailed = true },
+                        )
+                    }
+                    if (mainArtworkModel != null && !mainArtworkFailed && mainArtworkIsDistinct) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 6.dp,
+                            tonalElevation = 2.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(bottom = 12.dp, end = 12.dp)
+                                .size(56.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                StationAvatar(
+                                    station = station,
+                                    isActive = false,
+                                    size = 44.dp,
+                                )
+                            }
+                        }
+                    }
+                    if (bitrateLabel != null) {
+                        StreamBitratePill(
+                            text = bitrateLabel,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 12.dp, bottom = 12.dp),
+                        )
+                    }
+                }
+                // Every block below reserves its space even when empty (blank text keeps its
+                // line height, the track card keeps a fixed slot) so the centred column doesn't
+                // jump vertically when swiping between stations with different metadata.
+                Spacer(Modifier.height(28.dp))
+                Text(
+                    text = if (nowPlayingInfo != null) station.name else "",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = programmeTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    minLines = 2,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { traversalIndex = 2f },
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = programmeSubtitle?.takeIf { it != programmeTitle } ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    minLines = 2,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { traversalIndex = 3f },
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = onToggleFavorite,
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            modifier = Modifier
+                                .size(56.dp)
+                                .semantics { traversalIndex = 4f },
+                        ) {
+                            Icon(
+                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
+                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        FilledIconButton(
+                            onClick = onToggle,
+                            enabled = !isBuffering,
+                            modifier = Modifier
+                                .size(88.dp)
+                                .semantics { traversalIndex = 5f },
+                            shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        ) {
+                            val motionScheme = MaterialTheme.motionScheme
+                            AnimatedContent(
+                                targetState = isBuffering to isPlaying,
+                                transitionSpec = {
+                                    (fadeIn(motionScheme.defaultEffectsSpec()) +
+                                        scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
+                                        .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                                },
+                                label = "playPause",
+                            ) { (buffering, playing) ->
+                                if (buffering) {
+                                    CircularWavyProgressIndicator(
+                                        modifier = Modifier.size(42.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                        contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
+                                        modifier = Modifier.size(44.dp),
+                                    )
                                 }
                             }
                         }
-                        Spacer(Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = trackArtist ?: trackTitle.orEmpty(),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, station.name)
+                                    putExtra(Intent.EXTRA_TEXT, "${station.name}\n${station.streamUrl}")
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(sendIntent, shareStationLabel),
+                                )
+                            },
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            modifier = Modifier
+                                .size(56.dp)
+                                .semantics { traversalIndex = 6f },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = stringResource(R.string.share_station),
                             )
-                            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
-                                Spacer(Modifier.height(2.dp))
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                // Fixed-height slot whether or not track info exists — the card fades in and
+                // out inside it, so the layout above never shifts. Fully qualified because the
+                // enclosing ColumnScope's AnimatedVisibility extension shadows the top-level one.
+                Box(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showTrackBlock,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = 1.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTrackDetail = true },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.size(52.dp),
+                            ) {
+                                if (trackArtworkModel != null && !trackArtworkFailed) {
+                                    // Same light adaptive plate as the other artwork surfaces,
+                                    // visible only through transparent artwork.
+                                    AsyncImage(
+                                        model = trackArtworkModel,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        onError = { trackArtworkFailed = true },
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(MaterialTheme.shapes.small)
+                                            .background(stationLogoPlateColor()),
+                                    )
+                                } else {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        tonalElevation = 2.dp,
+                                        modifier = Modifier.size(44.dp),
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Radio,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier.size(22.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = trackTitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = trackArtist ?: trackTitle.orEmpty(),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = trackTitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Rounded.ContentCopy,
+                                contentDescription = stringResource(R.string.copy_track_info),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = stringResource(R.string.copy_track_info),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
                     }
-                }
+                    }
                 }
             }
         }

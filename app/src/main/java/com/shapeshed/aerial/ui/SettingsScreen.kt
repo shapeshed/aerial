@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.FileDownload
@@ -135,9 +137,12 @@ fun SettingsScreen(
                             Spacer(Modifier.height(10.dp))
                             // Connected button group — the expressive successor to segmented
                             // buttons, and the same component as the cards/list switcher.
+                            // Scrollable: the range now goes up to 8 columns for wide/tablet
+                            // layouts, which no longer reliably fits a phone-width screen.
                             ButtonGroup(
                                 overflowIndicator = {},
                                 horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
                             ) {
                                 val options = FAVORITES_GRID_COLUMNS_RANGE.toList()
                                 options.forEachIndexed { index, columns ->
