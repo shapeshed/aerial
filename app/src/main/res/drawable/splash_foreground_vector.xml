@@ -11,9 +11,18 @@
         android:scaleY="0.82">
         <path
             android:fillColor="#FF000000"
-            android:pathData="M54,63a9,9 0,1 0,0 -18a9,9 0,0 0,0 18z" />
+            android:pathData="M54,61.3a7.3,7.3 0,1 0,0 -14.6a7.3,7.3 0,0 0,0 14.6z" />
         <path
-            android:fillColor="#FF000000"
-            android:pathData="M32,28l6,6a23,23 0,0 0,0 40l-6,6a31,31 0,0 1,0 -52zM76,28a31,31 0,0 1,0 52l-6,-6a23,23 0,0 0,0 -40z" />
+            android:fillColor="@android:color/transparent"
+            android:pathData="M54,61.3 L54,85"
+            android:strokeWidth="5.8"
+            android:strokeColor="#FF000000"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M42,42 C35.5,48 35.5,60 42,66 M66,42 C72.5,48 72.5,60 66,66 M34,34 C22,45 22,63 34,74 M74,34 C86,45 86,63 74,74"
+            android:strokeWidth="5.4"
+            android:strokeColor="#FF000000"
+            android:strokeLineCap="round" />
     </group>
 </vector>
