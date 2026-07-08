@@ -1,6 +1,6 @@
 # Aerial
 
-Aerial is a lightweight Android radio player.
+Aerial is just radio for Android.
 
 ## Install
 
