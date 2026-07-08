@@ -16,7 +16,7 @@ Aerial is a lightweight Android radio player.
 
 ## Features
 
-- Explore curated radio collections for different moods and listening moments.
+- Explore curated radio collections for different moods and activities.
 - Save favorite stations and keep them close in a simple home view.
 - Play live radio with artwork, track details, and Android media controls when available.
 - Set a sleep timer so playback stops automatically.
