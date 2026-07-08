@@ -56,7 +56,9 @@ maintained.
 
 ## Development
 
-Developer documentation lives in [DEVELOPERS.md](DEVELOPERS.md).
+Developer documentation lives in [DEVELOPERS.md](DEVELOPERS.md). See
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) for how to propose changes, and
+[SECURITY.md](.github/SECURITY.md) to report a vulnerability privately.
 
 ## Privacy
 
