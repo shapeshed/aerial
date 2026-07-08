@@ -8,8 +8,6 @@ Just radio for Android
 <a href="https://f-droid.org/packages/com.shapeshed.aerial"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
 </p>
 
-## Screenshots
-
 <p>
   <img src="docs/branding/aerial-feature-graphic.png" alt="Aerial branded feature graphic" width="820">
 </p>
