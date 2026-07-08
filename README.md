@@ -21,12 +21,11 @@ Just radio for Android
 - No sign-up. You are not the product, just listen to radio.
 - Keep listening privately with no ads, analytics, tracking SDKs, Firebase, or accounts.
 
-## Support
+## Funding
 
-Enjoying Aerial? If you would like to support the project, you can buy me a
-coffee or send a small contribution through Ko-fi or PayPal. Support is
-optional, but it helps with the time and costs involved in keeping Aerial
-maintained.
+Enjoying Aerial? You can help fund the project by buying me a coffee or sending
+a small contribution through Ko-fi or PayPal. Funding is optional, but it helps
+with the time and costs involved in keeping Aerial maintained.
 
 <p>
   <a href="https://buymeacoffee.com/shapeshed"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="45"></a>
