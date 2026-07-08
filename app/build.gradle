@@ -4,6 +4,12 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
+def registrySourceFile = layout.projectDirectory.file("src/main/registry/registry.json")
+def registrySchemaFile = layout.projectDirectory.file("schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json")
+def registryGeneratorScript = layout.projectDirectory.file("../scripts/generate-registry-db.py")
+def generatedRegistryAssetsDir = layout.buildDirectory.dir("generated/aerialRegistry/assets")
+def generatedRegistryAssetFile = generatedRegistryAssetsDir.map { it.file("registry.db.compressed") }
+
 android {
     namespace 'com.shapeshed.aerial'
     compileSdk 37
@@ -67,6 +73,12 @@ android {
         buildConfig true
     }
 
+    sourceSets {
+        main {
+            assets.srcDir(generatedRegistryAssetsDir.get().asFile)
+        }
+    }
+
     dependenciesInfo {
         includeInApk false
         includeInBundle false
@@ -74,6 +86,30 @@ android {
 
     lint {
         fatal 'UnusedResources'
+    }
+}
+
+def generateRegistryAsset = tasks.register("generateRegistryAsset", Exec) {
+    description = "Generates the compressed offline station registry asset from checked-in JSON."
+    group = "build"
+
+    inputs.file(registrySourceFile)
+    inputs.file(registrySchemaFile)
+    inputs.file(registryGeneratorScript)
+    outputs.file(generatedRegistryAssetFile)
+
+    commandLine(
+        "python3",
+        registryGeneratorScript.asFile.absolutePath,
+        "--input", registrySourceFile.asFile.absolutePath,
+        "--output", generatedRegistryAssetFile.get().asFile.absolutePath,
+        "--schema", registrySchemaFile.asFile.absolutePath,
+    )
+}
+
+tasks.configureEach {
+    if (name ==~ /merge.*Assets/) {
+        dependsOn(generateRegistryAsset)
     }
 }
 
