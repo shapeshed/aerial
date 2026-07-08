@@ -11,11 +11,7 @@ Aerial is a lightweight Android radio player.
 ## Screenshots
 
 <p>
-  <img src="docs/screenshots/01-curated-radio.png" alt="Curated radio stations" width="220">
-  <img src="docs/screenshots/02-favorites-light.png" alt="Favorites in light mode" width="220">
-  <img src="docs/screenshots/03-favorites-dark.png" alt="Favorites in dark mode" width="220">
-  <img src="docs/screenshots/04-now-playing.png" alt="Now playing" width="220">
-  <img src="docs/screenshots/05-sleep-timer.png" alt="Sleep timer" width="220">
+  <img src="docs/branding/aerial-play-store-pack-preview.png" alt="Aerial branded screenshots showing favourites, now playing, sleep timer, and curated radio" width="820">
 </p>
 
 ## Features
