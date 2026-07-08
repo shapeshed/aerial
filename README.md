@@ -20,6 +20,7 @@ Just radio for Android
 - Access the stations you want quickly and easily.
 - Play live radio with artwork, track details, and Android media controls when available.
 - Set a sleep timer so playback stops automatically.
+- No sign-up. You are not the product, just listen to radio.
 - Keep listening privately with no ads, analytics, tracking SDKs, Firebase, or accounts.
 
 ## Support
