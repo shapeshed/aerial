@@ -32,7 +32,7 @@ val ENRICH_METADATA_KEY = booleanPreferencesKey("enrich_metadata")
 val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 val FAVORITES_GRID_COLUMNS_KEY = intPreferencesKey("favorites_grid_columns")
 const val FAVORITES_GRID_COLUMNS_DEFAULT = 3
-val FAVORITES_GRID_COLUMNS_RANGE = 2..5
+val FAVORITES_GRID_COLUMNS_RANGE = 2..8
 
 class AerialApp : Application(), SingletonImageLoader.Factory {
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
