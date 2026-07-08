@@ -1,6 +1,6 @@
 # Aerial
 
-Aerial is just radio for Android.
+Just radio for Android
 
 ## Install
 
