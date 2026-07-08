@@ -671,38 +671,10 @@ class MainViewModel(
         _currentBitrateKbps.value = null
         _playbackError.value = null
         persistLastPlayedStation(station)
-        val artworkUri = station.logoPath
-            .takeIf { it.startsWith("http") }
-            ?.let { Uri.parse(it) }
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
             .setUri(bauerStreamUrl(station))
-            .setMediaMetadata(
-                MediaMetadata.Builder().apply {
-                    val localArtworkData = station.logoPath
-                        .takeIf { it.isNotEmpty() && !it.startsWith("http") }
-                        ?.let { compressedLogoData(File(it)) }
-                    when {
-                        localArtworkData != null -> setArtworkData(
-                            localArtworkData,
-                            MediaMetadata.PICTURE_TYPE_FRONT_COVER,
-                        )
-                        artworkUri != null -> setArtworkUri(artworkUri)
-                        else -> appIconArtwork?.let {
-                            setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                        }
-                    }
-                }
-                    .setTitle(station.name)
-                    .setArtist(liveRadio())
-                    .setSubtitle(liveRadio())
-                    .setExtras(Bundle().apply {
-                        putString("provider", station.provider)
-                        putString("providerId", station.providerId)
-                        putString("streamUrl", station.streamUrl)
-                    })
-                    .build()
-            )
+            .setMediaMetadata(stationMediaMetadata(station))
             .build()
         controller?.apply {
             setMediaItem(mediaItem)
@@ -826,18 +798,7 @@ class MainViewModel(
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
             .setUri(bauerStreamUrl(station))
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(station.name)
-                    .setArtist(liveRadio())
-                    .setSubtitle(liveRadio())
-                    .setExtras(Bundle().apply {
-                        putString("provider", station.provider)
-                        putString("providerId", station.providerId)
-                        putString("streamUrl", station.streamUrl)
-                    })
-                    .build(),
-            )
+            .setMediaMetadata(stationMediaMetadata(station))
             .build()
 
         controller?.apply {
@@ -845,6 +806,37 @@ class MainViewModel(
             prepare()
             pause()
         }
+    }
+
+    private fun stationMediaMetadata(station: Station): MediaMetadata {
+        val artworkUri = station.logoPath
+            .takeIf { it.startsWith("http") }
+            ?.let { Uri.parse(it) }
+        val localArtworkData = station.logoPath
+            .takeIf { it.isNotEmpty() && !it.startsWith("http") }
+            ?.let { compressedLogoData(File(it)) }
+
+        return MediaMetadata.Builder().apply {
+            when {
+                localArtworkData != null -> setArtworkData(
+                    localArtworkData,
+                    MediaMetadata.PICTURE_TYPE_FRONT_COVER,
+                )
+                artworkUri != null -> setArtworkUri(artworkUri)
+                else -> appIconArtwork?.let {
+                    setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                }
+            }
+        }
+            .setTitle(station.name)
+            .setArtist(liveRadio())
+            .setSubtitle(liveRadio())
+            .setExtras(Bundle().apply {
+                putString("provider", station.provider)
+                putString("providerId", station.providerId)
+                putString("streamUrl", station.streamUrl)
+            })
+            .build()
     }
 }
 
