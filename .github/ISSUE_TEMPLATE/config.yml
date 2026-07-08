@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/shapeshed/aerial/security/advisories/new
+    about: Please report security issues privately rather than as a public issue.
+  - name: Station registry issue (wrong logo, dead stream, missing station)
+    url: https://github.com/shapeshed/aerial-registry/issues/new
+    about: Curated station data lives in a separate repository — report data issues there.
+  - name: Support Aerial
+    url: https://buymeacoffee.com/shapeshed
+    about: If you'd like to support development rather than file an issue.
