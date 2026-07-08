@@ -1,0 +1,83 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-build
+  cancel-in-progress: true
+
+jobs:
+  nightly:
+    name: Build and publish nightly APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.repository_owner == 'shapeshed'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check for commits in the last 24 hours
+        id: check
+        run: |
+          if [ -z "$(git log --since='24 hours ago' -1)" ]; then
+            echo "No commits in the last 24 hours; skipping nightly build."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        if: steps.check.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        if: steps.check.outputs.skip != 'true'
+        run: chmod +x ./gradlew
+
+      - name: Build unsigned release APK
+        if: steps.check.outputs.skip != 'true'
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          set -eu
+          apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -f "$apk" ]; then
+            echo "Expected unsigned APK at $apk" >&2
+            exit 1
+          fi
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
+          name="aerial-nightly-${short_sha}.apk"
+          mv "$apk" "./$name"
+          sha256sum "./$name" > "./$name.sha256"
+          echo "APK_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Replace nightly release
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete nightly --repo "$GITHUB_REPOSITORY" -y --cleanup-tag
+          fi
+          gh release create nightly "./$APK_NAME" "./$APK_NAME.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "Aerial Nightly" \
+            --notes "Automated, unsigned build from \`main\` @ ${{ github.sha }}. For testing only — not signed with the release key, and this tag is force-updated on every nightly build."
