@@ -117,6 +117,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.material3.WideNavigationRailDefaults
+import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberContainedSearchBarState
 import androidx.compose.material3.rememberBottomSheetState
@@ -445,19 +448,22 @@ fun MainScreen(
         )
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .semantics { isTraversalGroup = true },
     ) {
-        Scaffold(
-            modifier = Modifier.semantics { traversalIndex = 0f },
-            contentWindowInsets = WindowInsets.navigationBars,
-            bottomBar = {
-                // surfaceContainerLow matches the reference bar (Google Drive) rather than
-                // the component's default surfaceContainer.
-                ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-                    ShortNavigationBarItem(
+        // Wide, landscape-oriented windows (tablets, foldables opened out) get a side rail
+        // like system apps, instead of cramming a bottom bar under a mostly-empty column.
+        val useNavigationRail = maxWidth > maxHeight && maxWidth >= 600.dp
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (useNavigationRail) {
+                WideNavigationRail(
+                    colors = WideNavigationRailDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                ) {
+                    Spacer(Modifier.height(8.dp))
+                    WideNavigationRailItem(
                         selected = selectedTab == TAB_HOME,
                         onClick = {
                             selectedMoodId = null
@@ -470,8 +476,9 @@ fun MainScreen(
                             )
                         },
                         label = { Text(stringResource(R.string.tab_home)) },
+                        railExpanded = false,
                     )
-                    ShortNavigationBarItem(
+                    WideNavigationRailItem(
                         selected = selectedTab == TAB_FAVORITES,
                         onClick = {
                             selectedMoodId = null
@@ -484,10 +491,52 @@ fun MainScreen(
                             )
                         },
                         label = { Text(stringResource(R.string.tab_favorites)) },
+                        railExpanded = false,
                     )
                 }
-            },
-        ) { padding ->
+            }
+            Scaffold(
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { traversalIndex = 0f },
+                contentWindowInsets = WindowInsets.navigationBars,
+                bottomBar = {
+                    if (!useNavigationRail) {
+                        // surfaceContainerLow matches the reference bar (Google Drive) rather
+                        // than the component's default surfaceContainer.
+                        ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                            ShortNavigationBarItem(
+                                selected = selectedTab == TAB_HOME,
+                                onClick = {
+                                    selectedMoodId = null
+                                    viewModel.setSelectedHomeTab(TAB_HOME)
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selectedTab == TAB_HOME) Icons.Rounded.Home else Icons.Outlined.Home,
+                                        contentDescription = null,
+                                    )
+                                },
+                                label = { Text(stringResource(R.string.tab_home)) },
+                            )
+                            ShortNavigationBarItem(
+                                selected = selectedTab == TAB_FAVORITES,
+                                onClick = {
+                                    selectedMoodId = null
+                                    viewModel.setSelectedHomeTab(TAB_FAVORITES)
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selectedTab == TAB_FAVORITES) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                        contentDescription = null,
+                                    )
+                                },
+                                label = { Text(stringResource(R.string.tab_favorites)) },
+                            )
+                        }
+                    }
+                },
+            ) { padding ->
             // The wrapper Box insets the tab content and lets the mini player float above
             // the navigation bar; the search/now-playing overlays outside it still cover it.
             Box(
@@ -571,7 +620,10 @@ fun MainScreen(
 
         val miniPlayerState = remember { MutableTransitionState(currentStation != null) }
         miniPlayerState.targetState = currentStation != null
-        AnimatedVisibility(
+        // Fully qualified: with the new outer Row (for the wide-layout nav rail), a
+        // RowScope.AnimatedVisibility overload is also implicitly in scope here and the
+        // compiler can't disambiguate against the plain top-level one this call needs.
+        androidx.compose.animation.AnimatedVisibility(
             visibleState = miniPlayerState,
             enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
@@ -702,6 +754,7 @@ fun MainScreen(
             }
         }
             }
+        }
         }
 
         AnimatedVisibility(
