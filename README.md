@@ -1,6 +1,6 @@
 # Aerial
 
-Just radio for Android
+Just radio for Android.
 
 ## Install
 
