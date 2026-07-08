@@ -10,22 +10,12 @@ Aerial is a lightweight Android radio player.
 
 ## Screenshots
 
-Light mode:
-
 <p>
-  <img src="docs/screenshots/find-station-light.png" alt="Station discovery search in light mode" width="220">
-  <img src="docs/screenshots/home-playing-light.png" alt="Home favorites with mini-player in light mode" width="220">
-  <img src="docs/screenshots/now-playing-light.png" alt="Expanded now playing view in light mode" width="220">
-  <img src="docs/screenshots/settings-light.png" alt="Settings in light mode" width="220">
-</p>
-
-Dark mode:
-
-<p>
-  <img src="docs/screenshots/find-station.png" alt="Station discovery search in dark mode" width="220">
-  <img src="docs/screenshots/home-playing.png" alt="Home favorites with mini-player in dark mode" width="220">
-  <img src="docs/screenshots/now-playing.png" alt="Expanded now playing view in dark mode" width="220">
-  <img src="docs/screenshots/settings.png" alt="Settings in dark mode" width="220">
+  <img src="docs/screenshots/01-curated-radio.png" alt="Curated radio stations" width="220">
+  <img src="docs/screenshots/02-favorites-light.png" alt="Favorites in light mode" width="220">
+  <img src="docs/screenshots/03-favorites-dark.png" alt="Favorites in dark mode" width="220">
+  <img src="docs/screenshots/04-now-playing.png" alt="Now playing" width="220">
+  <img src="docs/screenshots/05-sleep-timer.png" alt="Sleep timer" width="220">
 </p>
 
 ## Features
