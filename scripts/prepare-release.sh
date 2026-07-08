@@ -116,7 +116,7 @@ fi
 echo
 echo "Next manual steps:"
 echo "  git status --short"
-echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/assets/registry.db.compressed"
+echo "  git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt app/src/main/registry/registry.json"
 echo "  git add docs/screenshots fastlane/metadata/android/en-US/images/phoneScreenshots"
 echo "  git commit -S -m \"chore(release): v${VERSION_NAME}\""
 echo

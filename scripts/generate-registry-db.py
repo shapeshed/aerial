@@ -3,13 +3,14 @@ import argparse
 import gzip
 import json
 import re
+import shutil
 import sqlite3
 import tempfile
 from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = ROOT_DIR / "app/src/main/assets/registry.db.compressed"
+DEFAULT_OUTPUT = ROOT_DIR / "app/build/generated/aerialRegistry/assets/registry.db.compressed"
 DEFAULT_SCHEMA = ROOT_DIR / "app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json"
 
 WORD_TO_DIGIT = {
@@ -175,8 +176,15 @@ def create_database(output_path, rows, identity_hash):
             db.commit()
             db.execute("VACUUM")
         if output_path.suffix in {".compressed", ".gz"}:
-            with tmp_path.open("rb") as source, gzip.open(output_path, "wb", compresslevel=9) as target:
-                target.writelines(source)
+            with tmp_path.open("rb") as source, output_path.open("wb") as target:
+                with gzip.GzipFile(
+                    filename="",
+                    mode="wb",
+                    fileobj=target,
+                    compresslevel=9,
+                    mtime=0,
+                ) as gzip_target:
+                    shutil.copyfileobj(source, gzip_target)
             tmp_path.unlink()
         else:
             tmp_path.replace(output_path)
