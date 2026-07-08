@@ -45,8 +45,8 @@
     <string name="mood_focus_desc">집중하고 생산적으로 보내기</string>
     <string name="mood_morning">아침</string>
     <string name="mood_morning_desc">긍정적으로 하루를 시작하세요</string>
-    <string name="mood_driving">드라이브</string>
-    <string name="mood_driving_desc">길 위의 좋은 동반자</string>
+    <string name="mood_driving">여행길</string>
+    <string name="mood_driving_desc">여정을 위한 다채로운 음악</string>
     <string name="mood_late_night">늦은 밤</string>
     <string name="mood_late_night_desc">조용한 시간을 위한 음악</string>
     <string name="mood_workout">운동</string>
