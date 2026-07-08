@@ -17,7 +17,7 @@ Just radio for Android
 ## Features
 
 - Explore curated radio collections for different moods and activities.
-- Save favorite stations and keep them close in a simple home view.
+- Access the stations you want quickly and easily.
 - Play live radio with artwork, track details, and Android media controls when available.
 - Set a sleep timer so playback stops automatically.
 - Keep listening privately with no ads, analytics, tracking SDKs, Firebase, or accounts.
