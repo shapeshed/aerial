@@ -45,8 +45,8 @@
     <string name="mood_focus_desc">保持专注和高效</string>
     <string name="mood_morning">清晨</string>
     <string name="mood_morning_desc">积极开启新的一天</string>
-    <string name="mood_driving">驾驶</string>
-    <string name="mood_driving_desc">路上的好伙伴</string>
+    <string name="mood_driving">在路上</string>
+    <string name="mood_driving_desc">旅途中的多元音乐</string>
     <string name="mood_late_night">深夜</string>
     <string name="mood_late_night_desc">适合安静时光的音乐</string>
     <string name="mood_workout">锻炼</string>

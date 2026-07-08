@@ -45,8 +45,8 @@
     <string name="mood_focus_desc">集中して生産的に</string>
     <string name="mood_morning">朝</string>
     <string name="mood_morning_desc">前向きに一日を始める</string>
-    <string name="mood_driving">ドライブ</string>
-    <string name="mood_driving_desc">道中にぴったりの相棒</string>
+    <string name="mood_driving">旅の途中</string>
+    <string name="mood_driving_desc">旅にぴったりの多彩な音楽</string>
     <string name="mood_late_night">深夜</string>
     <string name="mood_late_night_desc">静かな時間のための音楽</string>
     <string name="mood_workout">ワークアウト</string>

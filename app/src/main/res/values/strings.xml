@@ -45,8 +45,8 @@
     <string name="mood_focus_desc">Concentrate and be productive</string>
     <string name="mood_morning">Morning</string>
     <string name="mood_morning_desc">Start your day positively</string>
-    <string name="mood_driving">Driving</string>
-    <string name="mood_driving_desc">Great companions for the road</string>
+    <string name="mood_driving">On The Road</string>
+    <string name="mood_driving_desc">A broad mix for the road</string>
     <string name="mood_late_night">Late night</string>
     <string name="mood_late_night_desc">Music for the quiet hours</string>
     <string name="mood_workout">Workout</string>
