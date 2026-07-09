@@ -103,6 +103,7 @@ def create_database(output_path, rows, identity_hash):
         with sqlite3.connect(tmp_path) as db:
             db.executescript(
                 """
+                PRAGMA page_size=4096;
                 PRAGMA journal_mode=OFF;
                 PRAGMA synchronous=OFF;
 

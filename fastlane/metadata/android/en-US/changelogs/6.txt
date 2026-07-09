@@ -1,0 +1,1 @@
+- Fixed a build reproducibility issue affecting F-Droid builds.
