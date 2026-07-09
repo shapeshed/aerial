@@ -107,6 +107,5 @@ latest version is maintained in the project repository.
 
 ## Contact
 
-For privacy questions, contact:
-
-george@shapeshed.com
+For privacy questions, contact aerial@shapeshed.com. For security-sensitive
+reports, follow the private reporting process in SECURITY.md.

@@ -2,8 +2,7 @@ Categories:
   - Multimedia
   - Radio
 License: Apache-2.0
-AuthorName: George Ornbo
-AuthorEmail: george@shapeshed.com
+AuthorName: shapeshed
 SourceCode: https://github.com/shapeshed/aerial
 IssueTracker: https://github.com/shapeshed/aerial/issues
 Changelog: https://github.com/shapeshed/aerial/blob/HEAD/CHANGELOG.md
