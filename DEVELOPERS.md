@@ -81,23 +81,33 @@ The in-app export/import feature is the supported way to move user data between 
 
 ## Offline Station Cache
 
-Aerial bundles a prebuilt SQLite Aerial station registry for station discovery.
-Generate it from a local registry JSON or JSON.GZ file before release candidate
-commits:
-
-```sh
-scripts/generate-registry-db.py --input /path/to/registry.json.gz
-```
-
-The script validates the registry and generates:
+Aerial bundles a compressed SQLite Aerial station registry for station
+discovery. The source registry data is checked in at:
 
 ```text
-app/src/main/assets/registry.db.compressed
+app/src/main/registry/registry.json
 ```
 
-Do not fetch this cache from Gradle. The checked-in SQLite database keeps
-F-Droid and release builds offline and reproducible. Local source JSON/GZ files
-are ignored and should not be committed.
+Gradle generates the APK asset during Android builds by running
+`scripts/generate-registry-db.py`. The generated file is:
+
+```text
+app/build/generated/aerialRegistry/assets/registry.db.compressed
+```
+
+You can run the generator manually when validating registry changes:
+
+```sh
+scripts/generate-registry-db.py \
+  --input app/src/main/registry/registry.json \
+  --output app/build/generated/aerialRegistry/assets/registry.db.compressed \
+  --schema app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json
+```
+
+Do not fetch registry data from Gradle. Refresh the source JSON outside the
+build only when intentionally updating the offline registry, then commit the
+uncompressed `registry.json`. Generated compressed database assets and local
+JSON.GZ files are ignored and should not be committed.
 
 ## Release Process
 

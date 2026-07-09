@@ -27,8 +27,8 @@ android {
         applicationId "com.shapeshed.aerial"
         minSdk 26
         targetSdk 37
-        versionCode 4
-        versionName "0.3.0"
+        versionCode 5
+        versionName "0.4.0"
     }
 
     signingConfigs {
@@ -108,7 +108,7 @@ def generateRegistryAsset = tasks.register("generateRegistryAsset", Exec) {
 }
 
 tasks.configureEach {
-    if (name ==~ /merge.*Assets/) {
+    if (name ==~ /merge.*Assets/ || name.contains("Lint") || name.contains("lint")) {
         dependsOn(generateRegistryAsset)
     }
 }
