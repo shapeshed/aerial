@@ -31,6 +31,17 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: Generate registry database using F-Droid's build environment
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace" -w /workspace \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
+            python3 scripts/generate-registry-db.py \
+              --input app/src/main/registry/registry.json \
+              --output app/build/generated/aerialRegistry/assets/registry.db.compressed \
+              --schema app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json
+
       - name: Decode release keystore
         env:
           AERIAL_KEYSTORE_BASE64: ${{ secrets.AERIAL_KEYSTORE_BASE64 }}
@@ -53,7 +64,7 @@ jobs:
           AERIAL_KEYSTORE_PASSWORD: ${{ secrets.AERIAL_KEYSTORE_PASSWORD }}
           AERIAL_KEY_ALIAS: ${{ secrets.AERIAL_KEY_ALIAS }}
           AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
-        run: ./gradlew test lint assembleRelease bundleRelease
+        run: ./gradlew test lint assembleRelease bundleRelease -x generateRegistryAsset
 
       - name: Prepare release assets
         run: |

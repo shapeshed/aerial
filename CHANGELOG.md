@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-09
+
+### Fixed
+
+- Release builds now generate the bundled registry database inside F-Droid's own build environment, so `registry.db.compressed` matches byte-for-byte instead of just the NDK-linked native libraries.
+
 ## [0.4.1] - 2026-07-09
 
 ### Fixed
