@@ -6,6 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-09
+
+### Added
+
+- Sleep timer with release-ready presets.
+- Per-app language support with localized strings for supported Android locales.
+- Full-text station search with accent folding, descriptions, and A-Z station browsing before searching.
+- Home and Favourites tabs, favourite sorting by A-Z, last played, and most played, plus favourite swiping in the now playing view.
+- Curated mood playlists, local recommendations, country-based `For you` sections, and richer mood artwork.
+- Station preview playback directly from search results.
+- Now playing enrichment for Radio France, Rinse, and RTE stations.
+- Nightly release workflow that builds and signs a testable APK artifact.
+
+### Changed
+
+- The station registry now ships as a preloaded SQLite database generated during the build from checked-in registry JSON.
+- Home, favourites, mood cards, and now playing artwork were polished for a simpler radio-focused experience.
+- Landscape and tablet layouts now use a wide navigation rail, with capped now playing artwork sizes on larger screens.
+- README, Fastlane metadata, screenshots, and store artwork were refreshed around the `Just radio for Android` positioning.
+- Privacy documentation now covers on-device search, listening stats, and now playing enrichment.
+
+### Removed
+
+- Remote registry fetching from app builds.
+- Registry statistics footer from settings.
+- Debug-only 30-second sleep timer preset from release builds.
+
+### Fixed
+
+- F-Droid and release builds now generate the registry asset before asset merging and lint vital tasks.
+- Playback reconnects a live stream after a stale pause.
+- Favourites are deleted correctly when unfavourited.
+- Backup export/import now preserves play statistics.
+- Now playing artwork no longer flashes during pager transitions, and corrupt logo downloads are rejected.
+- Now playing summaries and duplicated artwork are derived more reliably.
+- Localized search-result countries and search headers now satisfy the lint quality gate.
+
 ## [0.3.0] - 2026-06-27
 
 ### Added

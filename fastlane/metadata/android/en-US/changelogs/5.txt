@@ -1,0 +1,9 @@
+- Sleep timer for ending playback automatically.
+- Curated moods, local recommendations, country picks, and richer station browsing.
+- Favourites tab with A-Z, last played, and most played sorting.
+- Station previews from search results and A-Z station browsing before searching.
+- Per-app language support.
+- Now playing enrichment for more station providers.
+- Improved tablet and landscape navigation.
+- Refreshed branding, screenshots, and store artwork for Just radio for Android.
+- Offline station registry now builds from checked-in source data for reproducible F-Droid and release builds.

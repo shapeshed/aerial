@@ -57,9 +57,7 @@ Aerial uses network access for radio playback:
 
 The station registry ships inside the app, so browsing and searching for
 stations requires no network connection and contacts no server. The registry
-is built by the app developer from:
-
-https://aerial.shapeshed.com/registry.json.gz
+is built by the app developer before release and bundled into the APK.
 
 Individual radio streams and logo URLs are operated by third parties. They may
 receive technical information such as your IP address, request time, device

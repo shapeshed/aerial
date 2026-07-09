@@ -1,6 +1,6 @@
 # Aerial
 
-Aerial is a lightweight Android radio player.
+Just radio for Android.
 
 ## Install
 
@@ -8,43 +8,24 @@ Aerial is a lightweight Android radio player.
 <a href="https://f-droid.org/packages/com.shapeshed.aerial"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
 </p>
 
-## Screenshots
-
-Light mode:
-
 <p>
-  <img src="docs/screenshots/find-station-light.png" alt="Station discovery search in light mode" width="220">
-  <img src="docs/screenshots/home-playing-light.png" alt="Home favorites with mini-player in light mode" width="220">
-  <img src="docs/screenshots/now-playing-light.png" alt="Expanded now playing view in light mode" width="220">
-  <img src="docs/screenshots/settings-light.png" alt="Settings in light mode" width="220">
-</p>
-
-Dark mode:
-
-<p>
-  <img src="docs/screenshots/find-station.png" alt="Station discovery search in dark mode" width="220">
-  <img src="docs/screenshots/home-playing.png" alt="Home favorites with mini-player in dark mode" width="220">
-  <img src="docs/screenshots/now-playing.png" alt="Expanded now playing view in dark mode" width="220">
-  <img src="docs/screenshots/settings.png" alt="Settings in dark mode" width="220">
+  <img src="docs/branding/aerial-feature-graphic.png" alt="Aerial branded feature graphic" width="820">
 </p>
 
 ## Features
 
-- Discover stations from the Aerial registry with featured stations, country and genre filters, and quick genre playback.
-- Add stations manually when a stream URL is known.
-- Play live streams with Android media controls.
-- Save and browse favorite stations as home screen tiles.
-- Show song, artist, and artwork when stations provide playback details.
-- Store station logos locally for faster loading.
-- Export and import stations and saved logos as a zip backup.
-- Adaptive launcher icon with Android themed icon support.
+- Explore curated radio collections for different moods and activities.
+- Access the stations you want quickly and easily.
+- Play live radio with artwork, track details, and Android media controls when available.
+- Set a sleep timer so playback stops automatically.
+- No sign-up. You are not the product, just listen to radio.
+- Keep listening privately with no ads, analytics, tracking SDKs, Firebase, or accounts.
 
-## Support
+## Funding
 
-Enjoying Aerial? If you would like to support the project, you can buy me a
-coffee or send a small contribution through Ko-fi or PayPal. Support is
-optional, but it helps with the time and costs involved in keeping Aerial
-maintained.
+Enjoying Aerial? You can help fund the project by buying me a coffee or sending
+a small contribution through Ko-fi or PayPal. Funding is optional, but it helps
+with the time and costs involved in keeping Aerial maintained.
 
 <p>
   <a href="https://buymeacoffee.com/shapeshed"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="45"></a>
@@ -68,4 +49,4 @@ for the full privacy policy.
 
 ## License
 
-Aerial is licensed under the Apache License, Version 2.0. See `LICENSE`.
+Aerial is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
