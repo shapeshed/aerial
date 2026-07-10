@@ -5,7 +5,7 @@ import com.shapeshed.aerial.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
 
-private val USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
+internal val AERIAL_USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
 
 /**
  * GET [url] and return the response body as a string, or null on any error or non-2xx status.
@@ -16,7 +16,7 @@ internal fun httpGetJson(url: String, extraHeaders: Map<String, String> = emptyM
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", USER_AGENT)
+        conn.setRequestProperty("User-Agent", AERIAL_USER_AGENT)
         extraHeaders.forEach { (k, v) -> conn.setRequestProperty(k, v) }
         try {
             if (conn.responseCode !in 200..299) return null
@@ -41,7 +41,7 @@ internal fun httpPostJson(url: String, body: String, extraHeaders: Map<String, S
         conn.readTimeout = 10_000
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("User-Agent", USER_AGENT)
+        conn.setRequestProperty("User-Agent", AERIAL_USER_AGENT)
         extraHeaders.forEach { (k, v) -> conn.setRequestProperty(k, v) }
         try {
             conn.outputStream.use { it.write(body.toByteArray()) }
@@ -65,7 +65,7 @@ internal fun httpFetchBytes(url: String, cache: LruCache<String, ByteArray>): By
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
         conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", USER_AGENT)
+        conn.setRequestProperty("User-Agent", AERIAL_USER_AGENT)
         try {
             if (conn.responseCode !in 200..299) return null
             conn.inputStream.use { input ->

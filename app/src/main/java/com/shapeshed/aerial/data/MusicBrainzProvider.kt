@@ -1,7 +1,6 @@
 package com.shapeshed.aerial.data
 
 import android.util.Log
-import com.shapeshed.aerial.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -11,7 +10,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-private val MB_USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
 private const val TAG = "MusicBrainzProvider"
 
 class MusicBrainzProvider : Provider {
@@ -109,7 +107,7 @@ private fun fetchMbBytes(url: String): ByteArray? {
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
             conn.instanceFollowRedirects = false
-            conn.setRequestProperty("User-Agent", MB_USER_AGENT)
+            conn.setRequestProperty("User-Agent", AERIAL_USER_AGENT)
             try {
                 val code = conn.responseCode
                 when {

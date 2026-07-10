@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.BauerProvider
 import com.shapeshed.aerial.data.BbcProvider
 import com.shapeshed.aerial.data.GlobalPlayerProvider
@@ -39,7 +40,7 @@ class AerialApp : Application(), SingletonImageLoader.Factory {
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .header("User-Agent", "Aerial/${BuildConfig.VERSION_NAME} (Android)")
+                    .header("User-Agent", AERIAL_USER_AGENT)
                     .build(),
             )
         }

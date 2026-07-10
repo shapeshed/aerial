@@ -8,18 +8,20 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
@@ -31,6 +33,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
+import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
@@ -88,6 +91,13 @@ class PlayerService : MediaSessionService() {
             }
         )
         repository = (application as AerialApp).repository
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(AERIAL_USER_AGENT)
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(HTTP_TIMEOUT_MS)
+            .setReadTimeoutMs(HTTP_TIMEOUT_MS)
+        val mediaSourceFactory = DefaultMediaSourceFactory(this)
+            .setDataSourceFactory(httpDataSourceFactory)
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 MIN_BUFFER_MS,
@@ -97,11 +107,17 @@ class PlayerService : MediaSessionService() {
             )
             .build()
         player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
-            .setAudioAttributes(AudioAttributes.DEFAULT, true)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true,
+            )
             .setHandleAudioBecomingNoisy(true)
             .build()
-            .apply { enableAudioOffload() }
         player.addListener(icyListener)
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(pendingIntent())
@@ -249,17 +265,6 @@ class PlayerService : MediaSessionService() {
             log("onPlayerError code=${error.errorCode} message=${error.message}")
             reconnectCurrentStream("player error ${error.errorCode}")
         }
-    }
-
-    private fun ExoPlayer.enableAudioOffload() {
-        trackSelectionParameters = trackSelectionParameters
-            .buildUpon()
-            .setAudioOffloadPreferences(
-                AudioOffloadPreferences.Builder()
-                    .setAudioOffloadMode(AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
-                    .build()
-            )
-            .build()
     }
 
     private val sessionCallback = object : MediaSession.Callback {
@@ -531,10 +536,11 @@ class PlayerService : MediaSessionService() {
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
         const val FADE_STEP_MS = 200L
         const val STALE_BUFFER_THRESHOLD_MS = 3_000L
-        const val MIN_BUFFER_MS = 5_000
-        const val MAX_BUFFER_MS = 8_000
+        const val MIN_BUFFER_MS = 15_000
+        const val MAX_BUFFER_MS = 30_000
         const val BUFFER_FOR_PLAYBACK_MS = 1_500
-        const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000
+        const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
         const val RECONNECT_RETRY_COOLDOWN_MS = 10_000L
+        const val HTTP_TIMEOUT_MS = 8_000
     }
 }
