@@ -232,6 +232,9 @@ class MainViewModel(
         ephemeral ?: id?.let { i -> list.firstOrNull { s -> s.id == i } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private val _pendingPlaybackStation = MutableStateFlow<Station?>(null)
+    val pendingPlaybackStation: StateFlow<Station?> = _pendingPlaybackStation.asStateFlow()
+
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
@@ -602,6 +605,9 @@ class MainViewModel(
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+            if (isPlaying) {
+                _pendingPlaybackStation.value = null
+            }
             currentStation.value?.let { station ->
                 persistLastPlayedStation(station)
             }
@@ -610,10 +616,14 @@ class MainViewModel(
             // Only show buffering when the user intends to play; suppress the transient
             // STATE_BUFFERING that fires during prepare() when restoring a paused station.
             _isBuffering.value = state == Player.STATE_BUFFERING && controller?.playWhenReady == true
+            if (state == Player.STATE_READY || state == Player.STATE_ENDED) {
+                _pendingPlaybackStation.value = null
+            }
         }
         override fun onPlayerError(error: PlaybackException) {
             _isBuffering.value = false
             _isPlaying.value = false
+            _pendingPlaybackStation.value = null
             _playbackError.value = error.userMessage()
         }
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -670,6 +680,10 @@ class MainViewModel(
         _currentTrackArtworkData.value = null
         _currentBitrateKbps.value = null
         _playbackError.value = null
+        if (controller != null) {
+            _pendingPlaybackStation.value = station
+            _isBuffering.value = true
+        }
         persistLastPlayedStation(station)
         val mediaItem = MediaItem.Builder()
             .setMediaId(station.id.toString())
@@ -686,9 +700,12 @@ class MainViewModel(
     fun togglePlayback() {
         controller?.let {
             if (it.isPlaying) {
+                _pendingPlaybackStation.value = null
                 it.pause()
             } else {
                 _playbackError.value = null
+                _pendingPlaybackStation.value = currentStation.value
+                _isBuffering.value = true
                 it.play()
             }
         }

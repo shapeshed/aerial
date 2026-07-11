@@ -301,6 +301,7 @@ fun MainScreen(
     val context = LocalContext.current
     val stations by viewModel.stations.collectAsStateWithLifecycle()
     val currentStation by viewModel.currentStation.collectAsStateWithLifecycle()
+    val pendingPlaybackStation by viewModel.pendingPlaybackStation.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
@@ -368,6 +369,8 @@ fun MainScreen(
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
+    val listActiveStation = pendingPlaybackStation ?: currentStation
+    val listIsBuffering = isBuffering || pendingPlaybackStation != null
     val selectedMood = selectedMoodId?.let { id -> CURATED_MOODS.firstOrNull { it.id == id } }
     val selectedMoodStations = selectedMoodId?.let { curatedMoodStations[it] }.orEmpty()
     val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
@@ -564,9 +567,9 @@ fun MainScreen(
                     MoodDetailScreen(
                         mood = selectedMood,
                         stations = selectedMoodStations,
-                        currentStation = currentStation,
+                        currentStation = listActiveStation,
                         isPlaying = isPlaying,
-                        isBuffering = isBuffering,
+                        isBuffering = listIsBuffering,
                         savedStreamUrls = savedStreamUrls,
                         savedRegistryKeys = savedRegistryKeys,
                         bottomPadding = stationContentBottomPadding,
@@ -600,9 +603,9 @@ fun MainScreen(
                 } else {
                     FavoritesTabContent(
                         stations = stations,
-                        currentStation = currentStation,
+                        currentStation = listActiveStation,
                         isPlaying = isPlaying,
-                        isBuffering = isBuffering,
+                        isBuffering = listIsBuffering,
                         homeViewMode = homeViewMode,
                         favoritesSort = favoritesSort,
                         gridColumns = favoritesGridColumns,
@@ -832,9 +835,9 @@ fun MainScreen(
                             stations = defaultStations,
                             savedStreamUrls = savedStreamUrls,
                             savedRegistryKeys = savedRegistryKeys,
-                            currentStation = currentStation,
+                            currentStation = listActiveStation,
                             isPlaying = isPlaying,
-                            isBuffering = isBuffering,
+                            isBuffering = listIsBuffering,
                             onPlay = { station ->
                                 viewModel.playFromRegistry(station)
                                 textFieldState.edit { replace(0, length, "") }
@@ -852,9 +855,9 @@ fun MainScreen(
                         results = registrySearchResults,
                         savedStreamUrls = savedStreamUrls,
                         savedRegistryKeys = savedRegistryKeys,
-                        currentStation = currentStation,
+                        currentStation = listActiveStation,
                         isPlaying = isPlaying,
-                        isBuffering = isBuffering,
+                        isBuffering = listIsBuffering,
                         onFavoritePlay = { station ->
                             viewModel.saveRecentSearch(searchQueryText)
                             viewModel.play(station)
@@ -1949,14 +1952,12 @@ private fun FavoritesTabContent(
                 key = { station -> "favorite-list-${station.id}" },
                 contentType = { "favorite-list-row" },
             ) { station ->
-                val isActive = currentStation?.id == station.id
+                val isActive = currentStation?.matchesStation(station) == true
                 StationListRow(
                     station = station,
                     isActive = isActive,
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
-                    // Stable false for inactive rows — see the card-mode note above.
-                    showActivityIndicator = showFavoriteActivityIndicators && isActive,
                     onPlay = { onPlay(station) },
                     onTogglePlayback = onTogglePlayback,
                     onToggleFavorite = { onToggleFavorite(station) },
@@ -2090,7 +2091,7 @@ private fun FavoriteStationCardRow(
     ) {
         rowIndices.forEach { idx ->
             val station = stations[idx]
-            val isActive = currentStation?.id == station.id
+            val isActive = currentStation?.matchesStation(station) == true
             StationTile(
                 station = station,
                 tileColor = if (isActive) activeTileColor else tileColor,
@@ -2118,7 +2119,6 @@ private fun StationListRow(
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    showActivityIndicator: Boolean,
     onPlay: () -> Unit,
     onTogglePlayback: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -2156,22 +2156,19 @@ private fun StationListRow(
         trailingContent = {
             // Same preview-play + favourite pattern as the mood and search rows: a dedicated
             // button toggles playback in place (rather than only via the row tap), and the
-            // heart removes the row directly. The glyph — not the button itself — is gated by
-            // showActivityIndicator, so the animated equalizer bars still skip recomposition
-            // during scroll (see the card-grid note elsewhere) without hiding a functional
-            // control; a still-correct tap lands even on the rare frame where the icon lags.
+            // heart removes the row directly.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
                     shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                 ) {
                     when {
-                        showActivityIndicator && isBuffering -> CircularWavyProgressIndicator(
+                        isBuffering -> CircularWavyProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                         )
-                        showActivityIndicator && isActive && isPlaying -> EqualizerBars(
+                        isActive && isPlaying -> EqualizerBars(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .size(width = 28.dp, height = 22.dp)
