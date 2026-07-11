@@ -16,6 +16,7 @@
     <string name="buffering">Mise en mémoire tampon…</string>
     <string name="play">Lire</string>
     <string name="pause">Pause</string>
+    <string name="stop">Arrêter</string>
     <string name="filter_country">Pays</string>
     <string name="filter_genre">Genre</string>
     <string name="search_countries">Rechercher des pays</string>

@@ -16,6 +16,7 @@
     <string name="buffering">バッファ中…</string>
     <string name="play">再生</string>
     <string name="pause">一時停止</string>
+    <string name="stop">停止</string>
     <string name="filter_country">国</string>
     <string name="filter_genre">ジャンル</string>
     <string name="search_countries">国を検索</string>

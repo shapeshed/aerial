@@ -16,6 +16,7 @@
     <string name="buffering">버퍼링 중…</string>
     <string name="play">재생</string>
     <string name="pause">일시정지</string>
+    <string name="stop">정지</string>
     <string name="filter_country">국가</string>
     <string name="filter_genre">장르</string>
     <string name="search_countries">국가 검색</string>
