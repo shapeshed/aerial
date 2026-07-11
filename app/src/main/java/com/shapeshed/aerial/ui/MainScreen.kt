@@ -1911,9 +1911,6 @@ private fun FavoritesTabContent(
     val favoriteRows = remember(stations, gridColumns) {
         stations.indices.toList().chunked(gridColumns)
     }
-    val showFavoriteActivityIndicators by remember {
-        derivedStateOf { !listState.isScrollInProgress }
-    }
     var showSortSheet by remember { mutableStateOf(false) }
 
     if (showSortSheet) {
@@ -1977,7 +1974,6 @@ private fun FavoritesTabContent(
                     currentStation = currentStation,
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
-                    showActivityIndicator = showFavoriteActivityIndicators,
                     tileColor = tileColor,
                     activeTileColor = activeTileColor,
                     tileContentColor = tileContentColor,
@@ -1997,8 +1993,6 @@ private fun FavoritesTabContent(
                     isActive = isActive,
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
-                    // Stable false for inactive rows — see the card-mode note above.
-                    showActivityIndicator = showFavoriteActivityIndicators && isActive,
                     onPlay = { onPlay(station) },
                     onTogglePlayback = onTogglePlayback,
                     onToggleFavorite = { onToggleFavorite(station) },
@@ -2114,7 +2108,6 @@ private fun FavoriteStationCardRow(
     currentStation: Station?,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    showActivityIndicator: Boolean,
     tileColor: androidx.compose.ui.graphics.Color,
     activeTileColor: androidx.compose.ui.graphics.Color,
     tileContentColor: androidx.compose.ui.graphics.Color,
@@ -2140,9 +2133,6 @@ private fun FavoriteStationCardRow(
                 isActive = isActive,
                 isPlaying = isPlaying && isActive,
                 isBuffering = isBuffering && isActive,
-                // Only the active tile can show an indicator, so inactive tiles get a
-                // stable false and skip the recomposition when scrolling starts/stops.
-                showActivityIndicator = showActivityIndicator && isActive,
                 onClick = { onPlay(station) },
                 onLongClick = { onStationLongPress(station) },
                 modifier = Modifier.weight(1f),
@@ -2160,7 +2150,6 @@ private fun StationListRow(
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    showActivityIndicator: Boolean,
     onPlay: () -> Unit,
     onTogglePlayback: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -2198,22 +2187,19 @@ private fun StationListRow(
         trailingContent = {
             // Same preview-play + favourite pattern as the mood and search rows: a dedicated
             // button toggles playback in place (rather than only via the row tap), and the
-            // heart removes the row directly. The glyph — not the button itself — is gated by
-            // showActivityIndicator, so the animated equalizer bars still skip recomposition
-            // during scroll (see the card-grid note elsewhere) without hiding a functional
-            // control; a still-correct tap lands even on the rare frame where the icon lags.
+            // heart removes the row directly.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
                     shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                 ) {
                     when {
-                        showActivityIndicator && isBuffering -> CircularWavyProgressIndicator(
+                        isBuffering -> CircularWavyProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                         )
-                        showActivityIndicator && isActive && isPlaying -> EqualizerBars(
+                        isActive && isPlaying -> EqualizerBars(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .size(width = 28.dp, height = 22.dp)
