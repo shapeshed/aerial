@@ -419,7 +419,13 @@ fun NowPlayingScreen(
                     text = programmeSubtitle?.takeIf { it != programmeTitle } ?: "",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    minLines = 2,
+                    // Only enriched stations (nowPlayingInfo != null) can ever populate this
+                    // line, and only they need the full 2-line reservation to avoid a jump as
+                    // that data arrives/changes. A station with no enricher at all (most ICY
+                    // stations) never has a subtitle, so reserving a stable 2 blank lines for
+                    // it here was permanently wasted space — most visibly on small screens,
+                    // where it pushed the now-playing track card off the bottom of the pane.
+                    minLines = if (nowPlayingInfo != null) 2 else 1,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.semantics { traversalIndex = 3f },
