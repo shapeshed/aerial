@@ -16,6 +16,7 @@
     <string name="buffering">Bufferen…</string>
     <string name="play">Afspelen</string>
     <string name="pause">Pauzeren</string>
+    <string name="stop">Stoppen</string>
     <string name="filter_country">Land</string>
     <string name="filter_genre">Genre</string>
     <string name="search_countries">Landen zoeken</string>

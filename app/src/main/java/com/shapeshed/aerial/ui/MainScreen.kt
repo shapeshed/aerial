@@ -62,6 +62,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.BeachAccess
@@ -114,6 +115,8 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
@@ -123,6 +126,7 @@ import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberContainedSearchBarState
 import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -637,6 +641,43 @@ fun MainScreen(
                 val miniPlayerTitle = nowPlayingDisplay.title.ifBlank { station.name }
                 val miniPlayerSubtitle = playbackError
                     ?: if (isBuffering) stringResource(R.string.buffering) else nowPlayingDisplay.subtitle
+                // Swipe in either direction to stop playback and dismiss the player, matching
+                // the Quick Settings / notification media card's own lifecycle: both disappear
+                // together since clearing the controller's media items removes the notification.
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value != SwipeToDismissBoxValue.Settled) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.stopAndClear()
+                        }
+                        true
+                    },
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = FloatingToolbarDefaults.ContainerShape,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            Box(
+                                contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                    Alignment.CenterStart
+                                } else {
+                                    Alignment.CenterEnd
+                                },
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Stop,
+                                    contentDescription = stringResource(R.string.stop),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                ) {
                 BoxWithConstraints {
                     val isActive = isPlaying || isBuffering
                     val playPauseCorner by animateDpAsState(
@@ -751,6 +792,7 @@ fun MainScreen(
                         }
                 }
             }
+                }
             }
         }
             }

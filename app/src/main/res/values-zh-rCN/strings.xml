@@ -16,6 +16,7 @@
     <string name="buffering">缓冲中…</string>
     <string name="play">播放</string>
     <string name="pause">暂停</string>
+    <string name="stop">停止</string>
     <string name="filter_country">国家/地区</string>
     <string name="filter_genre">类型</string>
     <string name="search_countries">搜索国家/地区</string>

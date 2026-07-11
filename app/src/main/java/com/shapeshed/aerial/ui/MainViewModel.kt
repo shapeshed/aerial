@@ -602,8 +602,10 @@ class MainViewModel(
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
-            currentStation.value?.let { station ->
-                persistLastPlayedStation(station)
+            if (!suppressLastPlayedPersist) {
+                currentStation.value?.let { station ->
+                    persistLastPlayedStation(station)
+                }
             }
         }
         override fun onPlaybackStateChanged(state: Int) {
@@ -691,6 +693,37 @@ class MainViewModel(
                 _playbackError.value = null
                 it.play()
             }
+        }
+    }
+
+    // True while stopAndClear() is unwinding playback, so the isPlaying listener below doesn't
+    // re-persist the station we're in the middle of forgetting.
+    private var suppressLastPlayedPersist = false
+
+    // Swiping the mini player away: stop playback, clear the current/ephemeral station, and
+    // forget it so app restart doesn't resume it. Clearing the controller's media items (rather
+    // than just stop()) also drops the media notification and its Quick Settings / lock screen
+    // media card, since Media3 only shows those while a current media item exists. A fresh
+    // play() afterwards goes through the same path as starting a station with no player active.
+    fun stopAndClear() {
+        suppressLastPlayedPersist = true
+        controller?.apply {
+            stop()
+            clearMediaItems()
+        }
+        _currentStationId.value = null
+        _ephemeralStation.value = null
+        _currentTrackTitle.value = null
+        _currentTrackArtist.value = null
+        _currentTrackArtworkUrl.value = null
+        _currentTrackArtworkData.value = null
+        _currentBitrateKbps.value = null
+        _playbackError.value = null
+        _isPlaying.value = false
+        _isBuffering.value = false
+        viewModelScope.launch {
+            dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
+            suppressLastPlayedPersist = false
         }
     }
 
