@@ -608,10 +608,17 @@ class MainViewModel(
                 }
             }
         }
-        override fun onPlaybackStateChanged(state: Int) {
-            // Only show buffering when the user intends to play; suppress the transient
-            // STATE_BUFFERING that fires during prepare() when restoring a paused station.
-            _isBuffering.value = state == Player.STATE_BUFFERING && controller?.playWhenReady == true
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED, Player.EVENT_PLAY_WHEN_READY_CHANGED)) {
+                // Only show buffering when the user intends to play; suppress the transient
+                // STATE_BUFFERING that fires during prepare() when restoring a paused station.
+                // Read both off the player itself (settled as of this batch) rather than off
+                // the individual onPlaybackStateChanged callback, whose isolated playWhenReady
+                // read can still be stale mid-batch — e.g. the very first play() of a session,
+                // where STATE_BUFFERING can be delivered before playWhenReady=true has
+                // propagated, silently dropping the buffering spinner for that first play.
+                _isBuffering.value = player.playbackState == Player.STATE_BUFFERING && player.playWhenReady
+            }
         }
         override fun onPlayerError(error: PlaybackException) {
             _isBuffering.value = false
