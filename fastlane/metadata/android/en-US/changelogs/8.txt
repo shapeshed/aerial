@@ -1,0 +1,5 @@
+- Swipe the mini player away to stop playback and clear the station.
+- Fixed radio playback dropouts by removing hardware audio offload and widening the stream buffer.
+- Fixed the now-playing indicator disappearing while scrolling favourites.
+- Fixed the buffering spinner not showing on the first play of a session.
+- Fixed clipped track info on the Now Playing screen on small screens.

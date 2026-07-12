@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-07-12
+
+### Added
+
+- The mini player can now be swiped away to stop playback and clear the current station, matching the notification/Quick Settings media card's lifecycle.
+
+### Fixed
+
+- Removed hardware audio offload from the radio player, widened the buffer to match Media3's own streaming default, and hardened the HTTP data source (user agent, cross-protocol redirects, timeouts) — fixing playback dropouts on some devices and streams.
+- The favourites list now keeps the now-playing indicator visible while scrolling instead of reverting to a plain play icon.
+- The buffering spinner now shows correctly on the very first play of a session, such as playing a search result when nothing else is playing.
+- Fixed wasted vertical space and clipped track info on the Now Playing screen for stations without metadata enrichment, most visible on small screens.
+
 ## [0.4.2] - 2026-07-09
 
 ### Fixed
