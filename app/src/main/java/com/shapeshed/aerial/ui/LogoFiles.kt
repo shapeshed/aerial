@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.net.Uri
 import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
+import androidx.core.graphics.createBitmap
 import coil3.BitmapImage
 import coil3.DrawableImage
 import coil3.Image
@@ -134,7 +135,7 @@ private fun Image.toBitmap(): Bitmap? {
         is DrawableImage -> {
             val width = width.takeIf { it > 0 } ?: 512
             val height = height.takeIf { it > 0 } ?: 512
-            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+            createBitmap(width, height).also { bitmap ->
                 val canvas = Canvas(bitmap)
                 drawable.setBounds(0, 0, canvas.width, canvas.height)
                 drawable.draw(canvas)

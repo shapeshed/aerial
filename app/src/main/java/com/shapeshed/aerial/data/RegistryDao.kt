@@ -42,6 +42,12 @@ abstract class RegistryDao {
     @Query("SELECT * FROM registry_stations WHERE LOWER(countryCode) IN (:countryCodes) ORDER BY name")
     abstract suspend fun filterByCountryCodes(countryCodes: List<String>): List<RegistryStation>
 
+    // Loose substring prefilter for a single tag — narrows the ~44k-row table down to a small
+    // candidate set before the exact word-boundary match is applied in RegistryRepository, so a
+    // tag-only filter (no search text) doesn't have to hydrate every row into a RegistryStation.
+    @Query("SELECT * FROM registry_stations WHERE LOWER(tags) LIKE '%' || LOWER(:tag) || '%'")
+    abstract suspend fun byTagLike(tag: String): List<RegistryStation>
+
     @Query("SELECT * FROM registry_stations ORDER BY name")
     abstract suspend fun all(): List<RegistryStation>
 

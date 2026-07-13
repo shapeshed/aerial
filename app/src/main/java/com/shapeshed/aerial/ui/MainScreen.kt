@@ -644,15 +644,13 @@ fun MainScreen(
                 // Swipe in either direction to stop playback and dismiss the player, matching
                 // the Quick Settings / notification media card's own lifecycle: both disappear
                 // together since clearing the controller's media items removes the notification.
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { value ->
-                        if (value != SwipeToDismissBoxValue.Settled) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.stopAndClear()
-                        }
-                        true
-                    },
-                )
+                val dismissState = rememberSwipeToDismissBoxState()
+                LaunchedEffect(dismissState.currentValue) {
+                    if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.stopAndClear()
+                    }
+                }
                 SwipeToDismissBox(
                     state = dismissState,
                     backgroundContent = {
@@ -2239,10 +2237,10 @@ private fun StationTile(
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    showActivityIndicator: Boolean = true,
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    showActivityIndicator: Boolean = true,
+    onLongClick: () -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
     Column(

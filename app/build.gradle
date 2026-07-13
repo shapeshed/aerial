@@ -11,9 +11,9 @@ def generatedRegistryAssetsDir = layout.buildDirectory.dir("generated/aerialRegi
 def generatedRegistryAssetFile = generatedRegistryAssetsDir.map { it.file("registry.db.compressed") }
 
 android {
-    namespace 'com.shapeshed.aerial'
+    namespace = 'com.shapeshed.aerial'
     compileSdk 37
-    ndkVersion "28.2.13676358"
+    ndkVersion = "28.2.13676358"
 
     def releaseKeystoreFile = System.getenv("AERIAL_KEYSTORE_FILE")
     def releaseKeystorePassword = System.getenv("AERIAL_KEYSTORE_PASSWORD")
@@ -49,7 +49,7 @@ android {
                 signingConfig signingConfigs.release
             }
             minifyEnabled true
-            shrinkResources true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -70,8 +70,8 @@ android {
     }
 
     buildFeatures {
-        compose true
-        buildConfig true
+        compose = true
+        buildConfig = true
     }
 
     sourceSets {
@@ -81,8 +81,8 @@ android {
     }
 
     dependenciesInfo {
-        includeInApk false
-        includeInBundle false
+        includeInApk = false
+        includeInBundle = false
     }
 
     lint {
@@ -124,6 +124,7 @@ dependencies {
     implementation 'androidx.compose.ui:ui-tooling-preview'
     debugImplementation 'androidx.compose.ui:ui-tooling'
 
+    implementation 'androidx.core:core-ktx:1.18.0'
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.core:core-splashscreen:1.2.0'
     implementation 'androidx.activity:activity-compose:1.13.0'

@@ -3,7 +3,7 @@ package com.shapeshed.aerial.ui
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -94,6 +94,9 @@ class MainViewModel(
     private val repository: StationRepository,
     private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
+    // Default is test/preview-only — MainViewModelFactory always passes an explicit
+    // SavedStateHandle via CreationExtras.createSavedStateHandle() in production.
+    @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
 
@@ -851,7 +854,7 @@ class MainViewModel(
     private fun stationMediaMetadata(station: Station): MediaMetadata {
         val artworkUri = station.logoPath
             .takeIf { it.startsWith("http") }
-            ?.let { Uri.parse(it) }
+            ?.toUri()
         val localArtworkData = station.logoPath
             .takeIf { it.isNotEmpty() && !it.startsWith("http") }
             ?.let { compressedLogoData(File(it)) }
