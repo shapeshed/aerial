@@ -242,7 +242,10 @@ class RegistryRepository(private val dao: RegistryDao) {
         } else if (countryCodes.isNotEmpty() && tags.isEmpty()) {
             dao.filterByCountryCodes(countryCodes.map { it.lowercase() })
         } else {
-            dao.all()
+            // Tag filter with no search text: prefilter per tag in SQL (loose substring match)
+            // rather than loading all ~44k registry rows, then let the exact word-boundary
+            // check below settle membership.
+            tags.flatMap { dao.byTagLike(it) }.distinctBy { it.id }
         }
 
         return candidates.filter { station ->

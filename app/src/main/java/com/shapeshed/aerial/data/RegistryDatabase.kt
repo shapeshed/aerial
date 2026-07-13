@@ -1,6 +1,7 @@
 package com.shapeshed.aerial.data
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -49,7 +50,7 @@ abstract class RegistryDatabase : RoomDatabase() {
                 databaseFile.delete()
                 throw it
             }
-            prefs.edit().putInt(PREF_ASSET_VERSION, assetVersion).apply()
+            prefs.edit { putInt(PREF_ASSET_VERSION, assetVersion) }
         }
     }
 }

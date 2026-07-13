@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
 import androidx.concurrent.futures.SuspendToFutureAdapter
+import androidx.core.graphics.createBitmap
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import coil3.BitmapImage
@@ -55,7 +56,7 @@ class CoilBitmapLoader(private val context: Context) : BitmapLoader {
                 }
                 // Any other Image implementation (e.g. a vector drawable) isn't backed by a
                 // hardware bitmap, so drawing it into a fresh software canvas is safe.
-                else -> Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888).apply {
+                else -> createBitmap(image.width, image.height).apply {
                     image.draw(Canvas(this))
                 }
             }
