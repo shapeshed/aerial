@@ -573,15 +573,16 @@ class MainViewModel(
                 // Ephemeral station (played without saving) — persist it as a favourite.
                 // Set currentStationId first, then wait for _allStations to contain the new
                 // row before clearing ephemeral, so currentStation never drops to null.
-                val id = repository.saveAsFavorite(station)
+                val id = repository.saveAsFavorite(ensureLocalLogo(station))
                 _currentStationId.value = id
                 _allStations.first { list -> list.any { it.id == id } }
                 _ephemeralStation.value = null
                 return@launch
             }
             if (!station.isFavorite) {
-                // Saved but unflagged (e.g. imported): favouriting just sets the flag.
-                repository.update(station.copy(isFavorite = true))
+                // Saved but unflagged (e.g. imported): favouriting sets the flag and, if
+                // the logo is still a remote URL, downloads it so it survives backups.
+                repository.update(ensureLocalLogo(station).copy(isFavorite = true))
                 return@launch
             }
             // Unfavouriting removes the saved row — home and search both treat row
@@ -741,6 +742,14 @@ class MainViewModel(
         if (_recentlyAddedStationId.value == stationId) {
             _recentlyAddedStationId.value = null
         }
+    }
+
+    // Favouriting must leave the logo cached under filesDir/logos so it survives backup/
+    // restore — a bare remote URL isn't embedded in the backup zip (see SettingsViewModel).
+    private suspend fun ensureLocalLogo(station: Station): Station {
+        if (!station.logoPath.startsWith("http")) return station
+        val localPath = withContext(Dispatchers.IO) { downloadLogo(station.logoPath) } ?: return station
+        return station.copy(logoPath = localPath)
     }
 
     private suspend fun downloadLogo(url: String): String? {
