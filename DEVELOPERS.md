@@ -217,6 +217,42 @@ base64 -w 0 aerial-release.jks
 Do not commit keystores, passwords, generated signed APKs, or Play Console
 credentials.
 
+## Google Play publishing
+
+CI publishes to Google Play automatically using the [Gradle Play
+Publisher](https://github.com/Triple-T/gradle-play-publisher) plugin — there
+is no manual upload step.
+
+- The nightly workflow (`.github/workflows/nightly.yml`) builds an AAB from
+  `main` every day and publishes it to the **beta** track.
+- The release workflow (`.github/workflows/release.yml`) builds an AAB when a
+  `v*` tag is pushed and publishes it to the **production** track at 100%
+  rollout.
+
+Version codes are resolved automatically (`resolutionStrategy = AUTO` in
+`app/build.gradle`), so the checked-in `versionCode` does not need to be
+bumped for each release.
+
+Required GitHub repository secret:
+
+- `AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64`: base64 encoded Google Cloud
+  service account JSON key. Create the service account in Google Cloud
+  Console, link it in Play Console under **Setup > API access**, and grant it
+  release permissions for this app. Encode it the same way as the keystore:
+
+  ```sh
+  base64 -w 0 play-service-account.json
+  ```
+
+For a local publish, set `AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE` to the path
+of the JSON key alongside the release-signing env vars:
+
+```sh
+source local/release-signing.env
+export AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE=/path/to/play-service-account.json
+./gradlew publishBundle --track beta
+```
+
 ## F-Droid
 
 Aerial is licensed under Apache-2.0 and does not include advertising,
