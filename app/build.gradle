@@ -99,11 +99,11 @@ def playServiceAccountJsonFile = System.getenv("AERIAL_PLAY_SERVICE_ACCOUNT_JSON
 play {
     if (playServiceAccountJsonFile) {
         serviceAccountCredentials.set(file(playServiceAccountJsonFile))
+        resolutionStrategy.set(ResolutionStrategy.AUTO)
     }
     defaultToAppBundles.set(true)
     track.set("production")
     releaseStatus.set(ReleaseStatus.COMPLETED)
-    resolutionStrategy.set(ResolutionStrategy.AUTO)
 }
 
 def generateRegistryAsset = tasks.register("generateRegistryAsset", Exec) {

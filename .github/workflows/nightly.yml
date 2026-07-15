@@ -86,14 +86,14 @@ jobs:
           AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
         run: ./gradlew assembleRelease bundleRelease
 
-      - name: Publish nightly to Google Play (beta)
+      - name: Publish nightly to Google Play (internal testing)
         if: steps.check.outputs.skip != 'true'
         env:
           AERIAL_KEYSTORE_FILE: ${{ runner.temp }}/aerial-release.jks
           AERIAL_KEYSTORE_PASSWORD: ${{ secrets.AERIAL_KEYSTORE_PASSWORD }}
           AERIAL_KEY_ALIAS: ${{ secrets.AERIAL_KEY_ALIAS }}
           AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
-        run: ./gradlew publishBundle --track beta
+        run: ./gradlew publishBundle --track internal
 
       - name: Rename APK
         if: steps.check.outputs.skip != 'true'

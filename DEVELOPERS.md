@@ -224,25 +224,48 @@ Publisher](https://github.com/Triple-T/gradle-play-publisher) plugin — there
 is no manual upload step.
 
 - The nightly workflow (`.github/workflows/nightly.yml`) builds an AAB from
-  `main` every day and publishes it to the **beta** track.
+  `main` every day and publishes it to the **internal testing** track.
 - The release workflow (`.github/workflows/release.yml`) builds an AAB when a
   `v*` tag is pushed and publishes it to the **production** track at 100%
   rollout.
 
-Version codes are resolved automatically (`resolutionStrategy = AUTO` in
-`app/build.gradle`), so the checked-in `versionCode` does not need to be
-bumped for each release.
+There is no beta track in use currently.
+
+Version codes are resolved automatically against Play
+(`resolutionStrategy = AUTO` in `app/build.gradle`) whenever Play credentials
+are present, so the checked-in `versionCode` does not need to be bumped for
+each release. When no credentials are configured — local builds without
+`AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE` set, and F-Droid's reproducible
+build — the plugin falls back to the static checked-in `versionCode`, with no
+network call and no credentials required.
 
 Required GitHub repository secret:
 
 - `AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64`: base64 encoded Google Cloud
-  service account JSON key. Create the service account in Google Cloud
-  Console, link it in Play Console under **Setup > API access**, and grant it
-  release permissions for this app. Encode it the same way as the keystore:
+  service account JSON key.
 
-  ```sh
-  base64 -w 0 play-service-account.json
-  ```
+  1. Create a service account in Google Cloud Console and enable the Google
+     Play Android Developer API for that project.
+  2. Create a JSON key for it and download it.
+  3. In Play Console, go to account-level **Setup > API access** and link the
+     Google Cloud project (it should be auto-detected once the API is
+     enabled).
+  4. In Play Console, go to **Users and permissions**, invite the service
+     account's email (the `client_email` field in the JSON key), and grant it
+     app permissions for Aerial: release to production, release to testing
+     tracks, and view app information. Permissions can take a few minutes to
+     propagate.
+  5. Encode the key and store it as the secret:
+
+     ```sh
+     # macOS (BSD base64, no -w flag)
+     base64 -i play-service-account.json | gh secret set AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+
+     # Linux (GNU base64)
+     base64 -w 0 play-service-account.json | gh secret set AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64
+     ```
+
+  Delete the local JSON key file once it's stored as a secret.
 
 For a local publish, set `AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE` to the path
 of the JSON key alongside the release-signing env vars:
@@ -250,7 +273,7 @@ of the JSON key alongside the release-signing env vars:
 ```sh
 source local/release-signing.env
 export AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE=/path/to/play-service-account.json
-./gradlew publishBundle --track beta
+./gradlew publishBundle --track internal
 ```
 
 ## F-Droid
