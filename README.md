@@ -5,6 +5,8 @@ Just radio for Android.
 ## Install
 
 <p>
+<a href="https://play.google.com/store/apps/details?id=com.shapeshed.aerial"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80"></a>
+&nbsp;&nbsp;
 <a href="https://f-droid.org/packages/com.shapeshed.aerial"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
 </p>
 
@@ -20,20 +22,6 @@ Just radio for Android.
 - Set a sleep timer so playback stops automatically.
 - No sign-up. You are not the product, just listen to radio.
 - Keep listening privately with no ads, analytics, tracking SDKs, Firebase, or accounts.
-
-## Funding
-
-Enjoying Aerial? You can help fund the project by buying me a coffee or sending
-a small contribution through Ko-fi or PayPal. Funding is optional, but it helps
-with the time and costs involved in keeping Aerial maintained.
-
-<p>
-  <a href="https://buymeacoffee.com/shapeshed"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="45"></a>
-  &nbsp;&nbsp;
-  <a href="https://ko-fi.com/shapeshed"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Aerial on Ko-fi" height="45"></a>
-  &nbsp;&nbsp;
-  <a href="https://www.paypal.com/donate/?hosted_button_id=MZVB3E2RYYWV8"><img src="docs/badges/paypal-donate.png" alt="Donate with PayPal" height="45"></a>
-</p>
 
 ## Development
 
