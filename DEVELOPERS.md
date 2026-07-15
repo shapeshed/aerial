@@ -291,3 +291,31 @@ F-Droid builds should use the unsigned release path:
 ```
 
 The release build must not require local signing environment variables.
+
+## Android Auto
+
+`PlayerService` is a `media3` `MediaLibraryService` exposing a browse tree:
+root -> Favorites | Moods | Recently Played, plus voice/typed search. The
+tree-building logic lives in `data/MediaBrowseTree.kt` (plain suspend
+functions over `StationRepository`/`RegistryRepository`, no session types) so
+it's unit-testable without Robolectric — see
+`app/src/test/java/com/shapeshed/aerial/data/MediaBrowseTreeTest.kt`. It's
+named/placed generically (not car-specific) since Google TV support is
+planned next and will reuse it.
+
+Android Auto renders the browse tree itself — there's no custom UI to build
+or theme; the only app-controlled surfaces are the browse tree's content and
+the accent colour/icon declared in the manifest (`res/xml/automotive_app_desc.xml`,
+`Theme.Aerial.Car` in `themes.xml`).
+
+This can't be rendered or screenshotted in a normal dev environment. To test:
+
+```sh
+./gradlew installDebug
+```
+
+then connect via the [Desktop Head Unit](https://developer.android.com/training/cars/testing)
+or a real Android Auto host, and check: the app appears in Android Auto's app
+list, the root shows Favorites/Moods/Recently Played, mood folders show their
+stations, tapping a station plays it, and voice search ("Ok Google, play
+`<station>` on Aerial") resolves and plays.

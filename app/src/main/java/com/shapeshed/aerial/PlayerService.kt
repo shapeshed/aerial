@@ -24,19 +24,27 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.LibraryParams
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
@@ -58,7 +66,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(UnstableApi::class)
-class PlayerService : MediaSessionService() {
+class PlayerService : MediaLibraryService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
@@ -67,8 +75,10 @@ class PlayerService : MediaSessionService() {
     private var sleepTimerJob: Job? = null
 
     private lateinit var player: ExoPlayer
-    private lateinit var mediaSession: MediaSession
+    private lateinit var mediaSession: MediaLibrarySession
     private lateinit var repository: StationRepository
+    private lateinit var registryRepository: RegistryRepository
+    private lateinit var mediaBrowseTree: MediaBrowseTree
     private var stations: List<Station> = emptyList()
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
@@ -91,6 +101,8 @@ class PlayerService : MediaSessionService() {
             }
         )
         repository = (application as AerialApp).repository
+        registryRepository = (application as AerialApp).registryRepository
+        mediaBrowseTree = MediaBrowseTree(this, repository, registryRepository)
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(AERIAL_USER_AGENT)
             .setAllowCrossProtocolRedirects(true)
@@ -119,9 +131,8 @@ class PlayerService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(icyListener)
-        mediaSession = MediaSession.Builder(this, player)
+        mediaSession = MediaLibrarySession.Builder(this, player, librarySessionCallback)
             .setSessionActivity(pendingIntent())
-            .setCallback(sessionCallback)
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
             .setBitmapLoader(CoilBitmapLoader(this))
             .build()
@@ -267,7 +278,7 @@ class PlayerService : MediaSessionService() {
         }
     }
 
-    private val sessionCallback = object : MediaSession.Callback {
+    private val librarySessionCallback = object : MediaLibrarySession.Callback {
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -326,6 +337,107 @@ class PlayerService : MediaSessionService() {
                 else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
         }
+
+        override fun onGetLibraryRoot(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            // Folders (Favorites/Moods/Recently Played) read as a list; station logos read well
+            // as a grid, similar to most radio/podcast apps on Android Auto.
+            val rootExtras = Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM,
+                )
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
+                )
+            }
+            val rootParams = LibraryParams.Builder().setExtras(rootExtras).build()
+            return Futures.immediateFuture(LibraryResult.ofItem(mediaBrowseTree.rootItem(), rootParams))
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> = serviceFuture {
+            mediaBrowseTree.resolve(mediaId)?.let { LibraryResult.ofItem(it, null) }
+                ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+        }
+
+        override fun onGetChildren(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
+            val children = mediaBrowseTree.children(parentId)
+            if (children == null) {
+                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            } else {
+                LibraryResult.ofItemList(children.paginated(page, pageSize), params)
+            }
+        }
+
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> = serviceFuture {
+            val resultCount = mediaBrowseTree.search(query).size
+            session.notifySearchResultChanged(browser, query, resultCount, params)
+            LibraryResult.ofVoid()
+        }
+
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
+            LibraryResult.ofItemList(mediaBrowseTree.search(query).paginated(page, pageSize), params)
+        }
+
+        // Android Auto's legacy MediaBrowserCompat bridge plays a tapped browse item (or a voice
+        // search/resumption result) by dispatching a MediaItem carrying only a mediaId, not the
+        // fully resolved item the browse tree returned — so it must be looked up again here before
+        // ExoPlayer can play it. Falls back to the incoming item unchanged if it doesn't resolve
+        // (e.g. an ephemeral station the phone UI is already playing directly with a real URI).
+        override fun onSetMediaItems(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
+            val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
+            MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+        }
+    }
+
+    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> {
+        val future = SettableFuture.create<T>()
+        serviceScope.launch {
+            runCatching { block() }
+                .onSuccess { future.set(it) }
+                .onFailure { future.setException(it) }
+        }
+        return future
+    }
+
+    private fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
+        if (pageSize <= 0) return this
+        val from = (page * pageSize).coerceIn(0, size)
+        val to = (from + pageSize).coerceIn(from, size)
+        return subList(from, to)
     }
 
     private fun updateFavoriteButton() {

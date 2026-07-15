@@ -3,7 +3,6 @@ package com.shapeshed.aerial.ui
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
-import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -49,7 +48,8 @@ import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.bauerStreamUrl
+import com.shapeshed.aerial.toEphemeralStation
+import com.shapeshed.aerial.toPlayableMediaItem
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -197,8 +197,6 @@ class MainViewModel(
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private val appIconArtwork: ByteArray? by lazy { appIconBitmap(getApplication()) }
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
     private val _ephemeralStation = MutableStateFlow<Station?>(null)
@@ -438,18 +436,7 @@ class MainViewModel(
     }
 
     fun playFromRegistry(registryStation: RegistryStation) {
-        val station = Station(
-            name = registryStation.name,
-            streamUrl = registryStation.streamUrl,
-            logoPath = registryStation.logoUrl,
-            provider = registryStation.provider,
-            providerId = registryStation.providerId,
-            tags = registryStation.tags,
-            description = registryStation.description,
-            country = registryStation.country,
-            countryCode = registryStation.countryCode,
-        )
-        play(station)
+        play(registryStation.toEphemeralStation())
     }
 
     fun addFromRegistry(registryStation: RegistryStation) {
@@ -684,11 +671,7 @@ class MainViewModel(
         _currentBitrateKbps.value = null
         _playbackError.value = null
         persistLastPlayedStation(station)
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(station.id.toString())
-            .setUri(bauerStreamUrl(station))
-            .setMediaMetadata(stationMediaMetadata(station))
-            .build()
+        val mediaItem = station.toPlayableMediaItem(getApplication())
         controller?.apply {
             setMediaItem(mediaItem)
             prepare()
@@ -847,48 +830,13 @@ class MainViewModel(
     }
 
     private fun loadStationPaused(station: Station) {
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(station.id.toString())
-            .setUri(bauerStreamUrl(station))
-            .setMediaMetadata(stationMediaMetadata(station))
-            .build()
+        val mediaItem = station.toPlayableMediaItem(getApplication())
 
         controller?.apply {
             setMediaItem(mediaItem)
             prepare()
             pause()
         }
-    }
-
-    private fun stationMediaMetadata(station: Station): MediaMetadata {
-        val artworkUri = station.logoPath
-            .takeIf { it.startsWith("http") }
-            ?.toUri()
-        val localArtworkData = station.logoPath
-            .takeIf { it.isNotEmpty() && !it.startsWith("http") }
-            ?.let { compressedLogoData(File(it)) }
-
-        return MediaMetadata.Builder().apply {
-            when {
-                localArtworkData != null -> setArtworkData(
-                    localArtworkData,
-                    MediaMetadata.PICTURE_TYPE_FRONT_COVER,
-                )
-                artworkUri != null -> setArtworkUri(artworkUri)
-                else -> appIconArtwork?.let {
-                    setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                }
-            }
-        }
-            .setTitle(station.name)
-            .setArtist(liveRadio())
-            .setSubtitle(liveRadio())
-            .setExtras(Bundle().apply {
-                putString("provider", station.provider)
-                putString("providerId", station.providerId)
-                putString("streamUrl", station.streamUrl)
-            })
-            .build()
     }
 }
 

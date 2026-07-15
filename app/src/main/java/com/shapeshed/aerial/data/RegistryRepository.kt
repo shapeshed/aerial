@@ -205,6 +205,8 @@ class RegistryRepository(private val dao: RegistryDao) {
 
     suspend fun randomByCategory(tag: String): RegistryStation? = dao.randomStationByTag(tag)
 
+    suspend fun getById(id: Long): RegistryStation? = dao.getById(id)
+
     suspend fun availableCountryCodes(): List<String> = dao.distinctCountryCodes()
 
     suspend fun availableTags(): List<String> {

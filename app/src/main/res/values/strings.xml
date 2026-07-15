@@ -113,4 +113,7 @@
     <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
     <string name="no_favorites">No favourites yet</string>
     <string name="no_favorites_desc">Add stations you love to easily find them here</string>
+    <!-- Media browse tree (Android Auto, Google TV) -->
+    <string name="car_moods">Moods</string>
+    <string name="car_recently_played">Recently Played</string>
 </resources>

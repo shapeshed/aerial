@@ -111,4 +111,6 @@
     <string name="favorites_grid_columns_desc">Kolommen in de kaartweergave</string>
     <string name="no_favorites">Nog geen favorieten</string>
     <string name="no_favorites_desc">Voeg zenders toe die je leuk vindt om ze hier snel terug te vinden</string>
+    <string name="car_moods">Stemmingen</string>
+    <string name="car_recently_played">Laatst afgespeeld</string>
 </resources>

@@ -92,6 +92,14 @@ android {
     lint {
         fatal 'UnusedResources'
     }
+
+    testOptions {
+        unitTests {
+            // Some framework calls (e.g. Uri.parse, used by media3's MediaItem.Builder) would
+            // otherwise throw "not mocked" in plain JUnit tests with no Robolectric.
+            returnDefaultValues = true
+        }
+    }
 }
 
 def playServiceAccountJsonFile = System.getenv("AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE")
@@ -167,4 +175,5 @@ dependencies {
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:6.3.0'
 }
