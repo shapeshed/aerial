@@ -65,14 +65,35 @@ jobs:
           fi
           printf '%s' "$AERIAL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/aerial-release.jks"
 
-      - name: Build signed release APK
+      - name: Decode Play service account credentials
+        if: steps.check.outputs.skip != 'true'
+        env:
+          AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          if [ -z "$AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64" ]; then
+            echo "AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64 is required to publish to Google Play." >&2
+            exit 1
+          fi
+          printf '%s' "$AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/play-service-account.json"
+          echo "AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE=$RUNNER_TEMP/play-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK and bundle
         if: steps.check.outputs.skip != 'true'
         env:
           AERIAL_KEYSTORE_FILE: ${{ runner.temp }}/aerial-release.jks
           AERIAL_KEYSTORE_PASSWORD: ${{ secrets.AERIAL_KEYSTORE_PASSWORD }}
           AERIAL_KEY_ALIAS: ${{ secrets.AERIAL_KEY_ALIAS }}
           AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease bundleRelease
+
+      - name: Publish nightly to Google Play (beta)
+        if: steps.check.outputs.skip != 'true'
+        env:
+          AERIAL_KEYSTORE_FILE: ${{ runner.temp }}/aerial-release.jks
+          AERIAL_KEYSTORE_PASSWORD: ${{ secrets.AERIAL_KEYSTORE_PASSWORD }}
+          AERIAL_KEY_ALIAS: ${{ secrets.AERIAL_KEY_ALIAS }}
+          AERIAL_KEY_PASSWORD: ${{ secrets.AERIAL_KEY_PASSWORD }}
+        run: ./gradlew publishBundle --track beta
 
       - name: Rename APK
         if: steps.check.outputs.skip != 'true'

@@ -1,7 +1,11 @@
+import com.github.triplet.gradle.androidpublisher.ReleaseStatus
+import com.github.triplet.gradle.androidpublisher.ResolutionStrategy
+
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.plugin.compose'
     id 'com.google.devtools.ksp'
+    id 'com.github.triplet.play'
 }
 
 def registrySourceFile = layout.projectDirectory.file("src/main/registry/registry.json")
@@ -88,6 +92,18 @@ android {
     lint {
         fatal 'UnusedResources'
     }
+}
+
+def playServiceAccountJsonFile = System.getenv("AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE")
+
+play {
+    if (playServiceAccountJsonFile) {
+        serviceAccountCredentials.set(file(playServiceAccountJsonFile))
+    }
+    defaultToAppBundles.set(true)
+    track.set("production")
+    releaseStatus.set(ReleaseStatus.COMPLETED)
+    resolutionStrategy.set(ResolutionStrategy.AUTO)
 }
 
 def generateRegistryAsset = tasks.register("generateRegistryAsset", Exec) {
