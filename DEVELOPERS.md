@@ -223,13 +223,12 @@ CI publishes to Google Play automatically using the [Gradle Play
 Publisher](https://github.com/Triple-T/gradle-play-publisher) plugin — there
 is no manual upload step.
 
-- The nightly workflow (`.github/workflows/nightly.yml`) builds an AAB from
-  `main` every day and publishes it to the **internal testing** track.
-- The release workflow (`.github/workflows/release.yml`) builds an AAB when a
-  `v*` tag is pushed and publishes it to the **production** track at 100%
-  rollout.
-
-There is no beta track in use currently.
+The release workflow (`.github/workflows/release.yml`) builds an AAB when a
+`v*` tag is pushed and publishes it to the **production** track at 100%
+rollout. There is no beta or internal testing track in use — nightly builds
+(`.github/workflows/nightly.yml`) only produce a GitHub release APK, they do
+not publish to Play. Use the GitHub `nightly` release, or an F-Droid build
+from source, for pre-release testing instead.
 
 Version codes are resolved automatically against Play
 (`resolutionStrategy = AUTO` in `app/build.gradle`) whenever Play credentials
@@ -252,9 +251,8 @@ Required GitHub repository secret:
      enabled).
   4. In Play Console, go to **Users and permissions**, invite the service
      account's email (the `client_email` field in the JSON key), and grant it
-     app permissions for Aerial: release to production, release to testing
-     tracks, and view app information. Permissions can take a few minutes to
-     propagate.
+     app permissions for Aerial: release to production, and view app
+     information. Permissions can take a few minutes to propagate.
   5. Encode the key and store it as the secret:
 
      ```sh
@@ -273,7 +271,7 @@ of the JSON key alongside the release-signing env vars:
 ```sh
 source local/release-signing.env
 export AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE=/path/to/play-service-account.json
-./gradlew publishBundle --track internal
+./gradlew publishBundle --track production
 ```
 
 ## F-Droid
