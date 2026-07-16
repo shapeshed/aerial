@@ -291,3 +291,50 @@ F-Droid builds should use the unsigned release path:
 ```
 
 The release build must not require local signing environment variables.
+
+## Android Auto
+
+`PlayerService` is a `media3` `MediaLibraryService` exposing a browse tree:
+root -> Favorites | Moods | Recently Played, plus voice/typed search. The
+tree-building logic lives in `data/MediaBrowseTree.kt` (plain suspend
+functions over `StationRepository`/`RegistryRepository`, no session types) so
+it's unit-testable without Robolectric — see
+`app/src/test/java/com/shapeshed/aerial/data/MediaBrowseTreeTest.kt`. It's
+named/placed generically (not car-specific) since Google TV support is
+planned next and will reuse it.
+
+Android Auto renders the browse tree itself — there's no custom UI to build
+or theme; the only app-controlled surfaces are the browse tree's content and
+the accent colour/icon declared in the manifest (`res/xml/automotive_app_desc.xml`,
+`Theme.Aerial.Car` in `themes.xml`).
+
+This can't be rendered or screenshotted in a normal dev environment. To test
+with the [Desktop Head Unit](https://developer.android.com/training/cars/testing):
+
+```sh
+./gradlew installDebug
+adb forward tcp:5277 tcp:5277
+```
+
+On the phone, open the Android Auto app's settings and enable
+**Developer settings > Start head unit server** — without this the DHU
+connects but sits at "waiting for phone". Then launch the DHU binary
+(`extras/google/auto/desktop-head-unit` in the Android SDK). If the phone-side
+toggle was enabled after the DHU connected, restart the DHU.
+
+Check: the app appears in Android Auto's app list, the root shows
+Favorites/Moods/Recently Played, mood folders show their stations with logos,
+tapping a station plays it and queues its list (skip next/previous wraps
+around), playing updates Recently Played, and voice search ("Ok Google, play
+`<station>` on Aerial") resolves and plays.
+
+Live streams always report `speed=0` / unknown position through media3's
+legacy session bridge (`MediaSessionLegacyStub.createPlaybackStateCompat`
+checks `isCurrentMediaItemLive()`), so Android Auto's queue equalizer
+indicator shows static bars rather than animating. This is expected for all
+media3 live-radio apps, not a bug.
+
+The Recently Played folder reorders on re-entry but not while it stays on
+screen: `notifyChildrenChanged("recent")` fires after each recorded play
+(visible in logcat), but the Auto host decides whether to re-query a folder
+it is currently displaying, and the DHU does not. Not fixable app-side.

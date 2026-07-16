@@ -11,4 +11,11 @@
         <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
         <item name="postSplashScreenTheme">@style/Theme.Aerial</item>
     </style>
+
+    <!-- Referenced only by the com.google.android.gms.car.application.theme meta-data in the
+         manifest, for Android Auto's accent color — the app's phone theme is otherwise untouched
+         since normal UI theming goes through Compose's MaterialTheme, not this XML theme. -->
+    <style name="Theme.Aerial.Car" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorAccent">@color/car_accent</item>
+    </style>
 </resources>

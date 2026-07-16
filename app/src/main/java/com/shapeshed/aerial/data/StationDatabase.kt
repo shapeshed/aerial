@@ -8,12 +8,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Station::class, StationFts::class],
-    version = 15,
+    entities = [Station::class, StationFts::class, PlayHistoryEntry::class],
+    version = 16,
     exportSchema = true,
 )
 abstract class StationDatabase : RoomDatabase() {
     abstract fun stationDao(): StationDao
+    abstract fun playHistoryDao(): PlayHistoryDao
 
     companion object {
         @Volatile private var instance: StationDatabase? = null
@@ -34,6 +35,7 @@ abstract class StationDatabase : RoomDatabase() {
                         MIGRATION_12_13,
                         MIGRATION_13_14,
                         MIGRATION_14_15,
+                        MIGRATION_15_16,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
@@ -182,6 +184,21 @@ abstract class StationDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `stations` ADD COLUMN `playCount` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `stations` ADD COLUMN `lastPlayedAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `play_history` (
+                      `provider` TEXT NOT NULL,
+                      `providerId` TEXT NOT NULL,
+                      `playedAt` INTEGER NOT NULL,
+                      PRIMARY KEY(`provider`, `providerId`)
+                    )
+                    """.trimIndent(),
+                )
             }
         }
 

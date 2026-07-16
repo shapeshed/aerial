@@ -2,4 +2,7 @@
 <resources>
     <color name="ic_launcher_background">#FFFFFFFF</color>
     <color name="splash_background">#FFFFFFFF</color>
+    <!-- Fixed brand teal for surfaces that don't participate in Material You dynamic color
+         (Android Auto, Google TV) — matches ui/theme/Color.kt's primaryDark. -->
+    <color name="car_accent">#FF82D3E0</color>
 </resources>

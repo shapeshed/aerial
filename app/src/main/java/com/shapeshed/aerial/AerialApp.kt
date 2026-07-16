@@ -47,7 +47,7 @@ class AerialApp : Application(), SingletonImageLoader.Factory {
         .build()
     private val db by lazy { StationDatabase.get(this) }
     private val registryDb by lazy { RegistryDatabase.get(this, BuildConfig.VERSION_CODE) }
-    val repository by lazy { StationRepository(db.stationDao()) }
+    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao()) }
     val registryRepository by lazy { RegistryRepository(registryDb.registryDao()) }
     val settingsDataStore get() = dataStore
     val networkMonitor by lazy { NetworkMonitor(this) }

@@ -19,6 +19,22 @@
         android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.Aerial">
 
+        <!-- Declares Aerial as a media app for Android Auto / Android Automotive OS. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="com.google.android.gms.car.application.theme"
+            android:resource="@style/Theme.Aerial.Car" />
+
+        <!-- Serves rasterized station logos to Android Auto / Bluetooth / System UI as stable
+             content:// artwork URIs, so those consumers can cache decoded icons by URI.
+             Read-only and restricted to the registry_artwork cache directory. -->
+        <provider
+            android:name=".ArtworkProvider"
+            android:authorities="${applicationId}.artwork"
+            android:exported="true" />
+
         <!-- Persists the per-app locale on pre-Android-13 via AppCompat. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
@@ -50,6 +66,10 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+            <!-- Lets Android Auto/Assistant voice search ("play X on Aerial") reach this service. -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
             </intent-filter>
         </service>
 

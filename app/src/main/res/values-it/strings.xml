@@ -111,4 +111,6 @@
     <string name="favorites_grid_columns_desc">Colonne nella vista a schede</string>
     <string name="no_favorites">Nessun preferito</string>
     <string name="no_favorites_desc">Aggiungi le stazioni che ami per ritrovarle facilmente qui</string>
+    <string name="car_moods">Umori</string>
+    <string name="recently_played">Ascoltati di recente</string>
 </resources>

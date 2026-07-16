@@ -11,7 +11,7 @@ class StationRepositoryTest {
     @Test
     fun insertOrGetExistingInsertsNewStation() = runBlocking {
         val dao = FakeStationDao()
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val id = repository.insertOrGetExisting(station())
 
@@ -24,7 +24,7 @@ class StationRepositoryTest {
     fun insertOrGetExistingReturnsExistingStreamUrlStation() = runBlocking {
         val existing = station(id = 7L, logoPath = "/logos/existing.png")
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val id = repository.insertOrGetExisting(
             station(
@@ -42,7 +42,7 @@ class StationRepositoryTest {
     fun insertOrGetExistingMatchesByStreamUrl() = runBlocking {
         val existing = station(id = 4L)
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val id = repository.insertOrGetExisting(station())
 
@@ -60,7 +60,7 @@ class StationRepositoryTest {
             providerId = "mango",
         )
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val id = repository.insertOrGetExisting(
             station(
@@ -79,7 +79,7 @@ class StationRepositoryTest {
     fun insertOrGetExistingKeepsExistingLogoWhenPresent() = runBlocking {
         val existing = station(id = 3L, logoPath = "/logos/existing.png")
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         repository.insertOrGetExisting(station(logoPath = "/logos/new.png"))
 
@@ -90,7 +90,7 @@ class StationRepositoryTest {
     fun insertOrGetExistingMarksExistingStationAsFavorite() = runBlocking {
         val existing = station(id = 9L, isFavorite = false)
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         repository.insertOrGetExisting(station(isFavorite = true))
 
@@ -107,7 +107,7 @@ class StationRepositoryTest {
         )
         val streamMatch = station(id = 11L, streamUrl = "https://stream.example.com/registry")
         val dao = FakeStationDao(providerMatch, streamMatch)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val result = repository.findMatching(
             RegistryStation(
@@ -125,7 +125,7 @@ class StationRepositoryTest {
     fun findMatchingFallsBackToStreamUrl() = runBlocking {
         val existing = station(id = 12L, streamUrl = "https://stream.example.com/registry")
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val result = repository.findMatching(
             RegistryStation(
@@ -151,7 +151,7 @@ class StationRepositoryTest {
             providerId = "mango",
         )
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val id = repository.saveAsFavorite(
             station(
@@ -171,7 +171,7 @@ class StationRepositoryTest {
     fun upsertImportedKeepsNewerLocalPlayStats() = runBlocking {
         val existing = station(id = 6L, playCount = 12, lastPlayedAt = 2_000L)
         val dao = FakeStationDao(existing)
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         repository.upsertImported(station(playCount = 3, lastPlayedAt = 1_000L))
 
@@ -182,7 +182,7 @@ class StationRepositoryTest {
     @Test
     fun upsertImportedRestoresPlayStatsOntoFreshInstall() = runBlocking {
         val dao = FakeStationDao()
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         repository.upsertImported(station(playCount = 7, lastPlayedAt = 3_000L))
 
@@ -195,7 +195,7 @@ class StationRepositoryTest {
         val dao = FakeStationDao(
             station(id = 2L, name = "dublab", isFavorite = false),
         )
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         val results = repository.searchFavorites("dublab")
 
@@ -213,7 +213,7 @@ class StationRepositoryTest {
                 country = "United Kingdom",
             ),
         )
-        val repository = StationRepository(dao)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
 
         assertEquals(listOf(dao.stations.single()), repository.searchFavorites("jungle"))
         assertEquals(listOf(dao.stations.single()), repository.searchFavorites("underground"))
@@ -315,5 +315,20 @@ class StationRepositoryTest {
         override suspend fun delete(station: Station) {
             stations.removeAll { it.id == station.id }
         }
+    }
+
+    private class FakePlayHistoryDao(vararg initialEntries: PlayHistoryEntry) : PlayHistoryDao {
+        val entries = initialEntries.toMutableList()
+
+        override suspend fun recordPlay(entry: PlayHistoryEntry) {
+            entries.removeAll { it.provider == entry.provider && it.providerId == entry.providerId }
+            entries += entry
+        }
+
+        override suspend fun recent(limit: Int): List<PlayHistoryEntry> =
+            entries.sortedByDescending { it.playedAt }.take(limit)
+
+        override fun recentAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> =
+            flowOf(entries.sortedByDescending { it.playedAt }.take(limit))
     }
 }

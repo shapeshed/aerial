@@ -112,4 +112,6 @@
     <string name="favorites_grid_columns_desc">Colunas na visualização de cartões</string>
     <string name="no_favorites">Ainda sem favoritos</string>
     <string name="no_favorites_desc">Adicione as estações que você gosta para encontrá-las facilmente aqui</string>
+    <string name="car_moods">Humores</string>
+    <string name="recently_played">Reproduzidos recentemente</string>
 </resources>

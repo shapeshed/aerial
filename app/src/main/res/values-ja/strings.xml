@@ -111,4 +111,6 @@
     <string name="favorites_grid_columns_desc">カード表示の列数</string>
     <string name="no_favorites">お気に入りはまだありません</string>
     <string name="no_favorites_desc">お気に入りの放送局を追加すると、ここからすぐに見つけられます</string>
+    <string name="car_moods">気分</string>
+    <string name="recently_played">最近再生</string>
 </resources>
