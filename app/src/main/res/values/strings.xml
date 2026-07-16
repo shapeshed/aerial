@@ -115,5 +115,5 @@
     <string name="no_favorites_desc">Add stations you love to easily find them here</string>
     <!-- Media browse tree (Android Auto, Google TV) -->
     <string name="car_moods">Moods</string>
-    <string name="car_recently_played">Recently Played</string>
+    <string name="recently_played">Recently Played</string>
 </resources>

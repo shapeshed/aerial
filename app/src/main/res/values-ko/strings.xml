@@ -112,5 +112,5 @@
     <string name="no_favorites">즐겨찾기가 없습니다</string>
     <string name="no_favorites_desc">좋아하는 방송국을 추가하면 여기서 쉽게 찾을 수 있어요</string>
     <string name="car_moods">기분</string>
-    <string name="car_recently_played">최근 재생</string>
+    <string name="recently_played">최근 재생</string>
 </resources>

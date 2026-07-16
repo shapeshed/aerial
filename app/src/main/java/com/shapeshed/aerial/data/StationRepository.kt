@@ -2,7 +2,7 @@ package com.shapeshed.aerial.data
 
 import kotlinx.coroutines.flow.Flow
 
-class StationRepository(private val dao: StationDao) {
+class StationRepository(private val dao: StationDao, private val playHistoryDao: PlayHistoryDao) {
     fun getAll(): Flow<List<Station>> = dao.getAll()
     suspend fun getById(id: Long): Station? = dao.getById(id)
     suspend fun getByStreamUrl(streamUrl: String): Station? = dao.getByStreamUrl(streamUrl)
@@ -14,6 +14,10 @@ class StationRepository(private val dao: StationDao) {
     suspend fun update(station: Station) = dao.update(station)
     suspend fun delete(station: Station) = dao.delete(station)
     suspend fun recordPlay(id: Long, playedAt: Long) = dao.recordPlay(id, playedAt)
+
+    suspend fun recordHistoryPlay(entry: PlayHistoryEntry) = playHistoryDao.recordPlay(entry)
+    suspend fun recentlyPlayed(limit: Int): List<PlayHistoryEntry> = playHistoryDao.recent(limit)
+    fun recentlyPlayedAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> = playHistoryDao.recentAsFlow(limit)
 
     suspend fun insertOrGetExisting(station: Station): Long {
         val existing = findExisting(station)

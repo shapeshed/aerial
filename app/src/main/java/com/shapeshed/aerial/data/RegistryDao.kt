@@ -30,6 +30,9 @@ abstract class RegistryDao {
     @Query("SELECT * FROM registry_stations WHERE providerId IN (:ids)")
     abstract suspend fun getByProviderIds(ids: List<String>): List<RegistryStation>
 
+    @Query("SELECT * FROM registry_stations WHERE provider = :provider AND providerId = :providerId LIMIT 1")
+    abstract suspend fun getByProviderId(provider: String, providerId: String): RegistryStation?
+
     @Query("SELECT * FROM registry_stations WHERE id = :id")
     abstract suspend fun getById(id: Long): RegistryStation?
 

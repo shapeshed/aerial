@@ -84,6 +84,7 @@ enum class FavoritesSort {
     MOST_PLAYED,
 }
 private const val MAX_RECENT_SEARCHES = 5
+private const val RECENTLY_PLAYED_LIMIT = 10
 
 private data class LastPlayedStationSnapshot(
     val station: Station,
@@ -128,9 +129,31 @@ class MainViewModel(
     private val _curatedMoodStations = MutableStateFlow<Map<String, List<RegistryStation>>>(emptyMap())
     val curatedMoodStations: StateFlow<Map<String, List<RegistryStation>>> = _curatedMoodStations.asStateFlow()
 
+    // Recently played stations for the home screen, same source as Android Auto's Recently
+    // Played folder: the play_history table resolved against the registry (entries whose
+    // station is no longer in the registry are skipped). Room re-emits on every recorded
+    // play, so the row reorders live. The first resolution gates isInitialized (and so the
+    // splash screen) below: the home list's scroll position is restored against the first
+    // composition, so this section must already be present in it rather than streaming in
+    // afterwards and shifting the restored position.
+    private val _recentlyPlayedStations = MutableStateFlow<List<RegistryStation>>(emptyList())
+    val recentlyPlayedStations: StateFlow<List<RegistryStation>> = _recentlyPlayedStations.asStateFlow()
+    private val recentlyPlayedFirstLoad = CompletableDeferred<Unit>()
+
     init {
         viewModelScope.launch {
+            repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
+                .map { entries ->
+                    entries.mapNotNull { registryRepository.getByProviderId(it.provider, it.providerId) }
+                }
+                .collect {
+                    _recentlyPlayedStations.value = it
+                    recentlyPlayedFirstLoad.complete(Unit)
+                }
+        }
+        viewModelScope.launch {
             repository.getAll().first()
+            recentlyPlayedFirstLoad.await()
             _isInitialized.value = true
         }
         viewModelScope.launch {
@@ -660,9 +683,6 @@ class MainViewModel(
         } else {
             _ephemeralStation.value = null
             _currentStationId.value = station.id
-            viewModelScope.launch {
-                repository.recordPlay(station.id, System.currentTimeMillis())
-            }
         }
         _currentTrackTitle.value = null
         _currentTrackArtist.value = null

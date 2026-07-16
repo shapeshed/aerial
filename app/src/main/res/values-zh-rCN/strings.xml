@@ -112,5 +112,5 @@
     <string name="no_favorites">暂无收藏</string>
     <string name="no_favorites_desc">添加喜欢的电台，方便在此快速找到</string>
     <string name="car_moods">心情</string>
-    <string name="car_recently_played">最近播放</string>
+    <string name="recently_played">最近播放</string>
 </resources>

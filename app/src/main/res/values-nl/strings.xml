@@ -112,5 +112,5 @@
     <string name="no_favorites">Nog geen favorieten</string>
     <string name="no_favorites_desc">Voeg zenders toe die je leuk vindt om ze hier snel terug te vinden</string>
     <string name="car_moods">Stemmingen</string>
-    <string name="car_recently_played">Laatst afgespeeld</string>
+    <string name="recently_played">Laatst afgespeeld</string>
 </resources>

@@ -5,15 +5,25 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.REGISTRY_MEDIA_ID_PREFIX
+import com.shapeshed.aerial.toBrowseMediaItem
 import com.shapeshed.aerial.toPlayableMediaItem
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+
+/** Runs [transform] for all items concurrently — browse lists resolve per-station artwork that
+ * may each hit the network (see cachedRemoteArtworkUri), and doing that sequentially would
+ * stack timeouts into a folder-level stall Android Auto gives up on. */
+private suspend fun <T, R> List<T>.mapConcurrently(transform: suspend (T) -> R): List<R> =
+    coroutineScope { map { async { transform(it) } }.awaitAll() }
 
 const val MEDIA_BROWSE_ROOT_ID = "root"
 private const val FAVORITES_ID = "favorites"
 private const val MOODS_ID = "moods"
-private const val RECENT_ID = "recent"
+const val RECENT_ID = "recent"
 private const val MOOD_ID_PREFIX = "mood:"
-private const val RECENT_LIMIT = 20
+private const val RECENT_LIMIT = 10
 
 private val MOOD_TITLES = listOf(
     "relax" to R.string.mood_relax,
@@ -42,7 +52,7 @@ class MediaBrowseTree(
     fun rootChildren(): List<MediaItem> = listOf(
         browsableFolder(FAVORITES_ID, context.getString(R.string.tab_favorites)),
         browsableFolder(MOODS_ID, context.getString(R.string.car_moods)),
-        browsableFolder(RECENT_ID, context.getString(R.string.car_recently_played)),
+        browsableFolder(RECENT_ID, context.getString(R.string.recently_played)),
     )
 
     /** Dispatches a parentId to the right children list, or null if it's not a known folder. */
@@ -56,7 +66,7 @@ class MediaBrowseTree(
     }
 
     suspend fun favoriteChildren(): List<MediaItem> =
-        stationRepository.getAll().first().map { it.toPlayableMediaItem(context) }
+        stationRepository.getAll().first().mapConcurrently { it.toBrowseMediaItem(context) }
 
     fun moodChildren(): List<MediaItem> = MOOD_TITLES.map { (id, titleRes) ->
         browsableFolder("$MOOD_ID_PREFIX$id", context.getString(titleRes))
@@ -64,20 +74,23 @@ class MediaBrowseTree(
 
     suspend fun moodStationChildren(moodId: String): List<MediaItem> =
         registryRepository.curatedMoodStations()[moodId]
-            ?.map { it.toPlayableMediaItem(context) }
+            ?.mapConcurrently { it.toPlayableMediaItem(context) }
             ?: emptyList()
 
+    // Sourced from play_history (any station played, favorited or not) rather than favorited
+    // stations' lastPlayedAt, so browsing a mood/search result shows up here even if it's never
+    // been saved. Entries only resolve for registry-backed stations (provider+providerId); a
+    // history row whose station has since vanished from the registry — or a curated mood
+    // station without a real providerId — is silently skipped rather than shown broken.
     suspend fun recentChildren(): List<MediaItem> =
-        stationRepository.getAll().first()
-            .filter { it.lastPlayedAt > 0 }
-            .sortedByDescending { it.lastPlayedAt }
-            .take(RECENT_LIMIT)
-            .map { it.toPlayableMediaItem(context) }
+        stationRepository.recentlyPlayed(RECENT_LIMIT)
+            .mapNotNull { entry -> registryRepository.getByProviderId(entry.provider, entry.providerId) }
+            .mapConcurrently { it.toPlayableMediaItem(context) }
 
     /** Broad catalogue search (not just favorites) so voice search can find and play any station
      * in the registry, matching what "Hey Google, play X on Aerial" needs. */
     suspend fun search(query: String): List<MediaItem> =
-        registryRepository.search(query).map { it.toPlayableMediaItem(context) }
+        registryRepository.search(query).mapConcurrently { it.toPlayableMediaItem(context) }
 
     /**
      * Resolves a bare mediaId — from a browse-item tap, voice search, or playback resumption —
@@ -92,6 +105,9 @@ class MediaBrowseTree(
             return registryRepository.getById(registryId)?.toPlayableMediaItem(context)
         }
         val id = mediaId.toLongOrNull() ?: return null
+        // toPlayableMediaItem, not toBrowseMediaItem: this sits on the playback-start path
+        // (onSetMediaItems), and the session's own artwork loads through CoilBitmapLoader —
+        // proxying the logo here would block "tap play" on an uncached network fetch.
         return stationRepository.getById(id)?.toPlayableMediaItem(context)
     }
 

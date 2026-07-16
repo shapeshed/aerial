@@ -48,7 +48,7 @@ class MediaBrowseTreeTest {
     @Test
     fun favoriteChildrenMapsSavedStationsToPlayableItems() = runBlocking {
         val stationDao = FakeStationDao(station(id = 5L, name = "Kool FM"))
-        val tree = tree(stationRepository = StationRepository(stationDao))
+        val tree = tree(stationRepository = StationRepository(stationDao, FakePlayHistoryDao()))
 
         val children = tree.favoriteChildren()
 
@@ -58,17 +58,35 @@ class MediaBrowseTreeTest {
     }
 
     @Test
-    fun recentChildrenExcludesNeverPlayedAndOrdersByMostRecent() = runBlocking {
-        val stationDao = FakeStationDao(
-            station(id = 1L, name = "Never played", lastPlayedAt = 0L),
-            station(id = 2L, name = "Played earlier", lastPlayedAt = 1_000L),
-            station(id = 3L, name = "Played most recently", lastPlayedAt = 2_000L),
+    fun recentChildrenOrdersByMostRecentPlayRegardlessOfFavoriteStatus() = runBlocking {
+        val playHistoryDao = FakePlayHistoryDao(
+            PlayHistoryEntry(provider = "radio-browser", providerId = "earlier", playedAt = 1_000L),
+            PlayHistoryEntry(provider = "radio-browser", providerId = "recent", playedAt = 2_000L),
         )
-        val tree = tree(stationRepository = StationRepository(stationDao))
+        val registryDao = FakeRegistryDao(
+            registryStation(id = 1L, name = "Played earlier", provider = "radio-browser", providerId = "earlier"),
+            registryStation(id = 2L, name = "Played most recently", provider = "radio-browser", providerId = "recent"),
+        )
+        val tree = tree(
+            stationRepository = StationRepository(FakeStationDao(), playHistoryDao),
+            registryRepository = RegistryRepository(registryDao),
+        )
 
         val children = tree.recentChildren()
 
-        assertEquals(listOf("3", "2"), children.map { it.mediaId })
+        assertEquals(listOf("reg:2", "reg:1"), children.map { it.mediaId })
+    }
+
+    @Test
+    fun recentChildrenSkipsEntriesNoLongerInTheRegistry() = runBlocking {
+        val playHistoryDao = FakePlayHistoryDao(
+            PlayHistoryEntry(provider = "radio-browser", providerId = "vanished", playedAt = 1_000L),
+        )
+        val tree = tree(stationRepository = StationRepository(FakeStationDao(), playHistoryDao))
+
+        val children = tree.recentChildren()
+
+        assertEquals(emptyList<String>(), children.map { it.mediaId })
     }
 
     @Test
@@ -105,7 +123,7 @@ class MediaBrowseTreeTest {
     @Test
     fun resolveLooksUpLocalStationById() = runBlocking {
         val stationDao = FakeStationDao(station(id = 9L, name = "Rinse FM"))
-        val tree = tree(stationRepository = StationRepository(stationDao))
+        val tree = tree(stationRepository = StationRepository(stationDao, FakePlayHistoryDao()))
 
         val resolved = tree.resolve("9")
 
@@ -146,7 +164,7 @@ class MediaBrowseTreeTest {
     }
 
     private fun tree(
-        stationRepository: StationRepository = StationRepository(FakeStationDao()),
+        stationRepository: StationRepository = StationRepository(FakeStationDao(), FakePlayHistoryDao()),
         registryRepository: RegistryRepository = RegistryRepository(FakeRegistryDao()),
     ): MediaBrowseTree = MediaBrowseTree(fakeContext(), stationRepository, registryRepository)
 
@@ -221,6 +239,8 @@ class MediaBrowseTreeTest {
                 .take(limit)
         override suspend fun getByProviderIds(ids: List<String>): List<RegistryStation> =
             stations.filter { it.providerId in ids }
+        override suspend fun getByProviderId(provider: String, providerId: String): RegistryStation? =
+            stations.firstOrNull { it.provider == provider && it.providerId == providerId }
         override suspend fun getById(id: Long): RegistryStation? = stations.firstOrNull { it.id == id }
         override suspend fun getByNames(names: List<String>): List<RegistryStation> =
             stations.filter { it.name in names }
@@ -233,5 +253,20 @@ class MediaBrowseTreeTest {
             stations.filter { it.tags.contains(tag, ignoreCase = true) }
         override suspend fun all(): List<RegistryStation> = stations.sortedBy { it.name }
         override suspend fun browse(limit: Int): List<RegistryStation> = stations.sortedBy { it.name }.take(limit)
+    }
+
+    private class FakePlayHistoryDao(vararg initialEntries: PlayHistoryEntry) : PlayHistoryDao {
+        val entries = initialEntries.toMutableList()
+
+        override suspend fun recordPlay(entry: PlayHistoryEntry) {
+            entries.removeAll { it.provider == entry.provider && it.providerId == entry.providerId }
+            entries += entry
+        }
+
+        override suspend fun recent(limit: Int): List<PlayHistoryEntry> =
+            entries.sortedByDescending { it.playedAt }.take(limit)
+
+        override fun recentAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> =
+            flowOf(entries.sortedByDescending { it.playedAt }.take(limit))
     }
 }

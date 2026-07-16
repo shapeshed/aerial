@@ -112,5 +112,5 @@
     <string name="no_favorites">Noch keine Favoriten</string>
     <string name="no_favorites_desc">Füge Sender hinzu, die du liebst, um sie hier leicht wiederzufinden</string>
     <string name="car_moods">Stimmungen</string>
-    <string name="car_recently_played">Zuletzt gespielt</string>
+    <string name="recently_played">Zuletzt gespielt</string>
 </resources>

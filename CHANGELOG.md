@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Android Auto support: browse Favorites, Moods, and Recently Played, voice/typed search, and playback queues — tapping a station queues its list with skip next/previous wrapping around.
+- Recently Played now tracks any station played, favourited or not, in a new play-history table resolved against the station registry, and updates live on the car screen.
+- The home screen shows a Recently Played row above the For You section once at least one station has been played, updating live as stations play.
+- Station logos render in Android Auto browse lists even when the source is an SVG or a cleartext http URL, served as cached PNGs through a read-only content provider.
+
 ### Fixed
 
 - Favouriting a station played from search now downloads its logo to local storage immediately, instead of only saving the remote URL — so the image is included in backups and survives a restore. (#100)

@@ -327,6 +327,7 @@ fun MainScreen(
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val featuredStations by viewModel.featuredStations.collectAsStateWithLifecycle()
     val forYouStations by viewModel.forYouStations.collectAsStateWithLifecycle()
+    val recentlyPlayedStations by viewModel.recentlyPlayedStations.collectAsStateWithLifecycle()
     val defaultStations by viewModel.defaultStations.collectAsStateWithLifecycle()
     val curatedMoodStations by viewModel.curatedMoodStations.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
@@ -593,6 +594,7 @@ fun MainScreen(
                     HomeTabContent(
                         forYouStations = forYouStations.ifEmpty { featuredStations },
                         forYouCountry = countryName(forYouCountryCode, appLocale).takeIf { hasCountrySelection },
+                        recentlyPlayedStations = recentlyPlayedStations,
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
                         onMoodTap = { selectedMoodId = it.id },
@@ -1484,16 +1486,68 @@ private fun HomeTabContent(
     forYouStations: List<com.shapeshed.aerial.data.RegistryStation>,
     // Null when the selection isn't country-specific; the header drops the country.
     forYouCountry: String?,
+    recentlyPlayedStations: List<com.shapeshed.aerial.data.RegistryStation>,
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onMoodTap: (CuratedMood) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
 ) {
+    // On launch the splash screen holds until the Recently Played row is resolved (see
+    // MainViewModel.isInitialized), so scroll restoration composes against the full list. The
+    // one remaining shift is the section's very first appearance mid-session (first play ever
+    // recorded): keyed items keep the viewport anchored, hiding the new section above it, so
+    // snap to the top when it appears — but only if the user is in the top header region and
+    // not mid-scroll.
+    val hasRecentlyPlayed = recentlyPlayedStations.isNotEmpty()
+    var hadRecentlyPlayed by rememberSaveable { mutableStateOf(hasRecentlyPlayed) }
+    LaunchedEffect(hasRecentlyPlayed) {
+        if (hasRecentlyPlayed && !hadRecentlyPlayed &&
+            !listState.isScrollInProgress && listState.firstVisibleItemIndex <= 2
+        ) {
+            listState.scrollToItem(0)
+        }
+        hadRecentlyPlayed = hasRecentlyPlayed
+    }
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
     ) {
+        if (recentlyPlayedStations.isNotEmpty()) {
+            item("recently-played-header") {
+                Text(
+                    text = stringResource(R.string.recently_played),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                )
+            }
+            item("recently-played-row") {
+                val rowState = rememberLazyListState()
+                // Keyed items keep the viewport anchored when a just-played station is inserted
+                // at (or moved to) the front, leaving it hidden off-screen left — snap back to
+                // the start so the newest play is always visible.
+                val frontKey = recentlyPlayedStations.firstOrNull()?.let { "${it.provider}-${it.providerId}" }
+                LaunchedEffect(frontKey) { rowState.scrollToItem(0) }
+                LazyRow(
+                    state = rowState,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    items(
+                        items = recentlyPlayedStations,
+                        key = { "recent-${it.provider}-${it.providerId}" },
+                        contentType = { "for-you-station" },
+                    ) { station ->
+                        ForYouStationCard(
+                            station = station,
+                            onClick = { onFeaturedStationTap(station) },
+                        )
+                    }
+                }
+            }
+        }
+
         if (forYouStations.isNotEmpty()) {
             item("for-you-header") {
                 Row(

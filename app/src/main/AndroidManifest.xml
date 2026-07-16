@@ -27,6 +27,14 @@
             android:name="com.google.android.gms.car.application.theme"
             android:resource="@style/Theme.Aerial.Car" />
 
+        <!-- Serves rasterized station logos to Android Auto / Bluetooth / System UI as stable
+             content:// artwork URIs, so those consumers can cache decoded icons by URI.
+             Read-only and restricted to the registry_artwork cache directory. -->
+        <provider
+            android:name=".ArtworkProvider"
+            android:authorities="${applicationId}.artwork"
+            android:exported="true" />
+
         <!-- Persists the per-app locale on pre-Android-13 via AppCompat. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

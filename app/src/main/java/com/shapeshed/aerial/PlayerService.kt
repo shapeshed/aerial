@@ -44,6 +44,8 @@ import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.Provider
 import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
+import com.shapeshed.aerial.data.PlayHistoryEntry
+import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
@@ -80,6 +82,8 @@ class PlayerService : MediaLibraryService() {
     private lateinit var registryRepository: RegistryRepository
     private lateinit var mediaBrowseTree: MediaBrowseTree
     private var stations: List<Station> = emptyList()
+    private val parentIdByMediaId = mutableMapOf<String, String>()
+    private var lastRecordedMediaId: String? = null
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
     private var activeEnricher: Provider? = null
@@ -130,6 +134,9 @@ class PlayerService : MediaLibraryService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
+        // Wraps skip next/previous around a browsed list's queue (e.g. Android Auto's mood
+        // folders), matching the phone UI's circular swipe-through-favourites pager.
+        player.repeatMode = Player.REPEAT_MODE_ALL
         player.addListener(icyListener)
         mediaSession = MediaLibrarySession.Builder(this, player, librarySessionCallback)
             .setSessionActivity(pendingIntent())
@@ -186,6 +193,7 @@ class PlayerService : MediaLibraryService() {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             log("onIsPlayingChanged=$isPlaying")
             if (isPlaying) {
+                recordPlayOnce()
                 currentStation()?.let { activeEnricher?.start(it, serviceScope) }
             } else {
                 activeEnricher?.pause()
@@ -199,8 +207,9 @@ class PlayerService : MediaLibraryService() {
             lastAppliedNowPlayingSignature = null
             activeEnricher?.stop()
             activeEnricher = null
+            val station = stationForMediaItem(mediaItem)
             if (enrichMetadataEnabled) {
-                stationForMediaItem(mediaItem)?.let { station ->
+                station?.let {
                     val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
                     activeEnricher = enricher
                     if (player.isPlaying) enricher?.start(station, serviceScope)
@@ -283,9 +292,10 @@ class PlayerService : MediaLibraryService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
+            log("onConnect package=${controller.packageName} trusted=${controller.isTrusted}")
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(
-                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                         .buildUpon()
                         .add(favoriteCommand)
                         .add(sleepTimerSetCommand)
@@ -343,6 +353,7 @@ class PlayerService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> {
+            log("onGetLibraryRoot package=${browser.packageName}")
             // Folders (Favorites/Moods/Recently Played) read as a list; station logos read well
             // as a grid, similar to most radio/podcast apps on Android Auto.
             val rootExtras = Bundle().apply {
@@ -380,6 +391,16 @@ class PlayerService : MediaLibraryService() {
             if (children == null) {
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             } else {
+                // Remembered per mediaId (not just "whichever folder was browsed last") so a tap
+                // on one of these (via onSetMediaItems) can queue the tapped item's whole folder,
+                // giving Android Auto skip next/previous and an Up Next queue between stations
+                // instead of a single-item timeline. Auto prefetches sibling folders' contents in
+                // the background (e.g. for artwork), so a single last-folder variable would get
+                // clobbered before the user actually taps play. Only the mediaId -> folder
+                // mapping is kept; the folder's contents are rebuilt fresh at play time.
+                if (children.isNotEmpty() && children.all { it.mediaMetadata.isPlayable == true }) {
+                    children.forEach { parentIdByMediaId[it.mediaId] = parentId }
+                }
                 LibraryResult.ofItemList(children.paginated(page, pageSize), params)
             }
         }
@@ -418,8 +439,28 @@ class PlayerService : MediaLibraryService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
-            MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+            // startIndex arrives as C.INDEX_UNSET (-1) — "unspecified" — for a single-item legacy
+            // play request, not an actual out-of-range index.
+            val effectiveIndex = startIndex.takeIf { it in mediaItems.indices } ?: 0
+            val tappedId = mediaItems.getOrNull(effectiveIndex)?.mediaId
+            // Queue expansion is for browse-driven controllers (Android Auto) only — the in-app
+            // controller sends deliberate single-item plays, and its mediaIds are the same
+            // numeric row ids Auto browses, so without the package check a phone tap would be
+            // silently expanded into whatever folder Auto last prefetched.
+            val parentId = tappedId
+                ?.takeIf { mediaItems.size == 1 && controller.packageName != packageName }
+                ?.let { parentIdByMediaId[it] }
+            // Rebuilt fresh (not served from a browse-time cache) so a folder edited since it
+            // was browsed — an unfavorited station, a changed stream URL — can't queue stale
+            // entries.
+            val siblings = parentId?.let { mediaBrowseTree.children(it) }
+            val siblingIndex = siblings?.indexOfFirst { it.mediaId == tappedId } ?: -1
+            if (siblings != null && siblingIndex >= 0) {
+                MediaSession.MediaItemsWithStartPosition(siblings, siblingIndex, startPositionMs)
+            } else {
+                val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
+                MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+            }
         }
     }
 
@@ -438,6 +479,36 @@ class PlayerService : MediaLibraryService() {
         val from = (page * pageSize).coerceIn(0, size)
         val to = (from + pageSize).coerceIn(from, size)
         return subList(from, to)
+    }
+
+    // Records a listen the moment audio actually starts (onIsPlayingChanged=true) — the single
+    // choke point every surface's playback passes through (phone, Android Auto, Google TV
+    // later). Recording on onMediaItemTransition instead would count plays that never happen:
+    // the paused last-station restore on every app launch, and REPEAT_MODE_ALL re-transitions
+    // when a live stream drops. Deduped per mediaId so buffering pauses and same-station
+    // restarts don't double-count; playing a different station in between resets the guard.
+    private fun recordPlayOnce() {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (mediaId == lastRecordedMediaId) return
+        val station = stationForMediaItem(player.currentMediaItem) ?: return
+        lastRecordedMediaId = mediaId
+        val playedAt = System.currentTimeMillis()
+        // Ephemeral stations (id=0, not yet saved locally) have no row to update.
+        if (station.id != 0L) {
+            serviceScope.launch { repository.recordPlay(station.id, playedAt) }
+        }
+        // Recently Played (any station played, favorited or not) only resolves for
+        // registry-backed stations — a locally-added custom station has no provider
+        // identity to record it by.
+        if (station.provider.isNotBlank() && station.providerId.isNotBlank()) {
+            serviceScope.launch {
+                repository.recordHistoryPlay(PlayHistoryEntry(station.provider, station.providerId, playedAt))
+                // Refreshes Android Auto's Recently Played list live, for any browser
+                // currently subscribed to it (not just on next re-entry into the folder).
+                val recentCount = mediaBrowseTree.children(RECENT_ID)?.size ?: 0
+                mediaSession.notifyChildrenChanged(RECENT_ID, recentCount, null)
+            }
+        }
     }
 
     private fun updateFavoriteButton() {
@@ -502,17 +573,29 @@ class PlayerService : MediaLibraryService() {
     private fun currentStation(): Station? = stationForMediaItem(player.currentMediaItem)
 
     private fun stationForMediaItem(mediaItem: MediaItem?): Station? {
-        val id = mediaItem?.mediaId?.toLongOrNull() ?: return null
-        stations.firstOrNull { it.id == id }?.let { return it }
-        // Ephemeral station (id=0): reconstruct from MediaItem extras so enrichers can run.
+        if (mediaItem == null) return null
+        mediaItem.mediaId.toLongOrNull()?.let { id ->
+            stations.firstOrNull { it.id == id }?.let { return it }
+        }
         val extras = mediaItem.mediaMetadata.extras ?: return null
         val streamUrl = extras.getString("streamUrl")?.takeIf { it.isNotBlank() } ?: return null
+        // A station playing under an ephemeral mediaId ("0" from the phone, "reg:4492" from
+        // the Android Auto browse tree) may still exist as a saved row — matched the same way
+        // StationRepository.findExisting does — and must resolve to it, or the favorite toggle
+        // would see isFavorite=false forever and re-save instead of unfavoriting.
+        val provider = extras.getString("provider").orEmpty()
+        val providerId = extras.getString("providerId").orEmpty()
+        if (provider.isNotBlank() && providerId.isNotBlank()) {
+            stations.firstOrNull { it.provider == provider && it.providerId == providerId }?.let { return it }
+        }
+        stations.firstOrNull { it.streamUrl == streamUrl }?.let { return it }
         return Station(
             id = 0,
             name = mediaItem.mediaMetadata.title?.toString() ?: "",
             streamUrl = streamUrl,
-            provider = extras.getString("provider") ?: "",
-            providerId = extras.getString("providerId") ?: "",
+            logoPath = extras.getString("logoPath").orEmpty(),
+            provider = provider,
+            providerId = providerId,
         )
     }
 
