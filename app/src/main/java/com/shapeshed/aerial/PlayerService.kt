@@ -388,6 +388,7 @@ class PlayerService : MediaLibraryService() {
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
             val children = mediaBrowseTree.children(parentId)
+            log("onGetChildren parentId=$parentId count=${children?.size}")
             if (children == null) {
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             } else {
@@ -506,6 +507,7 @@ class PlayerService : MediaLibraryService() {
                 // Refreshes Android Auto's Recently Played list live, for any browser
                 // currently subscribed to it (not just on next re-entry into the folder).
                 val recentCount = mediaBrowseTree.children(RECENT_ID)?.size ?: 0
+                log("recorded play mediaId=$mediaId, notifyChildrenChanged recent count=$recentCount")
                 mediaSession.notifyChildrenChanged(RECENT_ID, recentCount, null)
             }
         }

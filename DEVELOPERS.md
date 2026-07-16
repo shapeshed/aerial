@@ -333,3 +333,8 @@ legacy session bridge (`MediaSessionLegacyStub.createPlaybackStateCompat`
 checks `isCurrentMediaItemLive()`), so Android Auto's queue equalizer
 indicator shows static bars rather than animating. This is expected for all
 media3 live-radio apps, not a bug.
+
+The Recently Played folder reorders on re-entry but not while it stays on
+screen: `notifyChildrenChanged("recent")` fires after each recorded play
+(visible in logcat), but the Auto host decides whether to re-query a folder
+it is currently displaying, and the DHU does not. Not fixable app-side.

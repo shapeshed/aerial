@@ -614,6 +614,56 @@ class MainViewModel(
     }
 
     private val playerListener = object : Player.Listener {
+        // Playback can start or change from outside this ViewModel — Android Auto, voice
+        // search, a queue skip — so the phone's current-station state must follow the
+        // session's media item, not just this ViewModel's own play() calls. When play() did
+        // initiate the change the state already matches and the guards below make this a
+        // no-op.
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val item = mediaItem ?: return
+            val extras = item.mediaMetadata.extras
+            val streamUrl = extras?.getString("streamUrl").orEmpty()
+            val provider = extras?.getString("provider").orEmpty()
+            val providerId = extras?.getString("providerId").orEmpty()
+            // Resolve to a saved row the same way PlayerService.stationForMediaItem does:
+            // numeric mediaId first, then provider identity, then stream URL.
+            val saved = item.mediaId.toLongOrNull()
+                ?.let { id -> _allStations.value.firstOrNull { it.id == id } }
+                ?: _allStations.value.firstOrNull {
+                    provider.isNotBlank() && providerId.isNotBlank() &&
+                        it.provider == provider && it.providerId == providerId
+                }
+                ?: _allStations.value.firstOrNull { streamUrl.isNotBlank() && it.streamUrl == streamUrl }
+            val current = currentStation.value
+            when {
+                saved != null -> {
+                    if (current?.id == saved.id) return
+                    _ephemeralStation.value = null
+                    _currentStationId.value = saved.id
+                }
+                streamUrl.isNotBlank() -> {
+                    if (current?.id == 0L && current.streamUrl == streamUrl) return
+                    _currentStationId.value = null
+                    _ephemeralStation.value = Station(
+                        name = item.mediaMetadata.title?.toString().orEmpty(),
+                        streamUrl = streamUrl,
+                        logoPath = extras?.getString("logoPath").orEmpty(),
+                        provider = provider,
+                        providerId = providerId,
+                    )
+                }
+                else -> return
+            }
+            // Per-track state belongs to the previous station; onMediaMetadataChanged
+            // repopulates it for the new one.
+            _currentTrackTitle.value = null
+            _currentTrackArtist.value = null
+            _currentTrackArtworkUrl.value = null
+            _currentTrackArtworkData.value = null
+            _currentBitrateKbps.value = null
+            _playbackError.value = null
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
             if (!suppressLastPlayedPersist) {
