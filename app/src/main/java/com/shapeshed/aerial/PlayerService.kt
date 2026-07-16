@@ -83,7 +83,7 @@ class PlayerService : MediaLibraryService() {
     private lateinit var mediaBrowseTree: MediaBrowseTree
     private var stations: List<Station> = emptyList()
     private val parentIdByMediaId = mutableMapOf<String, String>()
-    private var lastRecordedMediaId: String? = null
+    private var lastRecordedStationKey: String? = null
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
     private var activeEnricher: Provider? = null
@@ -483,13 +483,14 @@ class PlayerService : MediaLibraryService() {
     // choke point every surface's playback passes through (phone, Android Auto, Google TV
     // later). Recording on onMediaItemTransition instead would count plays that never happen:
     // the paused last-station restore on every app launch, and REPEAT_MODE_ALL re-transitions
-    // when a live stream drops. Deduped per mediaId so buffering pauses and same-station
-    // restarts don't double-count; playing a different station in between resets the guard.
+    // when a live stream drops. Deduped by station identity — NOT mediaId, which is "0" for
+    // every phone-played unsaved station — so buffering pauses and same-station restarts
+    // don't double-count; playing a different station in between resets the guard.
     private fun recordPlayOnce() {
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        if (mediaId == lastRecordedMediaId) return
         val station = stationForMediaItem(player.currentMediaItem) ?: return
-        lastRecordedMediaId = mediaId
+        val stationKey = "${station.provider}|${station.providerId}|${station.streamUrl}"
+        if (stationKey == lastRecordedStationKey) return
+        lastRecordedStationKey = stationKey
         val playedAt = System.currentTimeMillis()
         // Ephemeral stations (id=0, not yet saved locally) have no row to update.
         if (station.id != 0L) {
