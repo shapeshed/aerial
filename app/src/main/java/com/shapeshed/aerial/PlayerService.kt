@@ -292,7 +292,6 @@ class PlayerService : MediaLibraryService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            log("onConnect package=${controller.packageName} trusted=${controller.isTrusted}")
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
@@ -353,7 +352,6 @@ class PlayerService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> {
-            log("onGetLibraryRoot package=${browser.packageName}")
             // Folders (Favorites/Moods/Recently Played) read as a list; station logos read well
             // as a grid, similar to most radio/podcast apps on Android Auto.
             val rootExtras = Bundle().apply {
@@ -388,7 +386,6 @@ class PlayerService : MediaLibraryService() {
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
             val children = mediaBrowseTree.children(parentId)
-            log("onGetChildren parentId=$parentId count=${children?.size}")
             if (children == null) {
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             } else {
@@ -507,7 +504,6 @@ class PlayerService : MediaLibraryService() {
                 // Refreshes Android Auto's Recently Played list live, for any browser
                 // currently subscribed to it (not just on next re-entry into the folder).
                 val recentCount = mediaBrowseTree.children(RECENT_ID)?.size ?: 0
-                log("recorded play mediaId=$mediaId, notifyChildrenChanged recent count=$recentCount")
                 mediaSession.notifyChildrenChanged(RECENT_ID, recentCount, null)
             }
         }
