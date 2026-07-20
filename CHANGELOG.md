@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Hardware and Bluetooth media buttons (car stereo, headphones) now skip to the next/previous station, matching the order of whatever list you played from — favourites, a mood, or For You. (#112)
 - Favouriting a station played from search now downloads its logo to local storage immediately, instead of only saving the remote URL — so the image is included in backups and survives a restore. (#100)
 
 ## [0.4.3] - 2026-07-12

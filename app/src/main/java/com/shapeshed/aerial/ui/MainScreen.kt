@@ -279,13 +279,6 @@ private fun RegistryStation.toPlaybackStation(): Station = Station(
     countryCode = countryCode,
 )
 
-private fun Station.matchesStation(other: Station): Boolean =
-    streamUrl == other.streamUrl ||
-        (provider.isNotBlank() &&
-            providerId.isNotBlank() &&
-            provider == other.provider &&
-            providerId == other.providerId)
-
 enum class HomeViewMode {
     Cards,
     List,
@@ -576,12 +569,15 @@ fun MainScreen(
                         savedRegistryKeys = savedRegistryKeys,
                         bottomPadding = stationContentBottomPadding,
                         onBack = { selectedMoodId = null },
-                        onPlay = { selectedMoodStations.firstOrNull()?.let(viewModel::playFromRegistry) },
+                        onPlay = {
+                            selectedMoodStations.firstOrNull()
+                                ?.let { viewModel.playFromRegistry(it, selectedMoodStations) }
+                        },
                         onSave = { selectedMoodStations.forEach(viewModel::addFromRegistry) },
                         onTogglePlayback = { viewModel.togglePlayback() },
                         onAddStation = { viewModel.addFromRegistry(it) },
                         onRemoveStation = { viewModel.removeFromRegistry(it) },
-                        onPlayStation = { viewModel.playFromRegistry(it) },
+                        onPlayStation = { viewModel.playFromRegistry(it, selectedMoodStations) },
                     )
                 } else if (selectedTab == TAB_HOME) {
                     // The For You row is the locale country's selection (curated or a random
@@ -591,14 +587,15 @@ fun MainScreen(
                     val forYouCountryCode = appLocale.country.takeIf { it.isNotBlank() } ?: "GB"
                     LaunchedEffect(forYouCountryCode) { viewModel.setForYouCountry(forYouCountryCode) }
                     val hasCountrySelection = forYouStations.isNotEmpty()
+                    val forYouOrFeatured = forYouStations.ifEmpty { featuredStations }
                     HomeTabContent(
-                        forYouStations = forYouStations.ifEmpty { featuredStations },
+                        forYouStations = forYouOrFeatured,
                         forYouCountry = countryName(forYouCountryCode, appLocale).takeIf { hasCountrySelection },
                         recentlyPlayedStations = recentlyPlayedStations,
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
                         onMoodTap = { selectedMoodId = it.id },
-                        onFeaturedStationTap = { viewModel.playFromRegistry(it) },
+                        onFeaturedStationTap = { viewModel.playFromRegistry(it, forYouOrFeatured) },
                         onForYouViewAll = {
                             if (hasCountrySelection) openCountrySearch(forYouCountryCode) else openRegistrySearch()
                         },
@@ -614,7 +611,7 @@ fun MainScreen(
                         gridColumns = favoritesGridColumns,
                         listState = favoritesListState,
                         bottomPadding = stationContentBottomPadding,
-                        onPlay = { viewModel.play(it) },
+                        onPlay = { viewModel.play(it, stations) },
                         onTogglePlayback = { viewModel.togglePlayback() },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
@@ -813,7 +810,7 @@ fun MainScreen(
                 val favoriteSwipeStations = remember { viewModel.stations.value }
                 val useMoodSwipeStations = selectedMood != null &&
                     moodSwipeStations.size > 1 &&
-                    moodSwipeStations.any { moodStation -> station.matchesStation(moodStation) }
+                    moodSwipeStations.any { moodStation -> station.matches(moodStation) }
                 val swipeStations = if (useMoodSwipeStations) moodSwipeStations else favoriteSwipeStations
                 NowPlayingScreen(
                     station = station,
@@ -828,7 +825,7 @@ fun MainScreen(
                     showStreamBitrate = showStreamBitrate,
                     sleepTimer = sleepTimer,
                     swipeStations = swipeStations,
-                    onPlayStation = { viewModel.play(it) },
+                    onPlayStation = { viewModel.play(it, swipeStations) },
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
                     onSetSleepTimer = { viewModel.setSleepTimer(it) },
