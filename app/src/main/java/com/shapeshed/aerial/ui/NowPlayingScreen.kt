@@ -94,14 +94,6 @@ import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlin.math.abs
 
-private fun Station.matchesStation(other: Station): Boolean =
-    (id != 0L && id == other.id) ||
-        streamUrl == other.streamUrl ||
-        (provider.isNotBlank() &&
-            providerId.isNotBlank() &&
-            provider == other.provider &&
-            providerId == other.providerId)
-
 private fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
 
 // A station's own saved logo, resolved the same way StationAvatar does. Used as full-bleed
@@ -145,7 +137,7 @@ fun NowPlayingScreen(
     // Horizontal paging steps through swipeStations (the favourites in their selected sort
     // order). A non-favourite station isn't in the list, so the artwork stays static for it.
     val swipeIndex = remember(swipeStations, station) {
-        swipeStations.indexOfFirst { it.matchesStation(station) }
+        swipeStations.indexOfFirst { it.matches(station) }
     }
     var showTrackDetail by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
@@ -317,7 +309,7 @@ fun NowPlayingScreen(
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
                         LaunchedEffect(pagerState.settledPage) {
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
-                            if (!target.matchesStation(station)) onPlayStation(target)
+                            if (!target.matches(station)) onPlayStation(target)
                         }
                         // Keep the pager in step when the station changes some other way (e.g. the
                         // media notification or a tap on the favourites grid behind the pane).
@@ -335,7 +327,7 @@ fun NowPlayingScreen(
                             pageSpacing = 24.dp,
                         ) { page ->
                             val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
-                            if (pageStation.matchesStation(station)) {
+                            if (pageStation.matches(station)) {
                                 StationArtworkSurface(
                                     station = pageStation,
                                     shape = artworkShape,

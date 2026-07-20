@@ -338,3 +338,25 @@ The Recently Played folder reorders on re-entry but not while it stays on
 screen: `notifyChildrenChanged("recent")` fires after each recorded play
 (visible in logcat), but the Auto host decides whether to re-query a folder
 it is currently displaying, and the DHU does not. Not fixable app-side.
+
+## Hardware / Bluetooth media buttons
+
+`media3`'s default `MediaSession.Callback` handles `onSkipToNext`/`onSkipToPrevious`
+(from headphones, a car stereo's AVRCP controls, or the media notification) by
+seeking within the player's timeline — it needs a timeline with neighbouring items to
+do anything. `MainViewModel.play()`/`playFromRegistry()`/`loadStationPaused()` take an
+optional `queue` parameter: whichever list the phone UI is already showing (favourites
+in the user's sort order, an active mood, For You) is queued as real `MediaItem`s via
+`setMediaItems`, the same list `NowPlayingScreen`'s swipe pager steps through. A
+station played outside any visible list (an ephemeral search result) still falls back
+to a single-item queue, same as before.
+
+This can be verified without real Bluetooth hardware:
+
+```sh
+adb shell input keyevent 87  # KEYCODE_MEDIA_NEXT
+adb shell input keyevent 88  # KEYCODE_MEDIA_PREVIOUS
+```
+
+Play a favourite, confirm skip moves through the same list/order the Now Playing
+pager swipes through, and check `logcat -s AerialPlayerService` for errors.

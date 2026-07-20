@@ -48,6 +48,7 @@ import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toPlayableMediaItem
 import java.io.File
@@ -458,8 +459,8 @@ class MainViewModel(
         }
     }
 
-    fun playFromRegistry(registryStation: RegistryStation) {
-        play(registryStation.toEphemeralStation())
+    fun playFromRegistry(registryStation: RegistryStation, queue: List<RegistryStation> = emptyList()) {
+        play(registryStation.toEphemeralStation(), queue.map { it.toEphemeralStation() })
     }
 
     fun addFromRegistry(registryStation: RegistryStation) {
@@ -726,7 +727,13 @@ class MainViewModel(
             ?.let { bitrate -> (bitrate / 1_000).coerceAtLeast(1) }
     }
 
-    fun play(station: Station) {
+    // queue is the ordered list station is part of in whatever screen triggered playback
+    // (favourites in the user's sort order, or an active mood's stations) — the same list the
+    // Now Playing pager swipes through. Feeding it to the session as a real multi-item queue
+    // (rather than a single MediaItem) is what makes hardware/Bluetooth media-button
+    // next/previous work: Media3's default session callback already handles those by seeking
+    // within the player's timeline, it just needs a timeline with neighbours to seek to.
+    fun play(station: Station, queue: List<Station> = emptyList()) {
         if (station.id == 0L) {
             _ephemeralStation.value = station
             _currentStationId.value = null
@@ -741,9 +748,14 @@ class MainViewModel(
         _currentBitrateKbps.value = null
         _playbackError.value = null
         persistLastPlayedStation(station)
-        val mediaItem = station.toPlayableMediaItem(getApplication())
+        val startIndex = resolveQueueStart(queue, station)
         controller?.apply {
-            setMediaItem(mediaItem)
+            if (startIndex != null) {
+                val mediaItems = queue.map { it.toPlayableMediaItem(getApplication()) }
+                setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+            } else {
+                setMediaItem(station.toPlayableMediaItem(getApplication()))
+            }
             prepare()
             play()
         }
@@ -900,10 +912,15 @@ class MainViewModel(
     }
 
     private fun loadStationPaused(station: Station) {
-        val mediaItem = station.toPlayableMediaItem(getApplication())
+        val startIndex = resolveQueueStart(stations.value, station)
 
         controller?.apply {
-            setMediaItem(mediaItem)
+            if (startIndex != null) {
+                val mediaItems = stations.value.map { it.toPlayableMediaItem(getApplication()) }
+                setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+            } else {
+                setMediaItem(station.toPlayableMediaItem(getApplication()))
+            }
             prepare()
             pause()
         }
