@@ -3,18 +3,16 @@ package com.shapeshed.aerial
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.net.Uri
 import androidx.concurrent.futures.SuspendToFutureAdapter
-import androidx.core.graphics.createBitmap
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.size.Size
 import com.google.common.util.concurrent.ListenableFuture
+import com.shapeshed.aerial.ui.toOpaqueBitmap
 import kotlinx.coroutines.Dispatchers
 
 // Media3's default BitmapLoader fetches artwork with its own bare HTTP stack and decodes it
@@ -43,22 +41,10 @@ class CoilBitmapLoader(private val context: Context) : BitmapLoader {
                 .build()
             val result = imageLoader.execute(request) as? SuccessResult
                 ?: error("Could not load artwork from $uri")
-            when (val image = result.image) {
-                // The common case: a decoded raster logo. Coil may hand back a hardware
-                // bitmap for performance; system notifications need a software one, and
-                // Bitmap.copy() does that GPU-to-software readback correctly — unlike
-                // Canvas, which throws "Software rendering doesn't support hardware
-                // bitmaps" if you try to draw a hardware bitmap into a software canvas.
-                is BitmapImage -> if (image.bitmap.config == Bitmap.Config.HARDWARE) {
-                    image.bitmap.copy(Bitmap.Config.ARGB_8888, false)
-                } else {
-                    image.bitmap
-                }
-                // Any other Image implementation (e.g. a vector drawable) isn't backed by a
-                // hardware bitmap, so drawing it into a fresh software canvas is safe.
-                else -> createBitmap(image.width, image.height).apply {
-                    image.draw(Canvas(this))
-                }
-            }
+            // Composited onto an opaque background — see toOpaqueBitmap's doc for why: a
+            // transparent-background logo (e.g. an SVG whose fill depends on a
+            // prefers-color-scheme our decoder doesn't evaluate) would otherwise render
+            // invisible against the system's own dark quick-controls/notification backdrop.
+            result.image.toOpaqueBitmap()
         }
 }
