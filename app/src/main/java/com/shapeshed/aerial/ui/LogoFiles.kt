@@ -10,7 +10,6 @@ import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
 import androidx.core.graphics.createBitmap
 import coil3.BitmapImage
-import coil3.DrawableImage
 import coil3.Image
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -69,7 +68,7 @@ suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
             .size(512)
             .build()
         val result = svgLoader(context).execute(request) as? SuccessResult ?: return file
-        val bitmap = result.image.toBitmap() ?: return file
+        val bitmap = result.image.toOpaqueBitmap()
         pngFile.outputStream().use { output ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
@@ -115,7 +114,7 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
         val result = withTimeoutOrNull(ARTWORK_FETCH_TIMEOUT_MS) {
             SingletonImageLoader.get(context).execute(request)
         } as? SuccessResult ?: return null
-        val bitmap = result.image.toBitmap() ?: return null
+        val bitmap = result.image.toOpaqueBitmap()
         cacheDir.mkdirs()
         // Write-then-rename so a concurrent request (Android Auto prefetches folders in
         // parallel) or a mid-write process kill can never expose a truncated PNG under the
@@ -189,18 +188,28 @@ private fun String.extensionOrNull(): String? {
         .takeIf { it.isNotBlank() && it.length <= 5 }
 }
 
-private fun Image.toBitmap(): Bitmap? {
-    return when (this) {
-        is BitmapImage -> bitmap
-        is DrawableImage -> {
-            val width = width.takeIf { it > 0 } ?: 512
-            val height = height.takeIf { it > 0 } ?: 512
-            createBitmap(width, height).also { bitmap ->
-                val canvas = Canvas(bitmap)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-            }
-        }
-        else -> null
+/**
+ * Rasterizes a Coil [Image] onto an opaque background. System media surfaces (quick controls,
+ * lock screen, Bluetooth AVRCP, Android Auto) draw an artwork bitmap with no guaranteed
+ * background behind it, so a source image with transparent areas can end up invisible against
+ * a dark system theme — notably an SVG logo that uses `prefers-color-scheme` to pick between a
+ * black and white fill, which our SVG decoder doesn't evaluate, so it always renders the
+ * non-media-query default (typically a black path on a transparent canvas). Compositing onto
+ * solid white keeps the logo visible regardless of what surrounds it.
+ */
+fun Image.toOpaqueBitmap(backgroundColor: Int = android.graphics.Color.WHITE): Bitmap {
+    val width = width.takeIf { it > 0 } ?: 512
+    val height = height.takeIf { it > 0 } ?: 512
+    val bitmap = createBitmap(width, height)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(backgroundColor)
+    when {
+        // A hardware bitmap can't be drawn into a software Canvas ("Software rendering doesn't
+        // support hardware bitmaps") — copy() does the GPU-to-software readback instead.
+        this is BitmapImage && this.bitmap.config == Bitmap.Config.HARDWARE ->
+            canvas.drawBitmap(this.bitmap.copy(Bitmap.Config.ARGB_8888, false), 0f, 0f, null)
+        this is BitmapImage -> canvas.drawBitmap(this.bitmap, 0f, 0f, null)
+        else -> draw(canvas)
     }
+    return bitmap
 }
