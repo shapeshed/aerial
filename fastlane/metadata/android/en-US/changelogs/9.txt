@@ -1,0 +1,6 @@
+- Android Auto support, with voice search.
+- Recently Played, showing any station you play, not just favourites, with a new home screen row.
+- The mini player and Now Playing screen now follow playback started elsewhere, such as Android Auto or voice search.
+- Fixed station logos with transparent backgrounds, such as some SVGs, disappearing on the media notification, lock screen, and Android Auto.
+- Fixed hardware and Bluetooth media buttons not skipping to the next/previous station in the list you played from.
+- Fixed a station favourited from search not saving its logo locally right away.

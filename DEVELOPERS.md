@@ -295,7 +295,10 @@ The release build must not require local signing environment variables.
 ## Android Auto
 
 `PlayerService` is a `media3` `MediaLibraryService` exposing a browse tree:
-root -> Favorites | Moods | Recently Played, plus voice/typed search. The
+root -> Favorites | Moods | Recently Played, plus search (verified via voice —
+the underlying `onSearch`/`onGetSearchResult` callbacks accept any query
+string, so a typed keyboard search should work too, but that path hasn't
+actually been tested). The
 tree-building logic lives in `data/MediaBrowseTree.kt` (plain suspend
 functions over `StationRepository`/`RegistryRepository`, no session types) so
 it's unit-testable without Robolectric — see
