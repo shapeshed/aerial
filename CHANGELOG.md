@@ -4,22 +4,19 @@ All notable changes to Aerial will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers should follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once public releases begin.
 
-## [Unreleased]
+## [0.5.0] - 2026-07-21
 
 ### Added
 
-- Android Auto support: browse Favorites, Moods, and Recently Played, voice/typed search, and playback queues — tapping a station queues its list with skip next/previous wrapping around.
-- A favourite toggle on the Android Auto now-playing screen adds or removes the current station, including stations played straight from mood folders or search.
-- Recently Played now tracks any station played, favourited or not, in a new play-history table resolved against the station registry, and updates live on the car screen.
-- The home screen shows a Recently Played row above the For You section once at least one station has been played, updating live as stations play.
-- Station logos render in Android Auto browse lists even when the source is an SVG or a cleartext http URL, served as cached PNGs through a read-only content provider.
-- The phone's mini player and Now Playing screen follow playback started elsewhere — Android Auto, voice search, or a queue skip — instead of only playback started in-app.
+- Android Auto support, with voice search.
+- Recently Played, showing any station you play, not just favourites, with a new home screen row.
+- The mini player and Now Playing screen now follow playback started elsewhere, such as Android Auto or voice search.
 
 ### Fixed
 
-- Station logos with a transparent background — notably SVGs whose fill color depends on a `prefers-color-scheme` our decoder doesn't evaluate — no longer render invisible on the media notification, lock screen, quick settings player, or Android Auto.
-- Hardware and Bluetooth media buttons (car stereo, headphones) now skip to the next/previous station, matching the order of whatever list you played from — favourites, a mood, or For You. (#112)
-- Favouriting a station played from search now downloads its logo to local storage immediately, instead of only saving the remote URL — so the image is included in backups and survives a restore. (#100)
+- Station logos with transparent backgrounds, such as some SVGs, no longer disappear on the media notification, lock screen, and Android Auto.
+- Hardware and Bluetooth media buttons now skip to the next/previous station in the list you played from. (#112)
+- Favouriting a station from search now saves its logo locally right away, so it's included in backups. (#100)
 
 ## [0.4.3] - 2026-07-12
 
