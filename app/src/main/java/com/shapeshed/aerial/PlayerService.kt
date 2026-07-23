@@ -133,6 +133,13 @@ class PlayerService : MediaLibraryService() {
                 true,
             )
             .setHandleAudioBecomingNoisy(true)
+            // Player's default seekToPrevious() (what hardware/Bluetooth "previous" calls)
+            // restarts the current item instead of moving back unless playback position is
+            // under this threshold — meant for "restart the song" on a track you're a few
+            // seconds into. There's no such position to rewind to on a live station, so with
+            // the 3s default, "previous" almost always just replays the current station
+            // instead of moving to the one before it. Zero makes it always move back.
+            .setMaxSeekToPreviousPositionMs(0)
             .build()
         // Wraps skip next/previous around a browsed list's queue (e.g. Android Auto's mood
         // folders), matching the phone UI's circular swipe-through-favourites pager.
