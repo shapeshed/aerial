@@ -11,7 +11,7 @@ import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.bauerStreamUrl
 import com.shapeshed.aerial.ui.appIconBitmap
 import com.shapeshed.aerial.ui.cachedRemoteArtworkUri
-import com.shapeshed.aerial.ui.compressedLogoData
+import com.shapeshed.aerial.ui.localLogoArtworkUri
 import java.io.File
 
 /**
@@ -45,17 +45,14 @@ fun stationMediaMetadata(
     val artworkUri = station.logoPath
         .takeIf { it.startsWith("http") }
         ?.toUri()
-    val localArtworkData = station.logoPath
+    val localArtworkUri = station.logoPath
         .takeIf { it.isNotEmpty() && !it.startsWith("http") }
-        ?.let { compressedLogoData(File(it)) }
+        ?.let { localLogoArtworkUri(context, File(it)) }
 
     return MediaMetadata.Builder().apply {
         when {
             artworkUriOverride != null -> setArtworkUri(artworkUriOverride)
-            localArtworkData != null -> setArtworkData(
-                localArtworkData,
-                MediaMetadata.PICTURE_TYPE_FRONT_COVER,
-            )
+            localArtworkUri != null -> setArtworkUri(localArtworkUri)
             artworkUri != null -> setArtworkUri(artworkUri)
             else -> appIconBitmap(context)?.let {
                 setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
