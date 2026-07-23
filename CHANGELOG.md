@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - Playing from favourites over Bluetooth no longer crashes the car's Bluetooth connection when skipping stations. (#123)
+- The Bluetooth previous control now moves to the previous station instead of replaying the current one. (#120)
 
 ## [0.5.0] - 2026-07-21
 
