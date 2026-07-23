@@ -98,9 +98,9 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
     val isCleartext = logoUrl.startsWith("http://")
     if (!isSvg && !isCleartext) return null
 
-    val cacheDir = File(context.cacheDir, ArtworkProvider.ARTWORK_CACHE_DIR)
+    val cacheDir = File(context.cacheDir, ArtworkProvider.REGISTRY_ARTWORK_DIR)
     val pngFile = File(cacheDir, "${logoUrl.hashCode().toUInt()}.png")
-    if (pngFile.exists()) return ArtworkProvider.uriFor(context, pngFile.name)
+    if (pngFile.exists()) return ArtworkProvider.uriFor(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, pngFile.name)
 
     return try {
         val request = ImageRequest.Builder(context)
@@ -127,10 +127,25 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
             tmpFile.delete()
             if (!pngFile.exists()) return null
         }
-        ArtworkProvider.uriFor(context, pngFile.name)
+        ArtworkProvider.uriFor(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, pngFile.name)
     } catch (_: Exception) {
         null
     }
+}
+
+/**
+ * A stable content:// URI for a favourited station's locally-cached logo file (already on disk
+ * under filesDir/logos — see MainViewModel.downloadLogo), for the same reason
+ * [cachedRemoteArtworkUri] proxies remote logos: Media3's legacy queue bridge only decodes and
+ * embeds a Bitmap in a queue item when its MediaMetadata carries embedded artworkData bytes — an
+ * artworkUri-only item is skipped entirely. Handing the phone/Bluetooth playback queue a URI
+ * instead of bytes means Bluetooth's AVRCP queue-diffing never receives a Bitmap to crash on
+ * (#123). SVGs resolve to their pre-rasterized PNG sibling.
+ */
+fun localLogoArtworkUri(context: Context, file: File): Uri? {
+    val artworkFile = mediaArtworkFile(file)
+    if (!artworkFile.exists()) return null
+    return ArtworkProvider.uriFor(context, ArtworkProvider.LOCAL_LOGO_DIR, artworkFile.name)
 }
 
 fun appIconBitmap(context: Context): ByteArray? {
@@ -143,26 +158,6 @@ fun appIconBitmap(context: Context): ByteArray? {
         output.toByteArray()
     } catch (_: Exception) {
         null
-    }
-}
-
-fun compressedLogoData(file: File): ByteArray? {
-    val artworkFile = if (file.extension.lowercase(Locale.US) == "svg") {
-        mediaArtworkFile(file).takeIf { it.exists() } ?: return null
-    } else {
-        file
-    }
-    if (!artworkFile.exists()) return null
-    return when (artworkFile.extension.lowercase(Locale.US)) {
-        "png", "jpg", "jpeg", "webp" -> artworkFile.readBytes()
-        else -> {
-            // Unknown extension (e.g. .img) — try BitmapFactory and re-encode as JPEG
-            val bitmap = BitmapFactory.decodeFile(artworkFile.absolutePath) ?: return null
-            val out = java.io.ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-            bitmap.recycle()
-            out.toByteArray()
-        }
     }
 }
 

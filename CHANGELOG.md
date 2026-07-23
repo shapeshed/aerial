@@ -4,6 +4,12 @@ All notable changes to Aerial will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers should follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once public releases begin.
 
+## [Unreleased]
+
+### Fixed
+
+- Playing from favourites over Bluetooth no longer crashes the car's Bluetooth connection when skipping stations. (#123)
+
 ## [0.5.0] - 2026-07-21
 
 ### Added
