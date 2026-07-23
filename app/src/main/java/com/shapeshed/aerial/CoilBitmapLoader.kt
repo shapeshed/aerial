@@ -45,6 +45,6 @@ class CoilBitmapLoader(private val context: Context) : BitmapLoader {
             // transparent-background logo (e.g. an SVG whose fill depends on a
             // prefers-color-scheme our decoder doesn't evaluate) would otherwise render
             // invisible against the system's own dark quick-controls/notification backdrop.
-            result.image.toOpaqueBitmap()
+            result.image.toOpaqueBitmap(context)
         }
 }

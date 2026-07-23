@@ -195,6 +195,7 @@ fun NowPlayingScreen(
     }
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
     var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
+    var trackArtworkIsLight by remember(trackArtworkModel) { mutableStateOf(false) }
     // The track flows reset asynchronously when the station changes, so for a frame or two
     // the previous station's song can pair with the new station. Hide the track card from
     // the moment the station changes until that reset has been observed, so stale track
@@ -540,17 +541,20 @@ fun NowPlayingScreen(
                                 modifier = Modifier.size(52.dp),
                             ) {
                                 if (trackArtworkModel != null && !trackArtworkFailed) {
-                                    // Same light adaptive plate as the other artwork surfaces,
+                                    // Same adaptive plate as the other artwork surfaces,
                                     // visible only through transparent artwork.
                                     AsyncImage(
                                         model = trackArtworkModel,
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,
                                         onError = { trackArtworkFailed = true },
+                                        onSuccess = { state ->
+                                            trackArtworkIsLight = state.result.image.isPredominantlyLight()
+                                        },
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .clip(MaterialTheme.shapes.small)
-                                            .background(stationLogoPlateColor()),
+                                            .background(stationLogoPlateColor(trackArtworkIsLight)),
                                     )
                                 } else {
                                     Surface(
@@ -665,7 +669,7 @@ fun NowPlayingScreen(
                     shape = MaterialTheme.shapes.extraLarge,
                     // Plate behind rendered artwork, matching the main artwork surface.
                     color = if (trackArtworkModel != null && !trackArtworkFailed) {
-                        stationLogoPlateColor()
+                        stationLogoPlateColor(trackArtworkIsLight)
                     } else {
                         MaterialTheme.colorScheme.primaryContainer
                     },
@@ -685,6 +689,9 @@ fun NowPlayingScreen(
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             onError = { trackArtworkFailed = true },
+                            onSuccess = { state ->
+                                trackArtworkIsLight = state.result.image.isPredominantlyLight()
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
@@ -762,13 +769,14 @@ private fun StationArtworkSurface(
     onArtworkError: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var artworkIsLight by remember(artworkModel) { mutableStateOf(false) }
     Surface(
         shape = shape,
-        // Light palette-tinted plate behind rendered artwork so transparent station logos
-        // (and letterboxed images) sit on a consistent background; the tonal container
-        // shows only for the avatar fallback.
+        // Adaptive plate behind rendered artwork so transparent station logos (and
+        // letterboxed images) sit on a consistent, contrasting background; the tonal
+        // container shows only for the avatar fallback.
         color = if (artworkModel != null) {
-            stationLogoPlateColor()
+            stationLogoPlateColor(artworkIsLight)
         } else {
             MaterialTheme.colorScheme.primaryContainer
         },
@@ -796,6 +804,7 @@ private fun StationArtworkSurface(
                     // surface colour fills the letterbox space.
                     contentScale = ContentScale.Fit,
                     onError = { onArtworkError() },
+                    onSuccess = { state -> artworkIsLight = state.result.image.isPredominantlyLight() },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {

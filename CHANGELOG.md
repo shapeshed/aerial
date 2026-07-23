@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Playing from favourites over Bluetooth no longer crashes the car's Bluetooth connection when skipping stations. (#123)
 - The Bluetooth previous control now moves to the previous station instead of replaying the current one. (#120)
+- White-on-transparent SVG logos are no longer unreadable, and station logo plates now use the device's dynamic-color palette instead of a fixed white background. (#121, #122)
+- Recently Played now shows a user's own locally-saved logo (including custom-uploaded SVGs) instead of falling back to a blank avatar when the registry has none. (#119)
+- Search results show a station-initial letter, matching Recently Played, when there's no logo or it fails to load.
 
 ## [0.5.0] - 2026-07-21
 

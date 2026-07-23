@@ -145,7 +145,20 @@ class MainViewModel(
         viewModelScope.launch {
             repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
                 .map { entries ->
-                    entries.mapNotNull { registryRepository.getByProviderId(it.provider, it.providerId) }
+                    entries.mapNotNull { entry ->
+                        val registryStation = registryRepository.getByProviderId(entry.provider, entry.providerId)
+                            ?: return@mapNotNull null
+                        // The registry's own copy may have no logo, or one the user has
+                        // replaced locally (e.g. a custom-uploaded SVG) — prefer the user's
+                        // saved station's artwork when this station is saved locally.
+                        val localLogoPath = repository.findMatching(registryStation)
+                            ?.logoPath?.takeIf { it.isNotBlank() }
+                        if (localLogoPath != null) {
+                            registryStation.copy(logoUrl = localLogoPath)
+                        } else {
+                            registryStation
+                        }
+                    }
                 }
                 .collect {
                     _recentlyPlayedStations.value = it
