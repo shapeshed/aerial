@@ -161,7 +161,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -708,8 +708,10 @@ fun MainScreen(
                                 label = "miniPlayerArtwork",
                             ) { model ->
                                 if (model != null) {
+                                    var miniArtworkIsLight by remember(model) { mutableStateOf(false) }
                                     Surface(
                                         shape = MaterialTheme.shapes.small,
+                                        color = stationLogoPlateColor(miniArtworkIsLight),
                                         modifier = Modifier.size(52.dp),
                                     ) {
                                         AsyncImage(
@@ -717,6 +719,9 @@ fun MainScreen(
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
                                             onError = { miniArtworkFailed = true },
+                                            onSuccess = { state ->
+                                                miniArtworkIsLight = state.result.image.isPredominantlyLight()
+                                            },
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -1245,7 +1250,18 @@ private fun FavoriteResultItem(
     ListItem(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
-            StationAvatar(station = station, isActive = false, size = 50.dp)
+            val context = LocalContext.current
+            val logoModel = logoModelFor(station.logoPath)
+            val imageRequest = logoModel?.let {
+                remember(context, it) { ImageRequest.Builder(context).data(it).build() }
+            }
+            StationLogoCircle(logoModel = imageRequest, size = 50.dp) {
+                Text(
+                    text = station.name.avatarInitial(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
         supportingContent = if (countryLabel.isNotBlank()) {
             {
@@ -1326,14 +1342,13 @@ private fun RegistryResultItem(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
             StationLogoCircle(
-                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                logoModel = logoModelFor(station.logoUrl),
                 size = 50.dp,
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Radio,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(26.dp),
+                Text(
+                    text = station.name.avatarInitial(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -1844,7 +1859,7 @@ private fun MoodStationRow(
         leadingContent = {
             // Circle rather than a rounded square, matching the search and favourites rows.
             StationLogoCircle(
-                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                logoModel = logoModelFor(station.logoUrl),
                 size = 56.dp,
             ) {
                 Icon(
@@ -2279,6 +2294,8 @@ private fun StationListRow(
     }
 }
 
+private const val GRID_LOGO_INSET_FRACTION = 0.85f
+
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun StationTile(
@@ -2298,18 +2315,16 @@ private fun StationTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
     ) {
-        val logoModel = when {
-            station.logoPath.startsWith("http") -> station.logoPath
-            station.logoPath.isNotEmpty() -> File(station.logoPath)
-            else -> null
-        }
+        val logoModel = logoModelFor(station.logoPath)
         var logoFailed by remember(logoModel) { mutableStateOf(false) }
+        var logoIsLight by remember(logoModel) { mutableStateOf(false) }
+        var logoHasMargin by remember(logoModel) { mutableStateOf(false) }
         val showLogo = logoModel != null && !logoFailed
 
         Surface(
-            // Same plate treatment as the other artwork surfaces: the light adaptive plate
-            // behind rendered logos (visible only through transparency), tonal otherwise.
-            color = if (showLogo) stationLogoPlateColor() else tileColor,
+            // Same plate treatment as the other artwork surfaces: an adaptive plate behind
+            // rendered logos (visible only through transparency), tonal otherwise.
+            color = if (showLogo) stationLogoPlateColor(logoIsLight) else tileColor,
             // Medium card radius like the other cards: a fixed 28dp reads far rounder on
             // the small tiles of a 4-5 column grid, so keep the modest spec radius at
             // every grid width.
@@ -2340,7 +2355,19 @@ private fun StationTile(
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         onError = { logoFailed = true },
-                        modifier = Modifier.fillMaxSize(),
+                        onSuccess = { state ->
+                            val image = state.result.image
+                            logoIsLight = image.isPredominantlyLight()
+                            logoHasMargin = image.hasTransparentMargin()
+                        },
+                        // Breathing room per the MD3 spacing scale so a logo doesn't read
+                        // cramped against the card's rounded corners — but only when the logo
+                        // actually has a transparent margin of its own: a full-bleed square
+                        // "brand tile" logo has no margin to reveal, so insetting it would
+                        // just add an unwanted plate-colored border around complete artwork.
+                        // A fraction, not a fixed dp, so it scales with the tile size across
+                        // the user's chosen grid column count instead of ballooning at 8 columns.
+                        modifier = Modifier.fillMaxSize(if (logoHasMargin) GRID_LOGO_INSET_FRACTION else 1f),
                     )
                     if (isActive) {
                         Box(
@@ -2553,6 +2580,28 @@ private fun FilterPickerSheetContent(
     }
 }
 
+// Grapheme-safe "first letter" for a station-name fallback avatar. take(1) slices by UTF-16
+// code unit, not code point — a name starting with a supplementary-plane character (some
+// emoji, rare CJK extensions) would cut a lone surrogate half and render as a broken glyph.
+// codePointAt/charCount takes the full code point regardless of whether it's one or two chars.
+private fun String.avatarInitial(): String {
+    val trimmed = trim()
+    if (trimmed.isEmpty()) return ""
+    val charCount = Character.charCount(trimmed.codePointAt(0))
+    return trimmed.substring(0, charCount).uppercase()
+}
+
+// A logo path is either a remote URL or a local file path — the latter needs wrapping in a
+// File so Coil resolves it, rather than trying (and failing) to treat it as a bare URI string.
+// Recently-played entries in particular can carry a local path here: they're backed by
+// RegistryStation, but MainViewModel substitutes a locally-saved station's own logoPath when
+// the registry's copy has none.
+private fun logoModelFor(path: String): Any? = when {
+    path.startsWith("http") -> path
+    path.isNotEmpty() -> File(path)
+    else -> null
+}
+
 @Composable
 private fun ForYouStationCard(
     station: com.shapeshed.aerial.data.RegistryStation,
@@ -2570,11 +2619,11 @@ private fun ForYouStationCard(
             modifier = Modifier.padding(12.dp).fillMaxSize(),
         ) {
             StationLogoCircle(
-                logoModel = station.logoUrl.takeIf { it.isNotBlank() },
+                logoModel = logoModelFor(station.logoUrl),
                 size = 60.dp,
             ) {
                 Text(
-                    text = station.name.take(1).uppercase(),
+                    text = station.name.avatarInitial(),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2590,20 +2639,30 @@ private fun ForYouStationCard(
     }
 }
 
-// Plate behind station artwork: near-white for legibility of arbitrary third-party logos
-// (a dark tonal plate would swallow dark transparent marks), tinted toward the dynamic
-// palette so it follows the system theme like the rest of the app.
+// Plate behind station artwork, shown through transparent regions of third-party logos.
+// Device-palette tokens, not a fixed color, so it follows the system/dynamic theme: the
+// default (dark-on-transparent logos, the common case) is the theme-following container tone;
+// a light-on-transparent logo (e.g. white marks meant for a dark backdrop) would go invisible
+// on that same tone, so it gets the theme-inverse pairing instead, which is always guaranteed
+// to contrast (#121, #122).
+//
+// inverseSurface inverts relative to the *current theme*, not relative to the logo: in dark
+// theme inverseSurface is a light tone, so naively picking it whenever the logo is light
+// produces light-on-light in dark theme (the theme-following default, surfaceContainerHighest,
+// is already dark there and already contrasts fine with a light logo). The default only needs
+// overriding when the logo's own polarity matches the theme's natural one — light logo in
+// light theme, or dark logo in dark theme — which is what the XOR below checks for.
 @Composable
-fun stationLogoPlateColor(): androidx.compose.ui.graphics.Color = lerp(
-    androidx.compose.ui.graphics.Color.White,
-    MaterialTheme.colorScheme.primaryContainer,
-    0.22f,
-)
+fun stationLogoPlateColor(isLogoLight: Boolean): androidx.compose.ui.graphics.Color {
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val needsInverse = isDarkTheme != isLogoLight
+    return if (needsInverse) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surfaceContainerHighest
+}
 
-// Circular station logo on a light plate. The plate shows through transparent regions of
-// third-party artwork so every logo sits on a consistent background, and it is never a
-// visible ring because the artwork fills the circle. Stations without a usable logo keep a
-// tonal circle behind the fallback content instead of the plate.
+// Circular station logo on a plate. The plate shows through transparent regions of third-party
+// artwork so every logo sits on a consistent background, and it is never a visible ring because
+// the artwork fills the circle. Stations without a usable logo keep a tonal circle behind the
+// fallback content instead of the plate.
 @Composable
 fun StationLogoCircle(
     logoModel: Any?,
@@ -2613,13 +2672,14 @@ fun StationLogoCircle(
     fallback: @Composable () -> Unit,
 ) {
     var logoFailed by remember(logoModel) { mutableStateOf(false) }
+    var logoIsLight by remember(logoModel) { mutableStateOf(false) }
     val showLogo = logoModel != null && !logoFailed
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(if (showLogo) stationLogoPlateColor() else fallbackBackground),
+            .background(if (showLogo) stationLogoPlateColor(logoIsLight) else fallbackBackground),
     ) {
         if (showLogo) {
             AsyncImage(
@@ -2627,6 +2687,7 @@ fun StationLogoCircle(
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 onError = { logoFailed = true },
+                onSuccess = { state -> logoIsLight = state.result.image.isPredominantlyLight() },
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -2643,12 +2704,7 @@ fun StationAvatar(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val logoPath = station.logoPath
-    val logoModel = when {
-        logoPath.startsWith("http") -> logoPath
-        logoPath.isNotEmpty() -> File(logoPath)
-        else -> null
-    }
+    val logoModel = logoModelFor(station.logoPath)
     val imageRequest = logoModel?.let {
         remember(context, it) { ImageRequest.Builder(context).data(it).build() }
     }

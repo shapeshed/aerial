@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
+import android.os.Build
 import com.shapeshed.aerial.ArtworkProvider
 import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
@@ -68,7 +69,7 @@ suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
             .size(512)
             .build()
         val result = svgLoader(context).execute(request) as? SuccessResult ?: return file
-        val bitmap = result.image.toOpaqueBitmap()
+        val bitmap = result.image.toOpaqueBitmap(context)
         pngFile.outputStream().use { output ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
@@ -114,7 +115,7 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
         val result = withTimeoutOrNull(ARTWORK_FETCH_TIMEOUT_MS) {
             SingletonImageLoader.get(context).execute(request)
         } as? SuccessResult ?: return null
-        val bitmap = result.image.toOpaqueBitmap()
+        val bitmap = result.image.toOpaqueBitmap(context)
         cacheDir.mkdirs()
         // Write-then-rename so a concurrent request (Android Auto prefetches folders in
         // parallel) or a mid-write process kill can never expose a truncated PNG under the
@@ -184,20 +185,14 @@ private fun String.extensionOrNull(): String? {
 }
 
 /**
- * Rasterizes a Coil [Image] onto an opaque background. System media surfaces (quick controls,
- * lock screen, Bluetooth AVRCP, Android Auto) draw an artwork bitmap with no guaranteed
- * background behind it, so a source image with transparent areas can end up invisible against
- * a dark system theme — notably an SVG logo that uses `prefers-color-scheme` to pick between a
- * black and white fill, which our SVG decoder doesn't evaluate, so it always renders the
- * non-media-query default (typically a black path on a transparent canvas). Compositing onto
- * solid white keeps the logo visible regardless of what surrounds it.
+ * Renders a Coil [Image] to a same-size ARGB bitmap, preserving its own transparency —
+ * shared decode step behind [toOpaqueBitmap] and [isPredominantlyLight].
  */
-fun Image.toOpaqueBitmap(backgroundColor: Int = android.graphics.Color.WHITE): Bitmap {
+private fun Image.toTransparentBitmap(): Bitmap {
     val width = width.takeIf { it > 0 } ?: 512
     val height = height.takeIf { it > 0 } ?: 512
     val bitmap = createBitmap(width, height)
     val canvas = Canvas(bitmap)
-    canvas.drawColor(backgroundColor)
     when {
         // A hardware bitmap can't be drawn into a software Canvas ("Software rendering doesn't
         // support hardware bitmaps") — copy() does the GPU-to-software readback instead.
@@ -208,3 +203,90 @@ fun Image.toOpaqueBitmap(backgroundColor: Int = android.graphics.Color.WHITE): B
     }
     return bitmap
 }
+
+/**
+ * Rasterizes a Coil [Image] onto an opaque background. System media surfaces (quick controls,
+ * lock screen, Bluetooth AVRCP, Android Auto) draw an artwork bitmap with no guaranteed
+ * background behind it, so a source image with transparent areas can end up invisible against
+ * a dark system theme — notably an SVG logo that uses `prefers-color-scheme` to pick between a
+ * black and white fill, which our SVG decoder doesn't evaluate, so it always renders the
+ * non-media-query default. A single fixed background makes one or the other invisible (#121),
+ * so the backdrop contrasts with the logo's own [isPredominantlyLightBitmap] rather than
+ * always being white — using the device's own dynamic-color neutral tones ([adaptiveNeutral])
+ * rather than a fixed hardcoded color, matching the Compose UI's use of dynamic color, since
+ * these surfaces have no MaterialTheme to draw from.
+ */
+fun Image.toOpaqueBitmap(context: Context): Bitmap {
+    val content = toTransparentBitmap()
+    val backgroundColor = context.adaptiveNeutral(dark = content.isPredominantlyLightBitmap())
+    val bitmap = createBitmap(content.width, content.height)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(backgroundColor)
+    canvas.drawBitmap(content, 0f, 0f, null)
+    return bitmap
+}
+
+/**
+ * A neutral tone from the device's Material You wallpaper-derived dynamic color palette
+ * (Android 12+), falling back to a fixed near-black/white on older devices where dynamic
+ * color doesn't exist.
+ */
+private fun Context.adaptiveNeutral(dark: Boolean): Int {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val resId = if (dark) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_50
+        return getColor(resId)
+    }
+    return if (dark) SYSTEM_SURFACE_DARK_PLATE_FALLBACK else android.graphics.Color.WHITE
+}
+
+/**
+ * Whether an image's own rendered content reads as light-colored overall. Used to pick a
+ * plate/backdrop that contrasts with the logo itself (light logo -> dark plate, dark logo ->
+ * light plate) rather than a single fixed background that makes one of the two invisible
+ * (#121).
+ */
+fun Image.isPredominantlyLight(): Boolean = toTransparentBitmap().isPredominantlyLightBitmap()
+
+private fun Bitmap.isPredominantlyLightBitmap(): Boolean {
+    val pixels = IntArray(width * height)
+    getPixels(pixels, 0, width, 0, 0, width, height)
+    var luminanceSum = 0.0
+    var opaquePixelCount = 0
+    for (pixel in pixels) {
+        // Ignoring near-transparent pixels means a mostly-transparent SVG canvas doesn't
+        // dilute the average toward "dark" regardless of its actual foreground color.
+        if (android.graphics.Color.alpha(pixel) < MIN_OPAQUE_ALPHA) continue
+        luminanceSum += 0.299 * android.graphics.Color.red(pixel) +
+            0.587 * android.graphics.Color.green(pixel) +
+            0.114 * android.graphics.Color.blue(pixel)
+        opaquePixelCount++
+    }
+    return opaquePixelCount > 0 && (luminanceSum / opaquePixelCount) > MID_LUMINANCE
+}
+
+private const val MIN_OPAQUE_ALPHA = 32
+private const val MID_LUMINANCE = 127.5
+
+/**
+ * Whether this image has any transparent margin of its own to justify an inset+plate
+ * treatment. A full-bleed square "brand tile" logo (opaque corner to corner, common for
+ * uploaded station artwork) is already complete artwork — insetting it just to reveal an
+ * unwanted plate-colored border looks wrong; that treatment is only for icon-style artwork
+ * drawn with its own transparent margin.
+ */
+fun Image.hasTransparentMargin(): Boolean {
+    val bitmap = toTransparentBitmap()
+    val right = bitmap.width - 1
+    val bottom = bitmap.height - 1
+    if (right < 0 || bottom < 0) return false
+    return listOf(
+        bitmap.getPixel(0, 0),
+        bitmap.getPixel(right, 0),
+        bitmap.getPixel(0, bottom),
+        bitmap.getPixel(right, bottom),
+    ).any { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
+}
+
+// MD3 baseline Neutral-10 (on-surface dark tone) — pre-API-31 fallback for adaptiveNeutral(),
+// on devices with no dynamic color palette to draw from.
+private const val SYSTEM_SURFACE_DARK_PLATE_FALLBACK = 0xFF1D1B20.toInt()
