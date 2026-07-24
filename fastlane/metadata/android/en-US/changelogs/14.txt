@@ -1,0 +1,1 @@
+Fixed a Bluetooth crash when skipping favourite stations in the car. Bluetooth previous now moves to the prior station instead of replaying the current one. Fixed unreadable white station logos and jarring light backgrounds in dark mode. Recently Played now shows your own saved logo instead of a blank avatar. Search results show a station initial when there's no logo.
