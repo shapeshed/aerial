@@ -5,15 +5,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +21,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -39,7 +35,6 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,13 +47,10 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,7 +70,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -88,7 +79,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
 import java.io.File
@@ -113,11 +103,8 @@ fun NowPlayingScreen(
     station: Station,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    nowPlayingInfo: NowPlayingInfo? = null,
     currentTrackTitle: String?,
     currentTrackArtist: String? = null,
-    currentTrackArtworkData: ByteArray? = null,
-    currentTrackArtworkUrl: String? = null,
     currentBitrateKbps: Int? = null,
     showStreamBitrate: Boolean = false,
     sleepTimer: SleepTimerState? = null,
@@ -139,7 +126,6 @@ fun NowPlayingScreen(
     val swipeIndex = remember(swipeStations, station) {
         swipeStations.indexOfFirst { it.matches(station) }
     }
-    var showTrackDetail by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     val artworkShape = RoundedCornerShape(
         topStart = 28.dp,
@@ -147,55 +133,10 @@ fun NowPlayingScreen(
         bottomStart = 6.dp,
         bottomEnd = 28.dp,
     )
-    val programmeTitle = nowPlayingInfo?.programmeTitle ?: station.name
-    val programmeSubtitle = nowPlayingInfo?.programmeSubtitle
-    val track = nowPlayingInfo?.track
-    val trackTitle = when {
-        track != null -> track.title
-        nowPlayingInfo != null -> null  // enricher active but no track data — don't fall back to ICY
-        else -> currentTrackTitle
-    }
-    val trackArtist = track?.artist?.takeIf { it.isNotBlank() }
-        // No enricher: use the ICY artist (ignoring one that's just the station name).
-        ?: currentTrackArtist?.takeIf { nowPlayingInfo == null && it.isNotBlank() && it != station.name }
-    val mainArtworkModel = when {
-        nowPlayingInfo?.artworkData != null -> nowPlayingInfo.artworkData
-        !nowPlayingInfo?.artworkUrl.isNullOrBlank() -> nowPlayingInfo.artworkUrl
-        // Programme-context enrichment (BBC-style): if artwork fetch failed, fall back to the
-        // artwork written to the media item by applyNowPlayingInfo (programme/track bytes or
-        // the original station logo). MusicBrainz doesn't set programmeTitle, so it stays
-        // blocked here to avoid showing album art as the main station image.
-        nowPlayingInfo?.programmeTitle != null && track == null && currentTrackArtworkData != null -> currentTrackArtworkData
-        nowPlayingInfo?.programmeTitle != null && track == null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
-        nowPlayingInfo == null && currentTrackArtworkData != null -> currentTrackArtworkData
-        nowPlayingInfo == null && !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
-        else -> null
-    }
-    // The main image is distinct programme/context artwork (not the station's own logo) only
-    // when the enricher supplied its own artwork. Otherwise the main image already is the
-    // station logo, so the small logo badge would just duplicate it.
-    val mainArtworkIsDistinct = nowPlayingInfo?.artworkData != null || !nowPlayingInfo?.artworkUrl.isNullOrBlank()
-    // When there's no distinct enrichment artwork, mainArtworkModel is just whatever play()
-    // wrote into the MediaItem for system media surfaces: the station's own logo if it has
-    // one, or the app icon as a last resort if it doesn't. That value also arrives
-    // asynchronously (play() clears it, and it only repopulates once the media session's
-    // metadata callback fires again), so using it here would both flash through the small
-    // circular avatar for a frame after every swipe and, for a logo-less station, "upgrade"
-    // to showing the app's launcher icon as if it were the station's own artwork. Resolving
-    // the station's own logo directly — synchronously, no gap — avoids both: it's the exact
-    // image the pager already showed for this page before it became active, and it's simply
-    // absent (falling back to the avatar, not the app icon) for a station with no logo.
-    val activeArtworkModel = if (mainArtworkIsDistinct) mainArtworkModel else station.ownLogoModel()
-    val trackArtworkModel = when {
-        track?.artworkData != null -> track.artworkData
-        track?.artworkUrl?.isNotBlank() == true -> track.artworkUrl
-        currentTrackArtworkData != null -> currentTrackArtworkData
-        !currentTrackArtworkUrl.isNullOrBlank() -> currentTrackArtworkUrl
-        else -> null
-    }
+    val trackTitle = currentTrackTitle
+    val trackArtist = currentTrackArtist?.takeIf { it.isNotBlank() && it != station.name }
+    val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
-    var trackArtworkFailed by remember(trackArtworkModel) { mutableStateOf(false) }
-    var trackArtworkIsLight by remember(trackArtworkModel) { mutableStateOf(false) }
     // The track flows reset asynchronously when the station changes, so for a frame or two
     // the previous station's song can pair with the new station. Hide the track card from
     // the moment the station changes until that reset has been observed, so stale track
@@ -211,16 +152,16 @@ fun NowPlayingScreen(
     LaunchedEffect(trackTitle, station.streamUrl) {
         if (trackTitle == null) trackResetSeen = true
     }
-    val showTrackBlock = trackResetSeen && !trackTitle.isNullOrBlank() && trackTitle != programmeTitle
+    val showTrackBlock = trackResetSeen && !trackTitle.isNullOrBlank() && trackTitle != station.name
     val bitrateLabel = currentBitrateKbps
         ?.takeIf { showStreamBitrate && it > 0 }
         ?.let { stringResource(R.string.stream_bitrate_format, it) }
-    LaunchedEffect(showTrackBlock) { if (!showTrackBlock) showTrackDetail = false }
     // When the timer clears (it expired, or was cancelled), close the picker too. Keyed on the
     // active->inactive transition so a picker opened with no timer running stays open.
     LaunchedEffect(sleepTimer == null) { if (sleepTimer == null) showSleepTimer = false }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .graphicsLayer { translationY = dragOffsetY }
             .semantics { isTraversalGroup = true }
@@ -289,7 +230,7 @@ fun NowPlayingScreen(
 
             Column(
                 modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.Start,
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 Box(
@@ -357,26 +298,6 @@ fun NowPlayingScreen(
                             onArtworkError = { mainArtworkFailed = true },
                         )
                     }
-                    if (mainArtworkModel != null && !mainArtworkFailed && mainArtworkIsDistinct) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 6.dp,
-                            tonalElevation = 2.dp,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(bottom = 12.dp, end = 12.dp)
-                                .size(56.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                StationAvatar(
-                                    station = station,
-                                    isActive = false,
-                                    size = 44.dp,
-                                )
-                            }
-                        }
-                    }
                     if (bitrateLabel != null) {
                         StreamBitratePill(
                             text = bitrateLabel,
@@ -386,43 +307,71 @@ fun NowPlayingScreen(
                         )
                     }
                 }
-                // Every block below reserves its space even when empty (blank text keeps its
-                // line height, the track card keeps a fixed slot) so the centred column doesn't
-                // jump vertically when swiping between stations with different metadata.
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(24.dp))
                 Text(
-                    text = if (nowPlayingInfo != null) station.name else "",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = programmeTitle,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    text = station.name,
+                    style = MaterialTheme.typography.headlineLarge,
                     minLines = 2,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { traversalIndex = 2f },
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                    modifier = Modifier
+                        .width(artworkSize)
+                        .semantics { traversalIndex = 2f },
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = programmeSubtitle?.takeIf { it != programmeTitle } ?: "",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // Only enriched stations (nowPlayingInfo != null) can ever populate this
-                    // line, and only they need the full 2-line reservation to avoid a jump as
-                    // that data arrives/changes. A station with no enricher at all (most ICY
-                    // stations) never has a subtitle, so reserving a stable 2 blank lines for
-                    // it here was permanently wasted space — most visibly on small screens,
-                    // where it pushed the now-playing track card off the bottom of the pane.
-                    minLines = if (nowPlayingInfo != null) 2 else 1,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { traversalIndex = 3f },
-                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .width(artworkSize)
+                        .height(48.dp),
+                ) {
+                    if (showTrackBlock) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.Start,
+                            ) {
+                                Text(
+                                    text = trackArtist ?: trackTitle.orEmpty(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                                )
+                                if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
+                                    Text(
+                                        text = trackTitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                                    )
+                                }
+                            }
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            IconButton(
+                                modifier = Modifier.offset(x = 12.dp),
+                                onClick = {
+                                    val copyText = buildString {
+                                        if (!trackArtist.isNullOrBlank()) append(trackArtist)
+                                        if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
+                                        if (!trackTitle.isNullOrBlank()) append(trackTitle)
+                                    }
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
+                                },
+                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            ) {
+                                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
+                            }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -514,98 +463,6 @@ fun NowPlayingScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(20.dp))
-                // Fixed-height slot whether or not track info exists — the card fades in and
-                // out inside it, so the layout above never shifts. Fully qualified because the
-                // enclosing ColumnScope's AnimatedVisibility extension shadows the top-level one.
-                Box(modifier = Modifier.fillMaxWidth().height(80.dp)) {
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showTrackBlock,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        tonalElevation = 1.dp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showTrackDetail = true },
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.size(52.dp),
-                            ) {
-                                if (trackArtworkModel != null && !trackArtworkFailed) {
-                                    // Same adaptive plate as the other artwork surfaces,
-                                    // visible only through transparent artwork.
-                                    AsyncImage(
-                                        model = trackArtworkModel,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        onError = { trackArtworkFailed = true },
-                                        onSuccess = { state ->
-                                            trackArtworkIsLight = state.result.image.isPredominantlyLight()
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(MaterialTheme.shapes.small)
-                                            .background(stationLogoPlateColor(trackArtworkIsLight)),
-                                    )
-                                } else {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                        tonalElevation = 2.dp,
-                                        modifier = Modifier.size(44.dp),
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Radio,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.size(22.dp),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = trackArtist ?: trackTitle.orEmpty(),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        text = trackTitle,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Rounded.ContentCopy,
-                                contentDescription = stringResource(R.string.copy_track_info),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                    }
-                    }
-                }
             }
         }
     }
@@ -619,146 +476,6 @@ fun NowPlayingScreen(
         )
     }
 
-    if (showTrackDetail) {
-        val sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        )
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val copyText = buildString {
-            if (!trackArtist.isNullOrBlank()) append(trackArtist)
-            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
-            if (!trackTitle.isNullOrBlank()) append(trackTitle)
-        }
-        // Staggered entry states
-        var artworkReady by remember { mutableStateOf(false) }
-        var artistReady by remember { mutableStateOf(false) }
-        var titleReady by remember { mutableStateOf(false) }
-        var actionsReady by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            artworkReady = true
-            delay(80)
-            artistReady = true
-            delay(60)
-            titleReady = true
-            delay(50)
-            actionsReady = true
-        }
-
-        val artworkScale by animateFloatAsState(
-            targetValue = if (artworkReady) 1f else 0.82f,
-            label = "artworkScale",
-        )
-        val artworkAlpha by animateFloatAsState(
-            targetValue = if (artworkReady) 1f else 0f,
-            label = "artworkAlpha",
-        )
-
-        ModalBottomSheet(
-            onDismissRequest = { showTrackDetail = false },
-            sheetState = sheetState,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Surface(
-                    shape = MaterialTheme.shapes.extraLarge,
-                    // Plate behind rendered artwork, matching the main artwork surface.
-                    color = if (trackArtworkModel != null && !trackArtworkFailed) {
-                        stationLogoPlateColor(trackArtworkIsLight)
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer
-                    },
-                    tonalElevation = 4.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .graphicsLayer {
-                            scaleX = artworkScale
-                            scaleY = artworkScale
-                            alpha = artworkAlpha
-                        },
-                ) {
-                    if (trackArtworkModel != null && !trackArtworkFailed) {
-                        AsyncImage(
-                            model = trackArtworkModel,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            onError = { trackArtworkFailed = true },
-                            onSuccess = { state ->
-                                trackArtworkIsLight = state.result.image.isPredominantlyLight()
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            StationAvatar(
-                                station = station,
-                                isActive = false,
-                                size = 96.dp,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        AnimatedVisibility(
-                            visible = artistReady,
-                            enter = fadeIn() + slideInVertically { it / 3 },
-                        ) {
-                            Text(
-                                text = trackArtist ?: trackTitle.orEmpty(),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
-                            Spacer(Modifier.height(6.dp))
-                            AnimatedVisibility(
-                                visible = titleReady,
-                                enter = fadeIn() + slideInVertically { it / 3 },
-                            ) {
-                                Text(
-                                    text = trackTitle,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Normal,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    AnimatedVisibility(
-                        visible = actionsReady,
-                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
-                    ) {
-                        FilledTonalIconButton(
-                            onClick = {
-                                clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
-                            },
-                            shapes = IconButtonShapes(
-                                IconButtonDefaults.smallRoundShape,
-                                IconButtonDefaults.smallPressedShape,
-                            ),
-                        ) {
-                            Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -788,9 +505,7 @@ private fun StationArtworkSurface(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             if (artworkModel != null) {
                 val context = LocalContext.current
-                // Crossfade rather than pop: activeArtworkModel legitimately changes after a
-                // swipe settles (station logo shown first, upgraded to real enrichment artwork
-                // once the metadata pipeline catches up), and a hard cut reads as a flash.
+                // Crossfade when the station changes so the artwork transition stays calm.
                 val request = remember(context, artworkModel) {
                     ImageRequest.Builder(context)
                         .data(artworkModel)

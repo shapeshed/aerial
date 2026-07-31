@@ -42,9 +42,6 @@ import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.MediaBrowseTree
-import com.shapeshed.aerial.data.Provider
-import com.shapeshed.aerial.data.NowPlayingInfo
-import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.httpGetText
@@ -56,7 +53,6 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
-import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,9 +86,6 @@ class PlayerService : MediaLibraryService() {
     private var lastRecordedStationKey: String? = null
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
-    private var activeEnricher: Provider? = null
-    private var lastAppliedNowPlayingSignature: String? = null
-    private var enrichMetadataEnabled = false
     private var pausedAtMs: Long? = null
     private var reconnectingStream = false
     private var lastReconnectAtMs = 0L
@@ -180,29 +173,6 @@ class PlayerService : MediaLibraryService() {
                 .distinctUntilChanged()
                 .collectLatest(mediaBrowseTree::setShowHome)
         }
-        serviceScope.launch {
-            NowPlayingStore.state.collectLatest { info ->
-                applyNowPlayingInfo(info)
-            }
-        }
-        serviceScope.launch {
-            dataStore.data
-                .map { it[ENRICH_METADATA_KEY] ?: false }
-                .distinctUntilChanged()
-                .collectLatest { enabled ->
-                    enrichMetadataEnabled = enabled
-                    if (!enabled) {
-                        activeEnricher?.stop()
-                        activeEnricher = null
-                    } else {
-                        currentStation()?.let { station ->
-                            val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
-                            activeEnricher = enricher
-                            if (player.isPlaying) enricher?.start(station, serviceScope)
-                        }
-                    }
-                }
-        }
     }
 
     private val icyListener = object : Player.Listener {
@@ -224,9 +194,6 @@ class PlayerService : MediaLibraryService() {
             log("onIsPlayingChanged=$isPlaying")
             if (isPlaying) {
                 recordPlayOnce()
-                currentStation()?.let { activeEnricher?.start(it, serviceScope) }
-            } else {
-                activeEnricher?.pause()
             }
         }
 
@@ -234,17 +201,6 @@ class PlayerService : MediaLibraryService() {
             log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
             lastIcyTitle = null
             lastId3Title = null
-            lastAppliedNowPlayingSignature = null
-            activeEnricher?.stop()
-            activeEnricher = null
-            val station = stationForMediaItem(mediaItem)
-            if (enrichMetadataEnabled) {
-                station?.let {
-                    val enricher = (application as AerialApp).providers.firstOrNull { it.canEnrich(station) }
-                    activeEnricher = enricher
-                    if (player.isPlaying) enricher?.start(station, serviceScope)
-                }
-            }
             updateFavoriteButton()
         }
 
@@ -254,7 +210,6 @@ class PlayerService : MediaLibraryService() {
             var id3Title: String? = null
             var id3Artist: String? = null
             var id3Artwork: ByteArray? = null
-            var hasUnhandled = false
 
             for (i in 0 until metadata.length()) {
                 val entry = metadata[i]
@@ -265,7 +220,7 @@ class PlayerService : MediaLibraryService() {
                         "TPE1" -> id3Artist = entry.values.first().trim().takeIf { it.isNotEmpty() }
                     }
                     is ApicFrame -> id3Artwork = entry.pictureData
-                    else -> hasUnhandled = true
+                    else -> Unit
                 }
             }
 
@@ -285,7 +240,6 @@ class PlayerService : MediaLibraryService() {
                     artworkData = item.mediaMetadata.artworkData,
                     artworkUri = item.mediaMetadata.artworkUri,
                 )
-                activeEnricher?.onIcyTitle(title)
             }
 
             if (id3Title != null) {
@@ -302,12 +256,7 @@ class PlayerService : MediaLibraryService() {
                         artworkData = id3Artwork ?: item.mediaMetadata.artworkData,
                         artworkUri = if (id3Artwork != null) null else item.mediaMetadata.artworkUri,
                     )
-                    activeEnricher?.notifyTransition()
                 }
-            } else if (icyInfo == null && (id3Artwork != null || hasUnhandled)) {
-                // Non-ICY, non-ID3-title metadata — signal transition for enriched stations.
-                // (Note: BBC HLS currently drops ID3 timed metadata due to a Media3 bug.)
-                activeEnricher?.notifyTransition()
             }
         }
 
@@ -667,7 +616,6 @@ class PlayerService : MediaLibraryService() {
         log("reconnectCurrentStream reason=$reason shouldResume=$shouldResume")
         lastIcyTitle = null
         lastId3Title = null
-        lastAppliedNowPlayingSignature = null
         runCatching {
             player.stop()
             player.setMediaItem(item)
@@ -679,64 +627,9 @@ class PlayerService : MediaLibraryService() {
         reconnectingStream = false
     }
 
-    private fun applyNowPlayingInfo(info: NowPlayingInfo?) {
-        val currentMediaItem = player.currentMediaItem ?: return
-        val currentStation = currentStation() ?: return
-        if (info?.stationId != currentStation.id) return
-
-        val artworkData = info.track?.artworkData ?: info.artworkData
-        val signature = buildString {
-            append(info.programmeTitle.orEmpty())
-            append('|')
-            append(info.programmeSubtitle.orEmpty())
-            append('|')
-            append(info.track?.artist.orEmpty())
-            append('|')
-            append(info.track?.title.orEmpty())
-            append('|')
-            append(System.identityHashCode(artworkData))
-        }
-        if (signature == lastAppliedNowPlayingSignature) return
-        lastAppliedNowPlayingSignature = signature
-
-        val mediaMetadata = currentMediaItem.mediaMetadata.buildUpon()
-            .setTitle(
-                if (info.track != null) {
-                    info.track.artist.takeIf { it.isNotBlank() } ?: info.programmeTitle ?: currentStation.name
-                } else {
-                    currentStation.name
-                }
-            )
-            .setArtist(
-                when {
-                    info.track != null -> info.track.title
-                    else -> info.programmeTitle ?: currentMediaItem.mediaMetadata.artist
-                }
-            )
-            .setSubtitle(
-                when {
-                    info.track != null -> info.track.title
-                    else -> info.programmeSubtitle ?: currentMediaItem.mediaMetadata.subtitle
-                }
-            )
-            .apply {
-                if (artworkData != null) {
-                    setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                }
-            }
-            .build()
-
-        player.replaceMediaItem(
-            player.currentMediaItemIndex,
-            currentMediaItem.buildUpon().setMediaMetadata(mediaMetadata).build()
-        )
-    }
-
     override fun onDestroy() {
         serviceScope.cancel()
         SleepTimerStore.set(null)
-        activeEnricher?.stop()
-        activeEnricher = null
         player.removeListener(icyListener)
         mediaSession.release()
         player.release()

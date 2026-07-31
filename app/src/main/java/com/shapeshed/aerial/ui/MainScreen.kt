@@ -302,10 +302,7 @@ fun MainScreen(
     val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
     val currentTrackArtist by viewModel.currentTrackArtist.collectAsStateWithLifecycle()
-    val currentTrackArtworkData by viewModel.currentTrackArtworkData.collectAsStateWithLifecycle()
-    val currentTrackArtworkUrl by viewModel.currentTrackArtworkUrl.collectAsStateWithLifecycle()
     val currentBitrateKbps by viewModel.currentBitrateKbps.collectAsStateWithLifecycle()
-    val nowPlayingInfo by viewModel.nowPlayingInfo.collectAsStateWithLifecycle()
     val nowPlayingDisplay by viewModel.nowPlayingDisplay.collectAsStateWithLifecycle()
     val sleepTimer by viewModel.sleepTimer.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
@@ -370,7 +367,6 @@ fun MainScreen(
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
     val selectedMood = selectedMoodId?.let { id -> CURATED_MOODS.firstOrNull { it.id == id } }
     val selectedMoodStations = selectedMoodId?.let { curatedMoodStations[it] }.orEmpty()
-    val activeNowPlayingInfo = nowPlayingInfo?.takeIf { it.stationId == currentStation?.id }
     val moodSwipeStations = remember(selectedMoodStations) {
         selectedMoodStations.map { it.toPlaybackStation() }
     }
@@ -694,45 +690,7 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            val miniArtworkModel = if (!isPlaying) null else with(activeNowPlayingInfo) {
-                                when {
-                                    this?.track?.artworkData != null -> this.track.artworkData
-                                    this?.track?.artworkUrl?.isNotBlank() == true -> this.track.artworkUrl
-                                    this?.artworkData != null -> this.artworkData
-                                    this?.artworkUrl?.isNotBlank() == true -> this.artworkUrl
-                                    else -> null
-                                }
-                            }
-                            var miniArtworkFailed by remember(miniArtworkModel) { mutableStateOf(false) }
-                            AnimatedContent(
-                                targetState = if (miniArtworkFailed) null else miniArtworkModel,
-                                transitionSpec = {
-                                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
-                                },
-                                label = "miniPlayerArtwork",
-                            ) { model ->
-                                if (model != null) {
-                                    var miniArtworkIsLight by remember(model) { mutableStateOf(false) }
-                                    Surface(
-                                        shape = MaterialTheme.shapes.small,
-                                        color = stationLogoPlateColor(miniArtworkIsLight),
-                                        modifier = Modifier.size(52.dp),
-                                    ) {
-                                        AsyncImage(
-                                            model = model,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            onError = { miniArtworkFailed = true },
-                                            onSuccess = { state ->
-                                                miniArtworkIsLight = state.result.image.isPredominantlyLight()
-                                            },
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                    }
-                                } else {
-                                    StationAvatar(station = station, isActive = true, size = 52.dp)
-                                }
-                            }
+                            StationAvatar(station = station, isActive = true, size = 52.dp)
                         },
                         trailingContent = {
                             Surface(
@@ -825,11 +783,8 @@ fun MainScreen(
                     station = station,
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
-                    nowPlayingInfo = activeNowPlayingInfo,
                     currentTrackTitle = currentTrackTitle,
                     currentTrackArtist = currentTrackArtist,
-                    currentTrackArtworkData = currentTrackArtworkData,
-                    currentTrackArtworkUrl = currentTrackArtworkUrl,
                     currentBitrateKbps = currentBitrateKbps,
                     showStreamBitrate = showStreamBitrate,
                     sleepTimer = sleepTimer,
