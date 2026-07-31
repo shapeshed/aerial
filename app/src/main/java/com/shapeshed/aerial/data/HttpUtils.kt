@@ -11,7 +11,7 @@ internal val AERIAL_USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
  * GET [url] and return the response body as a string, or null on any error or non-2xx status.
  * Caller is responsible for running this on a background thread (e.g. Dispatchers.IO).
  */
-internal fun httpGetJson(url: String, extraHeaders: Map<String, String> = emptyMap()): String? {
+internal fun httpGetText(url: String, extraHeaders: Map<String, String> = emptyMap()): String? {
     return try {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
@@ -28,6 +28,10 @@ internal fun httpGetJson(url: String, extraHeaders: Map<String, String> = emptyM
         null
     }
 }
+
+/** [httpGetText] under its original name, kept for the metadata/JSON callers. */
+internal fun httpGetJson(url: String, extraHeaders: Map<String, String> = emptyMap()): String? =
+    httpGetText(url, extraHeaders)
 
 /**
  * POST [body] (JSON) to [url] and return the response body, or null on any error or non-2xx status.

@@ -16,6 +16,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
@@ -46,6 +47,8 @@ import com.shapeshed.aerial.data.NowPlayingInfo
 import com.shapeshed.aerial.data.NowPlayingStore
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.RECENT_ID
+import com.shapeshed.aerial.data.httpGetText
+import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
@@ -112,8 +115,21 @@ class PlayerService : MediaLibraryService() {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(HTTP_TIMEOUT_MS)
             .setReadTimeoutMs(HTTP_TIMEOUT_MS)
+        // Some stations' stream URLs point at a .pls/.m3u/.asx playlist file rather than the
+        // audio itself. ExoPlayer can't play those containers, so unwrap them to the real
+        // stream URL here — on the loader thread, right before the connection opens, so the
+        // fetch is lazy (per item, including queue neighbours) and never touches the UI thread.
+        // A non-playlist URL (the vast majority) passes through untouched with no network cost;
+        // a playlist that can't be fetched or parsed also passes through, surfacing the normal
+        // playback error. Note: a playlist resolving to HLS (.m3u8) won't switch ExoPlayer to
+        // its HLS source type, since resolution happens below source selection — rare in practice.
+        val playlistResolvingFactory = ResolvingDataSource.Factory(httpDataSourceFactory) { dataSpec ->
+            val original = dataSpec.uri.toString()
+            val resolved = resolveStreamUrl(original) { httpGetText(it) }
+            if (resolved == original) dataSpec else dataSpec.withUri(Uri.parse(resolved))
+        }
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
-            .setDataSourceFactory(httpDataSourceFactory)
+            .setDataSourceFactory(playlistResolvingFactory)
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 MIN_BUFFER_MS,

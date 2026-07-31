@@ -4,6 +4,12 @@ All notable changes to Aerial will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers should follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once public releases begin.
 
+## [Unreleased]
+
+### Added
+
+- Stations whose stream URL is a `.pls`, `.m3u`, or `.asx` playlist now play — the underlying stream URL is resolved at play time. (#129)
+
 ## [0.5.1] - 2026-07-24
 
 ### Fixed
