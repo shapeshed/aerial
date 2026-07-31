@@ -1,0 +1,4 @@
+- Start on Favourites and hide Home when it is the only available destination, including in Android Auto.
+- Support playback from `.pls`, `.m3u`, and `.asx` playlist URLs.
+- Simplify Now Playing with a clearer Material 3 layout, stable metadata spacing, and a secondary-toned background.
+- Remove provider-based metadata enrichers while retaining ICY and ID3 stream metadata.
