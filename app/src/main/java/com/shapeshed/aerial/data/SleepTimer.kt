@@ -17,7 +17,7 @@ data class SleepTimerState(
 )
 
 /**
- * Process-wide holder for the active sleep-timer countdown, mirroring [NowPlayingStore].
+ * Process-wide holder for the active sleep-timer countdown.
  * PlayerService owns the countdown and publishes ticks here; the UI collects them.
  */
 object SleepTimerStore {

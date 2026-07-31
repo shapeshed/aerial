@@ -10,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.shapeshed.aerial.ENRICH_METADATA_KEY
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
@@ -44,10 +43,6 @@ class SettingsViewModel(
     private val dataStore: DataStore<Preferences>,
 ) : AndroidViewModel(application) {
 
-    val enrichMetadata = dataStore.data
-        .map { it[ENRICH_METADATA_KEY] ?: false }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
     val showStreamBitrate = dataStore.data
         .map { it[SHOW_STREAM_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -68,12 +63,6 @@ class SettingsViewModel(
 
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages
-
-    fun setEnrichMetadata(enabled: Boolean) {
-        viewModelScope.launch {
-            dataStore.edit { it[ENRICH_METADATA_KEY] = enabled }
-        }
-    }
 
     fun setShowStreamBitrate(enabled: Boolean) {
         viewModelScope.launch {

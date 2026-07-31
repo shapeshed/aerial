@@ -58,7 +58,6 @@ fun SettingsScreen(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
     val showHome by viewModel.showHome.collectAsStateWithLifecycle()
     val favoritesGridColumns by viewModel.favoritesGridColumns.collectAsStateWithLifecycle()
@@ -112,21 +111,6 @@ fun SettingsScreen(
                     },
                 ) {
                     Text(stringResource(R.string.show_home))
-                }
-                HorizontalDivider()
-            }
-            item(contentType = "setting") {
-                ListItem(
-                    modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
-                    supportingContent = { Text(stringResource(R.string.show_whats_playing_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = enrichMetadata,
-                            onCheckedChange = { viewModel.setEnrichMetadata(it) },
-                        )
-                    },
-                ) {
-                    Text(stringResource(R.string.show_whats_playing))
                 }
                 HorizontalDivider()
             }
