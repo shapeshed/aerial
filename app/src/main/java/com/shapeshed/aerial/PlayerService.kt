@@ -57,6 +57,7 @@ import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
 import com.shapeshed.aerial.ENRICH_METADATA_KEY
+import com.shapeshed.aerial.SHOW_HOME_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -172,6 +173,12 @@ class PlayerService : MediaLibraryService() {
                 stations = updatedStations
                 updateFavoriteButton()
             }
+        }
+        serviceScope.launch {
+            dataStore.data
+                .map { it[SHOW_HOME_KEY] ?: true }
+                .distinctUntilChanged()
+                .collectLatest(mediaBrowseTree::setShowHome)
         }
         serviceScope.launch {
             NowPlayingStore.state.collectLatest { info ->

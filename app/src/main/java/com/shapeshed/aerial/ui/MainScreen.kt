@@ -327,6 +327,7 @@ fun MainScreen(
     val favoritesSort by viewModel.favoritesSort.collectAsStateWithLifecycle()
     val favoritesGridColumns by viewModel.favoritesGridColumns.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
+    val showHome by viewModel.showHome.collectAsStateWithLifecycle()
     val selectedCountries: Set<String> by viewModel.selectedCountries.collectAsStateWithLifecycle()
     val selectedTags: Set<String> by viewModel.selectedTags.collectAsStateWithLifecycle()
     val availableCountries: List<String> by viewModel.availableCountries.collectAsStateWithLifecycle()
@@ -359,6 +360,7 @@ fun MainScreen(
     val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
 
     val selectedTab by viewModel.selectedHomeTab.collectAsStateWithLifecycle()
+    val effectiveSelectedTab = if (showHome) selectedTab else TAB_FAVORITES
     // Hoisted so each tab keeps its scroll position across tab switches.
     val homeListState = rememberLazyListState()
     val favoritesListState = rememberLazyListState()
@@ -456,28 +458,30 @@ fun MainScreen(
         val useNavigationRail = maxWidth > maxHeight && maxWidth >= 600.dp
 
         Row(modifier = Modifier.fillMaxSize()) {
-            if (useNavigationRail) {
+            if (useNavigationRail && showHome) {
                 WideNavigationRail(
                     colors = WideNavigationRailDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                 ) {
                     Spacer(Modifier.height(8.dp))
+                    if (showHome) {
+                        WideNavigationRailItem(
+                            selected = effectiveSelectedTab == TAB_HOME,
+                            onClick = {
+                                selectedMoodId = null
+                                viewModel.setSelectedHomeTab(TAB_HOME)
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selectedTab == TAB_HOME) Icons.Rounded.Home else Icons.Outlined.Home,
+                                    contentDescription = null,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.tab_home)) },
+                            railExpanded = false,
+                        )
+                    }
                     WideNavigationRailItem(
-                        selected = selectedTab == TAB_HOME,
-                        onClick = {
-                            selectedMoodId = null
-                            viewModel.setSelectedHomeTab(TAB_HOME)
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == TAB_HOME) Icons.Rounded.Home else Icons.Outlined.Home,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.tab_home)) },
-                        railExpanded = false,
-                    )
-                    WideNavigationRailItem(
-                        selected = selectedTab == TAB_FAVORITES,
+                        selected = effectiveSelectedTab == TAB_FAVORITES,
                         onClick = {
                             selectedMoodId = null
                             viewModel.setSelectedHomeTab(TAB_FAVORITES)
@@ -499,12 +503,12 @@ fun MainScreen(
                     .semantics { traversalIndex = 0f },
                 contentWindowInsets = WindowInsets.navigationBars,
                 bottomBar = {
-                    if (!useNavigationRail) {
+                    if (!useNavigationRail && showHome) {
                         // surfaceContainerLow matches the reference bar (Google Drive) rather
                         // than the component's default surfaceContainer.
                         ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-                            ShortNavigationBarItem(
-                                selected = selectedTab == TAB_HOME,
+                            if (showHome) ShortNavigationBarItem(
+                                selected = effectiveSelectedTab == TAB_HOME,
                                 onClick = {
                                     selectedMoodId = null
                                     viewModel.setSelectedHomeTab(TAB_HOME)
@@ -518,7 +522,7 @@ fun MainScreen(
                                 label = { Text(stringResource(R.string.tab_home)) },
                             )
                             ShortNavigationBarItem(
-                                selected = selectedTab == TAB_FAVORITES,
+                                selected = effectiveSelectedTab == TAB_FAVORITES,
                                 onClick = {
                                     selectedMoodId = null
                                     viewModel.setSelectedHomeTab(TAB_FAVORITES)
@@ -579,7 +583,7 @@ fun MainScreen(
                         onRemoveStation = { viewModel.removeFromRegistry(it) },
                         onPlayStation = { viewModel.playFromRegistry(it, selectedMoodStations) },
                     )
-                } else if (selectedTab == TAB_HOME) {
+                } else if (effectiveSelectedTab == TAB_HOME) {
                     // The For You row is the locale country's selection (curated or a random
                     // sample with artwork), headed by the country name; if the registry has
                     // nothing for that country it falls back to the featured stations under

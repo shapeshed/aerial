@@ -33,6 +33,18 @@ class MediaBrowseTreeTest {
     }
 
     @Test
+    fun hidingHomeLeavesFavoritesAsTheOnlyBrowseFolder() = runBlocking {
+        val tree = tree()
+        tree.setShowHome(false)
+
+        assertEquals(listOf("favorites"), tree.rootChildren().map { it.mediaId })
+        assertNull(tree.children("moods"))
+        assertNull(tree.children(RECENT_ID))
+        assertNull(tree.children("mood:relax"))
+        assertNotNull(tree.children("favorites"))
+    }
+
+    @Test
     fun moodChildrenAreTheSixCuratedMoodFolders() {
         val tree = tree()
 

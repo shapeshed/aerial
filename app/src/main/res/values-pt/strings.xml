@@ -102,6 +102,8 @@
     <string name="tag_electronic">Eletrônica</string>
     <string name="tab_home">Início</string>
     <string name="tab_favorites">Favoritos</string>
+    <string name="show_home">Mostrar início</string>
+    <string name="show_home_desc">Mostrar o separador Início e as pastas de descoberta juntamente com os Favoritos</string>
     <string name="sort_by">Ordenar por</string>
     <!-- "a" here is the preposition "to" ("From A to Z"), not a doubled word. -->
     <string name="sort_az" tools:ignore="Typos">De A a Z</string>

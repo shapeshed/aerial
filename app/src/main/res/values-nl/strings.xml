@@ -102,6 +102,8 @@
     <string name="tag_electronic">Elektronisch</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorieten</string>
+    <string name="show_home">Home tonen</string>
+    <string name="show_home_desc">Het tabblad Home en ontdekkingsmappen naast Favorieten tonen</string>
     <string name="sort_by">Sorteren op</string>
     <string name="sort_az">A tot Z</string>
     <string name="sort_last_played">Laatst afgespeeld</string>

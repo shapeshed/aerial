@@ -11,6 +11,8 @@
     <string name="search_stations_header">Stations</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favourites</string>
+    <string name="show_home">Show Home</string>
+    <string name="show_home_desc">Show the Home tab and discovery folders alongside Favourites</string>
     <string name="sort_by">Sort by</string>
     <string name="sort_az">A to Z</string>
     <string name="sort_last_played">Last played</string>

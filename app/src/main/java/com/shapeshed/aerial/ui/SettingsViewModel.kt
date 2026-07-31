@@ -15,6 +15,7 @@ import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream
@@ -51,6 +52,10 @@ class SettingsViewModel(
         .map { it[SHOW_STREAM_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val showHome = dataStore.data
+        .map { it[SHOW_HOME_KEY] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     val favoritesGridColumns = dataStore.data
         .map { (it[FAVORITES_GRID_COLUMNS_KEY] ?: FAVORITES_GRID_COLUMNS_DEFAULT).coerceIn(FAVORITES_GRID_COLUMNS_RANGE) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FAVORITES_GRID_COLUMNS_DEFAULT)
@@ -73,6 +78,12 @@ class SettingsViewModel(
     fun setShowStreamBitrate(enabled: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SHOW_STREAM_BITRATE_KEY] = enabled }
+        }
+    }
+
+    fun setShowHome(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SHOW_HOME_KEY] = enabled }
         }
     }
 

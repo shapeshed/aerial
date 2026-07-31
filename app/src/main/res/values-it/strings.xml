@@ -102,6 +102,8 @@
     <string name="tag_electronic">Elettronica</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Preferiti</string>
+    <string name="show_home">Mostra Home</string>
+    <string name="show_home_desc">Mostra la scheda Home e le cartelle di scoperta insieme ai Preferiti</string>
     <string name="sort_by">Ordina per</string>
     <string name="sort_az">Dalla A alla Z</string>
     <string name="sort_last_played">Riprodotta di recente</string>
