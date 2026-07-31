@@ -6,9 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-31
+
 ### Added
 
 - Stations whose stream URL is a `.pls`, `.m3u`, or `.asx` playlist now play — the underlying stream URL is resolved at play time. (#129)
+- A setting to start on Favourites and hide Home when it is the only available destination. This also applies to Android Auto. (#133)
+
+### Changed
+
+- The Now Playing screen now uses a single, simpler Material 3 layout with a secondary-toned background, consistent typography and spacing, left-aligned metadata, and stable layout space when stream metadata is unavailable.
+- The station artwork is no longer duplicated in a secondary Now Playing overlay; copying track information remains available.
+
+### Removed
+
+- Provider-based Now Playing enrichers and the setting to enhance What’s Playing. ICY and ID3 stream metadata remain supported. (#117)
 
 ## [0.5.1] - 2026-07-24
 
