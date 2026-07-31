@@ -47,21 +47,30 @@ class MediaBrowseTree(
     private val stationRepository: StationRepository,
     private val registryRepository: RegistryRepository,
 ) {
+    @Volatile
+    private var showHome = true
+
+    fun setShowHome(show: Boolean) {
+        showHome = show
+    }
+
     fun rootItem(): MediaItem = browsableFolder(MEDIA_BROWSE_ROOT_ID, context.getString(R.string.app_name))
 
-    fun rootChildren(): List<MediaItem> = listOf(
-        browsableFolder(FAVORITES_ID, context.getString(R.string.tab_favorites)),
-        browsableFolder(MOODS_ID, context.getString(R.string.car_moods)),
-        browsableFolder(RECENT_ID, context.getString(R.string.recently_played)),
-    )
+    fun rootChildren(): List<MediaItem> = buildList {
+        add(browsableFolder(FAVORITES_ID, context.getString(R.string.tab_favorites)))
+        if (showHome) {
+            add(browsableFolder(MOODS_ID, context.getString(R.string.car_moods)))
+            add(browsableFolder(RECENT_ID, context.getString(R.string.recently_played)))
+        }
+    }
 
     /** Dispatches a parentId to the right children list, or null if it's not a known folder. */
     suspend fun children(parentId: String): List<MediaItem>? = when {
         parentId == MEDIA_BROWSE_ROOT_ID -> rootChildren()
         parentId == FAVORITES_ID -> favoriteChildren()
-        parentId == MOODS_ID -> moodChildren()
-        parentId == RECENT_ID -> recentChildren()
-        parentId.startsWith(MOOD_ID_PREFIX) -> moodStationChildren(parentId.removePrefix(MOOD_ID_PREFIX))
+        showHome && parentId == MOODS_ID -> moodChildren()
+        showHome && parentId == RECENT_ID -> recentChildren()
+        showHome && parentId.startsWith(MOOD_ID_PREFIX) -> moodStationChildren(parentId.removePrefix(MOOD_ID_PREFIX))
         else -> null
     }
 

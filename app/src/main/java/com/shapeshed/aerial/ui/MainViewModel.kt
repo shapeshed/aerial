@@ -37,6 +37,7 @@ import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.NowPlayingInfo
@@ -354,6 +355,10 @@ class MainViewModel(
     val showStreamBitrate: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[SHOW_STREAM_BITRATE_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val showHome: StateFlow<Boolean> = dataStore.data
+        .map { prefs -> prefs[SHOW_HOME_KEY] ?: true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     val favoritesGridColumns: StateFlow<Int> = dataStore.data
         .map { prefs ->

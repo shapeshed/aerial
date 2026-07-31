@@ -102,6 +102,8 @@
     <string name="tag_electronic">Electrónica</string>
     <string name="tab_home">Inicio</string>
     <string name="tab_favorites">Favoritos</string>
+    <string name="show_home">Mostrar inicio</string>
+    <string name="show_home_desc">Mostrar la pestaña Inicio y las carpetas de descubrimiento junto a Favoritos</string>
     <string name="sort_by">Ordenar por</string>
     <string name="sort_az">De la A a la Z</string>
     <string name="sort_last_played">Reproducida recientemente</string>

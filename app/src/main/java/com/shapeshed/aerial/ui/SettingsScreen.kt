@@ -60,6 +60,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val enrichMetadata by viewModel.enrichMetadata.collectAsStateWithLifecycle()
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
+    val showHome by viewModel.showHome.collectAsStateWithLifecycle()
     val favoritesGridColumns by viewModel.favoritesGridColumns.collectAsStateWithLifecycle()
     val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
@@ -99,6 +100,21 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            item(contentType = "setting") {
+                ListItem(
+                    modifier = Modifier.clickable { viewModel.setShowHome(!showHome) },
+                    supportingContent = { Text(stringResource(R.string.show_home_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = showHome,
+                            onCheckedChange = { viewModel.setShowHome(it) },
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.show_home))
+                }
+                HorizontalDivider()
+            }
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { viewModel.setEnrichMetadata(!enrichMetadata) },
