@@ -1,3 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Aerial</string>
+    <string name="action_back">Назад</string>
+    <string name="action_remove">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_clear">Очистить</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_edit">Изменить</string>
+    <string name="save_all">Сохранить всё</string>
+    <string name="search_hint">Поиск станций</string>
+    <string name="clear_search">Очистить поиск</string>
+    <string name="settings">Настройки</string>
+    <string name="buffering">Загрузка…</string>
+    <string name="play">Играть</string>
+    <string name="pause">Пауза</string>
+    <string name="stop">Остановить</string>
+    <string name="filter_country">Страна</string>
+    <string name="filter_genre">Жанр</string>
+    <string name="search_countries">Поиск стран</string>
+    <string name="search_genres">Поиск жанров</string>
+    <string name="clear_all">Очистить всё</string>
+    <string name="remove_station_title">Убрать станцию?</string>
+    <string name="remove_station_message">\"%1$s\" будет убрано из избранных.</string>
+    <string name="no_stations_found">Не найдено станций</string>
+    <string name="no_stations_found_desc">Попробуйте другой поиск, или добавьте станцию по ссылке URL.</string>
+    <string name="add_your_own_station">Добавить свою станцию</string>
+    <string name="save_to_favorites">Сохранить в избранные</string>
+    <string name="remove_from_favorites">Убрать из избранных</string>
+    <string name="no_internet_title">Нет подключения к интернету</string>
+    <string name="no_internet_desc">Для трансляций радио требуется активное подключение к интернету.</string>
+    <string name="favorites_header">Ваши избранные</string>
+    <string name="home_view_cards">Карточки</string>
+    <string name="home_view_list">Список</string>
+    <string name="search_stations_header">Станции</string>
+    <string name="view_all">Показать всё</string>
+    <string name="no_matches">Нет совпадений</string>
+    <string name="no_matches_desc">Попробуйте другой поиск.</string>
+    <string name="listen_by_mood">Под ваше настроение</string>
+    <string name="mood_relax">Расслабление</string>
+    <string name="mood_relax_desc">Расслабтесь и забудьте всё</string>
 </resources>
