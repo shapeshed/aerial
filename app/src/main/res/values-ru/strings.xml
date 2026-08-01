@@ -39,4 +39,14 @@
     <string name="listen_by_mood">Под ваше настроение</string>
     <string name="mood_relax">Расслабление</string>
     <string name="mood_relax_desc">Расслабтесь и забудьте всё</string>
+    <string name="add_station">Добавить станцию</string>
+    <string name="add_to_favorites">Добавить в избранное</string>
+    <string name="share_station">Поделиться станцией</string>
+    <string name="show_stream_bitrate">Показывать битрейт</string>
+    <string name="show_stream_bitrate_desc">Показывать в плеере битрейт потока</string>
+    <string name="section_data">Данные</string>
+    <string name="export_backup">Экспорт бэкапа</string>
+    <string name="export_backup_desc">Сохранить станции, настройки и локальные логотипы</string>
+    <string name="import_backup">Импорт бэкапа</string>
+    <string name="import_backup_desc">Добавить станции и восстановить настройки из бэкапа</string>
 </resources>
