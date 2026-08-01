@@ -156,7 +156,7 @@ fun SettingsScreen(
                                                     options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                                                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                                                 },
-                                                colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                                                colors = ToggleButtonDefaults.filledTonalToggleButtonColors(),
                                             ) {
                                                 Text(columns.toString())
                                             }
