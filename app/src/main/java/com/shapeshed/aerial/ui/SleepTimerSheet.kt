@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -221,7 +222,7 @@ fun SleepTimerSheet(
                         onCheckedChange = { onSet(ms); onDismiss() },
                         // Visual hierarchy per applying-m-3-expressive: unselected siblings are
                         // squarer and the selected one rounds out to stand apart.
-                        shapes = ToggleButtonDefaults.shapes(
+                        shapes = ToggleButtonShapes(
                             shape = ToggleButtonDefaults.squareShape,
                             pressedShape = ToggleButtonDefaults.pressedShape,
                             checkedShape = ToggleButtonDefaults.roundShape,

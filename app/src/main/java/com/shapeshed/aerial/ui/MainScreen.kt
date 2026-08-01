@@ -1965,7 +1965,7 @@ private fun FavoritesTabContent(
                     colors = ButtonDefaults.textButtonColors(
                         // Same colour as the checked pill of the view-mode switcher beside
                         // it, so the two header controls read as one family.
-                        contentColor = ToggleButtonDefaults.tonalToggleButtonColors().checkedContainerColor,
+                        contentColor = ToggleButtonDefaults.filledTonalToggleButtonColors().checkedContainerColor,
                     ),
                 ) {
                     Icon(
@@ -2091,7 +2091,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.Cards,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.Cards) },
                     shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                    colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                    colors = ToggleButtonDefaults.filledTonalToggleButtonColors(),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.GridView,
@@ -2108,7 +2108,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.List,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.List) },
                     shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                    colors = ToggleButtonDefaults.tonalToggleButtonColors(),
+                    colors = ToggleButtonDefaults.filledTonalToggleButtonColors(),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ViewList,
