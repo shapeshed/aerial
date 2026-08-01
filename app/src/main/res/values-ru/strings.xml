@@ -61,7 +61,7 @@
     <string name="mood_workout">Тренировка</string>
     <string name="mood_workout_desc">Энергичная музыка, чтобы не останавливаться</string>
     <string name="close_player">Закрыть плеер</string>
-    <string name="copy_track_info">Копировать информацию о треке</string>
+    <string name="copy_track_info">Скопировать информацию о треке</string>
     <string name="stream_bitrate_format">%1$d кбит/с</string>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Язык</string>
