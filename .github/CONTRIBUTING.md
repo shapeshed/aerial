@@ -44,6 +44,25 @@ Aerial's bundled station registry is generated in a separate repository,
 curated stations, logos, or provider coverage belong there rather than in
 this repository — see that project's own contributing guidelines.
 
+## Translating Aerial
+
+Translations are managed through Weblate. The Android string resources in
+`app/src/main/res/values/strings.xml` are the source strings; translated
+resources live in the locale-specific `values-*` directories.
+
+To contribute a translation:
+
+1. Open the [Aerial translations in Weblate](https://hosted.weblate.org/projects/aerial/strings/)
+   and choose a language.
+2. Translate or review the suggested strings, preserving placeholders such as
+   `%1$s`, XML markup, and string names.
+3. Submit the translation in Weblate. Weblate will create or update the
+   corresponding Android resource file in a pull request.
+
+You may also submit a normal pull request that updates the appropriate Android
+string resource directly. In either workflow, preserve placeholders such as
+`%1$s`, XML markup, and string names.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under
