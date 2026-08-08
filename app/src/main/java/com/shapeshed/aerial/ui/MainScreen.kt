@@ -595,6 +595,7 @@ fun MainScreen(
                         listState = homeListState,
                         bottomPadding = stationContentBottomPadding,
                         onMoodTap = { selectedMoodId = it.id },
+                        onRecentlyPlayedStationTap = { viewModel.playFromRegistry(it, recentlyPlayedStations) },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it, forYouOrFeatured) },
                         onForYouViewAll = {
                             if (hasCountrySelection) openCountrySearch(forYouCountryCode) else openRegistrySearch()
@@ -1461,6 +1462,7 @@ private fun HomeTabContent(
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onMoodTap: (CuratedMood) -> Unit,
+    onRecentlyPlayedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
 ) {
@@ -1512,7 +1514,7 @@ private fun HomeTabContent(
                     ) { station ->
                         ForYouStationCard(
                             station = station,
-                            onClick = { onFeaturedStationTap(station) },
+                            onClick = { onRecentlyPlayedStationTap(station) },
                         )
                     }
                 }
