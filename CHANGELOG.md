@@ -8,7 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- Russian translation, contributed by `kTmepg` via Weblate. (#139)
+- Russian translation, contributed by `kTmepg` and `chip` via Weblate. (#139, #145)
+- Estonian translation, contributed by Priit Jõerüüt via Weblate. (#145)
 
 ## [0.6.0] - 2026-07-31
 
