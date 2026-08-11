@@ -54,7 +54,7 @@
     <string name="add_to_favorites">Favorilere ekle</string>
     <string name="share_station">İstasyonu paylaş</string>
     <string name="copy_track_info">Parça bilgilerini kopyala</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
+    <string name="stream_bitrate_format">%1$d kb/sn</string>
     <string name="show_stream_bitrate">Yayın bit hızını göster</string>
     <string name="show_stream_bitrate_desc">Oynatıcıda mevcut yayın kalitesini gösterir</string>
     <string name="section_data">Veri</string>
@@ -68,7 +68,7 @@
     <string name="edit_station">İstasyonu düzenle</string>
     <string name="add_station">İstasyon ekle</string>
     <string name="change_station_logo">İstasyon logosunu düzenle</string>
-    <string name="choose_station_logo">İstasyon logosunu seç</string>
+    <string name="choose_station_logo">İstasyon logosu seç</string>
     <string name="remove_icon">Logoyu kaldır</string>
     <string name="remove_icon_title">Logo kaldırılsın mı?</string>
     <string name="remove_icon_message">İstasyon logosu kaldırılacak.</string>
