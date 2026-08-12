@@ -31,4 +31,5 @@
     <string name="no_internet_title">कोई इंटरनेट कनेक्शन नहीं</string>
     <string name="mood_relax_detail_desc">दुनिया भर के एम्बिएंट, जैज़ और मधुर संगीत के साथ सुकून महसूस करें।</string>
     <string name="mood_relax_desc">आराम करें और तनाव छोड़ दें</string>
+    <string name="no_internet_desc">रेडियो स्ट्रीम के लिए एक्टिव इंटरनेट कनेक्शन की ज़रूरत होती है।</string>
 </resources>
