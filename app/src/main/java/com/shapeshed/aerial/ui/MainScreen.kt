@@ -288,6 +288,11 @@ enum class HomeViewMode {
 private const val TAB_HOME = 0
 private const val TAB_FAVORITES = 1
 
+// Bottom sheets in this app only ever hide or expand, never partially — shared so it isn't
+// reallocated on every recomposition of each sheet's host composable.
+@OptIn(ExperimentalMaterial3Api::class)
+internal val SHEET_ENABLED_VALUES = setOf(SheetValue.Hidden, SheetValue.Expanded)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
@@ -343,11 +348,11 @@ fun MainScreen(
     var selectedMoodId by rememberSaveable { mutableStateOf<String?>(null) }
     val countrySheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        enabledValues = SHEET_ENABLED_VALUES,
     )
     val genreSheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        enabledValues = SHEET_ENABLED_VALUES,
     )
     var countryFilterQuery by remember { mutableStateOf("") }
     var genreFilterQuery by remember { mutableStateOf("") }
@@ -942,7 +947,7 @@ fun MainScreen(
                 onDismissRequest = { contextStation = null },
                 sheetState = rememberBottomSheetState(
                     initialValue = SheetValue.Hidden,
-                    enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+                    enabledValues = SHEET_ENABLED_VALUES,
                 ),
                 dragHandle = { BottomSheetDefaults.DragHandle() },
             ) {
@@ -1203,13 +1208,14 @@ private fun FavoriteResultItem(
     onTap: () -> Unit,
     onPreviewPlay: () -> Unit,
     onTogglePlayback: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val pauseLabel = stringResource(R.string.pause)
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
         ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
         ?: station.country
     ListItem(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
             val context = LocalContext.current
             val logoModel = logoModelFor(station.logoPath)
@@ -1293,6 +1299,7 @@ private fun RegistryResultItem(
     onTogglePlayback: () -> Unit,
     onAdd: () -> Unit,
     onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val pauseLabel = stringResource(R.string.pause)
     // Localize the country from its ISO code (falling back to the registry's own name).
@@ -1300,7 +1307,7 @@ private fun RegistryResultItem(
         ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
         ?: station.country
     ListItem(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onTap),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
             StationLogoCircle(
                 logoModel = logoModelFor(station.logoUrl),
@@ -2042,7 +2049,7 @@ private fun FavoritesSortSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
             initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+            enabledValues = SHEET_ENABLED_VALUES,
         ),
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
