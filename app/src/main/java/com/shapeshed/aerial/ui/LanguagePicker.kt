@@ -37,17 +37,20 @@ data class AppLanguage(val tag: String, val autonym: String)
 
 // Must stay in sync with res/xml/locales_config.xml and the values-* resource dirs.
 val APP_LANGUAGES: List<AppLanguage> = listOf(
+    AppLanguage("de", "Deutsch"),
     AppLanguage("en", "English (US)"),
     AppLanguage("en-GB", "English (UK)"),
     AppLanguage("es", "Español"),
+    AppLanguage("et", "Eesti"),
     AppLanguage("fr", "Français"),
-    AppLanguage("de", "Deutsch"),
     AppLanguage("it", "Italiano"),
-    AppLanguage("pt", "Português"),
-    AppLanguage("nl", "Nederlands"),
-    AppLanguage("zh-CN", "简体中文"),
     AppLanguage("ja", "日本語"),
     AppLanguage("ko", "한국어"),
+    AppLanguage("nl", "Nederlands"),
+    AppLanguage("pt", "Português"),
+    AppLanguage("ru", "Русский"),
+    AppLanguage("tr", "Türkçe"),
+    AppLanguage("zh-CN", "简体中文"),
 )
 
 private fun setAppLanguage(tag: String) {
