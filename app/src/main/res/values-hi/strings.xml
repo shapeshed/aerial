@@ -2,4 +2,9 @@
 <resources>
     <string name="app_name">Aerial</string>
     <string name="action_back">पीछे जाएं</string>
+    <string name="action_remove">हटाएं</string>
+    <string name="action_cancel">रद्द करें</string>
+    <string name="action_clear">साफ करें</string>
+    <string name="action_save">सहेजें</string>
+    <string name="action_edit">संपादित करें</string>
 </resources>
