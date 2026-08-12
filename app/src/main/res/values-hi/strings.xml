@@ -5,6 +5,20 @@
     <string name="action_remove">हटाएं</string>
     <string name="action_cancel">रद्द करें</string>
     <string name="action_clear">साफ करें</string>
-    <string name="action_save">सहेजें</string>
+    <string name="action_save">सेव करें</string>
     <string name="action_edit">संपादित करें</string>
+    <string name="save_all">सभी को सेव करें</string>
+    <string name="save_to_favorites">पसंदीदा में सेव करें</string>
+    <string name="export_backup_desc">स्टेशन, सेटिंग और लोकल लोगो सेव करें</string>
+    <string name="search_hint">स्टेशन खोजें</string>
+    <string name="clear_search">खोज साफ़ करें</string>
+    <string name="settings">सेटिंग्स</string>
+    <string name="buffering">बफ़र हो रहा है…</string>
+    <string name="play">चलाएं</string>
+    <string name="pause">विराम</string>
+    <string name="stop">रोकें</string>
+    <string name="filter_country">देश</string>
+    <string name="filter_genre">शैली</string>
+    <string name="search_countries">देश खोजें</string>
+    <string name="search_genres">शैलियाँ खोजें</string>
 </resources>
