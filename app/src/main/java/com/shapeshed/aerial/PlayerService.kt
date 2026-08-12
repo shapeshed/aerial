@@ -42,15 +42,21 @@ import com.google.common.util.concurrent.SettableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
+import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.httpGetText
+import com.shapeshed.aerial.data.lastPlayedStationSnapshot
+import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
+import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
@@ -63,6 +69,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -445,6 +452,43 @@ class PlayerService : MediaLibraryService() {
             } else {
                 val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
                 MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+            }
+        }
+
+        // Called when a controller (lock-screen/notification, Bluetooth, Assistant) reconnects
+        // to a session whose player has no media item — e.g. the whole process was killed while
+        // the screen was off and the system is now restarting the service to handle a media
+        // button press. Without this, that reconnection carries only whatever single item the
+        // system cached, so Previous/Next on the lock screen have nothing to navigate — the same
+        // "queue collapses to one station" bug loadStationPaused fixes for the app-driven restore
+        // path, but for the case where the app itself never reopens.
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
+            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
+                ?: throw UnsupportedOperationException("No last-played station to resume")
+            val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
+                ?: repository.getByStreamUrl(snapshot.station.streamUrl)
+            val sort = dataStore.data.first()[FAVORITES_SORT_KEY]
+                ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
+                ?: FavoritesSort.AZ
+            val queue = sortStations(repository.getAll().first(), sort)
+            val startIndex = savedStation?.let { resolveQueueStart(queue, it) }
+            if (startIndex != null) {
+                MediaSession.MediaItemsWithStartPosition(
+                    queue.map { it.toPlayableMediaItem(this@PlayerService) },
+                    startIndex,
+                    C.TIME_UNSET,
+                )
+            } else {
+                val resumed = savedStation ?: snapshot.station.copy(id = 0)
+                MediaSession.MediaItemsWithStartPosition(
+                    listOf(resumed.toPlayableMediaItem(this@PlayerService)),
+                    0,
+                    C.TIME_UNSET,
+                )
             }
         }
     }

@@ -11,7 +11,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import android.os.Bundle
 import org.json.JSONArray
-import org.json.JSONObject
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
@@ -40,6 +39,9 @@ import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
+import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
+import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
@@ -48,6 +50,9 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.resolveQueueStart
+import com.shapeshed.aerial.data.sortStations
+import com.shapeshed.aerial.data.lastPlayedStationSnapshot
+import com.shapeshed.aerial.data.toLastPlayedJson
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toPlayableMediaItem
 import java.io.File
@@ -73,22 +78,10 @@ import kotlinx.coroutines.withContext
 private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
 private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
 private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
-private val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
-private val FAVORITES_SORT_KEY = stringPreferencesKey("favorites_sort")
-
-enum class FavoritesSort {
-    AZ,
-    LAST_PLAYED,
-    MOST_PLAYED,
-}
 private const val MAX_RECENT_SEARCHES = 5
 private const val RECENTLY_PLAYED_LIMIT = 10
-
-private data class LastPlayedStationSnapshot(
-    val station: Station,
-)
 
 class MainViewModel(
     application: Application,
@@ -223,15 +216,7 @@ class MainViewModel(
     }
 
     val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort) { list, sort ->
-        when (sort) {
-            FavoritesSort.AZ -> list.sortedWith(compareBy { stationSortKey(it.name) })
-            FavoritesSort.LAST_PLAYED -> list.sortedWith(
-                compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
-            )
-            FavoritesSort.MOST_PLAYED -> list.sortedWith(
-                compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
-            )
-        }
+        sortStations(list, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
@@ -907,17 +892,7 @@ class MainViewModel(
         // screen sleep there may be no collector, leaving its initial empty value in place. Using
         // that value here restores only the current station, so the lock-screen Next action has
         // no favourite to advance to. Read the database directly for service/resumption work.
-        val queue = repository.getAll().first().let { savedStations ->
-            when (_favoritesSort.value) {
-                FavoritesSort.AZ -> savedStations.sortedWith(compareBy { stationSortKey(it.name) })
-                FavoritesSort.LAST_PLAYED -> savedStations.sortedWith(
-                    compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
-                )
-                FavoritesSort.MOST_PLAYED -> savedStations.sortedWith(
-                    compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
-                )
-            }
-        }
+        val queue = sortStations(repository.getAll().first(), _favoritesSort.value)
         val startIndex = resolveQueueStart(queue, station)
 
         controller?.apply {
@@ -971,60 +946,12 @@ private fun artistTitleDisplay(rawArtist: String, rawTitle: String, stationName:
 
 private fun Station.toEphemeral(): Station = copy(id = 0)
 
-private fun Station.toLastPlayedJson(): JSONObject =
-    JSONObject()
-        .put("id", id)
-        .put("name", name)
-        .put("streamUrl", streamUrl)
-        .put("logoPath", logoPath)
-        .put("isFavorite", isFavorite)
-        .put("provider", provider)
-        .put("providerId", providerId)
-        .put("tags", tags)
-        .put("description", description)
-        .put("country", country)
-        .put("countryCode", countryCode)
-
-private fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
-    val obj = JSONObject(json)
-    return LastPlayedStationSnapshot(
-        station = Station(
-            id = obj.optLong("id"),
-            name = obj.optString("name"),
-            streamUrl = obj.optString("streamUrl"),
-            logoPath = obj.optString("logoPath"),
-            isFavorite = obj.optBoolean("isFavorite"),
-            provider = obj.optString("provider"),
-            providerId = obj.optString("providerId"),
-            tags = obj.optString("tags"),
-            description = obj.optString("description"),
-            country = obj.optString("country"),
-            countryCode = obj.optString("countryCode"),
-        ),
-    )
-}
-
 private fun deleteLogoFiles(logoPath: String) {
     if (logoPath.isBlank() || logoPath.startsWith("http")) return
     val file = java.io.File(logoPath)
     file.delete()
     java.io.File(file.parentFile, "${file.nameWithoutExtension}_media.png").delete()
 }
-
-// Maps English number words and digit strings to zero-padded numbers so that
-// "BBC Radio One", "BBC Radio Two" … sort in numeric order rather than alphabetically.
-private val NUMBER_WORDS = mapOf(
-    "zero" to 0, "one" to 1, "two" to 2, "three" to 3, "four" to 4,
-    "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9,
-    "ten" to 10, "eleven" to 11, "twelve" to 12,
-)
-
-private fun stationSortKey(name: String): String =
-    name.split(Regex("\\s+")).joinToString(" ") { token ->
-        NUMBER_WORDS[token.lowercase()]?.let { "%03d".format(it) }
-            ?: token.toIntOrNull()?.let { "%03d".format(it) }
-            ?: token.lowercase()
-    }
 
 private fun PlaybackException.userMessage(): String {
     return when (errorCode) {
