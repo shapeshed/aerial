@@ -6,4 +6,13 @@
     <string name="action_cancel">ਰੱਦ ਕਰੋ</string>
     <string name="action_clear">ਸਾਫ ਕਰੋ</string>
     <string name="action_save">ਸੇਵ ਕਰੋ</string>
+    <string name="action_edit">ਸੰਪਾਦਿਤ ਕਰੋ</string>
+    <string name="save_all">ਸਾਰੇ ਸੇਵ ਕਰੋ</string>
+    <string name="search_hint">ਸਟੇਸ਼ਨ ਖੋਜੋ</string>
+    <string name="settings">ਸੈਟਿੰਗਾਂ</string>
+    <string name="buffering">ਬਫ਼ਰ ਕਰ ਰਿਹਾ…</string>
+    <string name="play">ਚਲਾਓ</string>
+    <string name="stop">ਬੰਦ ਕਰੋ</string>
+    <string name="pause">ਰੋਕੋ</string>
+    <string name="filter_country">ਦੇਸ਼</string>
 </resources>
