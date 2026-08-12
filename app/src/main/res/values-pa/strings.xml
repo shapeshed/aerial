@@ -1,3 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Aerial</string>
+    <string name="action_back">ਵਾਪਿਸ</string>
+    <string name="action_remove">ਹਟਾਓ</string>
+    <string name="action_cancel">ਰੱਦ ਕਰੋ</string>
+    <string name="action_clear">ਸਾਫ ਕਰੋ</string>
+    <string name="action_save">ਸੇਵ ਕਰੋ</string>
 </resources>
