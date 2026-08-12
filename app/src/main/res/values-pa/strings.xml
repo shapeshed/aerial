@@ -27,4 +27,18 @@
     <string name="add_your_own_station">ਆਪਣਾ ਸਟੇਸ਼ਨ ਸ਼ਾਮਲ ਕਰੋ</string>
     <string name="save_to_favorites">ਮਨਪਸੰਦ ਵਿੱਚ ਸੇਵ ਕਰੋ</string>
     <string name="remove_from_favorites">ਮਨਪਸੰਦ ਵਿੱਚੋਂ ਹਟਾਓ</string>
+    <string name="no_internet_title">ਕੋਈ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਨਹੀਂ</string>
+    <string name="no_internet_desc">ਰੇਡੀਓ ਸਟ੍ਰੀਮਾਂ ਲਈ ਇੱਕ ਸਰਗਰਮ ਇੰਟਰਨੈਟ ਕਨੈਕਸ਼ਨ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ।</string>
+    <string name="favorites_header">ਤੁਹਾਡੇ ਮਨਪਸੰਦ</string>
+    <string name="home_view_cards">ਕਾਰਡ</string>
+    <string name="home_view_list">ਲਿਸਟ</string>
+    <string name="search_stations_header">ਸਟੇਸ਼ਨ</string>
+    <string name="view_all">ਸਾਰੇ ਵੇਖੋ</string>
+    <string name="no_matches">ਕੋਈ ਮੇਲ ਨਹੀਂ</string>
+    <string name="no_matches_desc">ਕੋਈ ਹੋਰ ਖੋਜ ਕਰੋ।</string>
+    <string name="listen_by_mood">ਆਪਣੇ ਮੂਡ ਨਾਲ ਮੇਲ ਕਰੋ</string>
+    <string name="mood_relax">ਸ਼ਾਂਤ</string>
+    <string name="mood_relax_desc">ਆਰਾਮ ਕਰੋ ਅਤੇ ਤਣਾਅ ਛੱਡ ਦਿਓ</string>
+    <string name="mood_relax_detail_desc">ਦੁਨੀਆ ਭਰ ਦੇ ਐਂਬੀਐਂਟ, ਜੈਜ਼ ਅਤੇ ਮਧੁਰ ਸੰਗੀਤ ਨਾਲ ਸਕੂਨ ਮਹਿਸੂਸ ਕਰੋ।</string>
+    <string name="mood_focus">ਫੋਕਸ</string>
 </resources>
