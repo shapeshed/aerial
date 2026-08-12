@@ -21,4 +21,14 @@
     <string name="filter_genre">शैली</string>
     <string name="search_countries">देश खोजें</string>
     <string name="search_genres">शैलियाँ खोजें</string>
+    <string name="clear_all">सभी साफ करें</string>
+    <string name="remove_station_title">क्या स्टेशन हटा दें?</string>
+    <string name="remove_station_message">\"%1$s\" को आपके पसंदीदा से हटा दिया जाएगा।</string>
+    <string name="no_stations_found">कोई स्टेशन नहीं मिला</string>
+    <string name="no_stations_found_desc">कोई और सर्च करके देखें, या स्ट्रीम URL का इस्तेमाल करके कोई स्टेशन जोड़ें।</string>
+    <string name="add_your_own_station">अपना स्टेशन जोड़ें</string>
+    <string name="remove_from_favorites">पसंदीदा से हटाएं</string>
+    <string name="no_internet_title">कोई इंटरनेट कनेक्शन नहीं</string>
+    <string name="mood_relax_detail_desc">दुनिया भर के एम्बिएंट, जैज़ और मधुर संगीत के साथ सुकून महसूस करें।</string>
+    <string name="mood_relax_desc">आराम करें और तनाव छोड़ दें</string>
 </resources>
