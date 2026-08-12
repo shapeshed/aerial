@@ -137,7 +137,7 @@ fun SleepTimerSheet(
 ) {
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        enabledValues = SHEET_ENABLED_VALUES,
     )
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(

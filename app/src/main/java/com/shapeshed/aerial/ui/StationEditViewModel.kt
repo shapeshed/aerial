@@ -3,7 +3,6 @@ package com.shapeshed.aerial.ui
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
@@ -88,15 +87,5 @@ class StationEditViewModel(
             if (stationId == null) repository.insert(station) else repository.update(station)
             withContext(Dispatchers.Main) { onDone() }
         }
-    }
-}
-
-class StationEditViewModelFactory(
-    private val repository: StationRepository,
-    private val stationId: Long?,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return StationEditViewModel(repository, stationId) as T
     }
 }

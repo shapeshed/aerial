@@ -249,7 +249,13 @@ fun NowPlayingScreen(
                             midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
                         }
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
+                        // Set while the effect below is correcting the pager to match an external
+                        // station change, so that correction's own settle doesn't loop back into
+                        // onPlayStation below — a settle it causes reflects a decision already made
+                        // elsewhere, not a new one the user just swiped to.
+                        var isSyncingToStation by remember { mutableStateOf(false) }
                         LaunchedEffect(pagerState.settledPage) {
+                            if (isSyncingToStation) return@LaunchedEffect
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
                             if (!target.matches(station)) onPlayStation(target)
                         }
@@ -261,7 +267,12 @@ fun NowPlayingScreen(
                                 val forwardDelta = circularPageIndex(swipeIndex - currentIndex, swipeStations.size)
                                 val backwardDelta = forwardDelta - swipeStations.size
                                 val delta = if (abs(backwardDelta) < forwardDelta) backwardDelta else forwardDelta
-                                pagerState.animateScrollToPage(pagerState.currentPage + delta)
+                                isSyncingToStation = true
+                                try {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + delta)
+                                } finally {
+                                    isSyncingToStation = false
+                                }
                             }
                         }
                         HorizontalPager(

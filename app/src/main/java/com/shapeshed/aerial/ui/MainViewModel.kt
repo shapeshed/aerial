@@ -13,10 +13,7 @@ import android.os.Bundle
 import org.json.JSONArray
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
@@ -88,8 +85,8 @@ class MainViewModel(
     private val repository: StationRepository,
     private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
-    // Default is test/preview-only — MainViewModelFactory always passes an explicit
-    // SavedStateHandle via CreationExtras.createSavedStateHandle() in production.
+    // Default is test/preview-only — the viewModelFactory { initializer { } } in MainActivity
+    // always passes an explicit SavedStateHandle via CreationExtras.createSavedStateHandle().
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : AndroidViewModel(application) {
@@ -970,14 +967,3 @@ private fun PlaybackException.userMessage(): String {
     }
 }
 
-class MainViewModelFactory(
-    private val application: Application,
-    private val repository: StationRepository,
-    private val registryRepository: RegistryRepository,
-    private val dataStore: DataStore<Preferences>,
-) : ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-        @Suppress("UNCHECKED_CAST")
-        return MainViewModel(application, repository, registryRepository, dataStore, extras.createSavedStateHandle()) as T
-    }
-}

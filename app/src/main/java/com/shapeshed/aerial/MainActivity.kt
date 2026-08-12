@@ -16,7 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.remember
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,12 +27,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.shapeshed.aerial.ui.MainScreen
 import com.shapeshed.aerial.ui.MainViewModel
-import com.shapeshed.aerial.ui.MainViewModelFactory
 import com.shapeshed.aerial.ui.SettingsScreen
-import com.shapeshed.aerial.ui.SettingsViewModelFactory
+import com.shapeshed.aerial.ui.SettingsViewModel
 import com.shapeshed.aerial.ui.StationEditScreen
 import com.shapeshed.aerial.ui.StationEditViewModel
-import com.shapeshed.aerial.ui.StationEditViewModelFactory
 import com.shapeshed.aerial.ui.theme.AerialTheme
 
 object Routes {
@@ -44,12 +45,18 @@ class MainActivity : AppCompatActivity() {
 
     private val mainViewModel: MainViewModel by viewModels {
         val app = application as AerialApp
-        MainViewModelFactory(app, app.repository, app.registryRepository, app.settingsDataStore)
+        viewModelFactory {
+            initializer {
+                MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore, createSavedStateHandle())
+            }
+        }
     }
 
-    private val settingsViewModel: com.shapeshed.aerial.ui.SettingsViewModel by viewModels {
+    private val settingsViewModel: SettingsViewModel by viewModels {
         val app = application as AerialApp
-        com.shapeshed.aerial.ui.SettingsViewModelFactory(app, app.repository, app.settingsDataStore)
+        viewModelFactory {
+            initializer { SettingsViewModel(app, app.repository, app.settingsDataStore) }
+        }
     }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -93,7 +100,9 @@ class MainActivity : AppCompatActivity() {
                     }
                     composable(Routes.STATION_ADD) {
                         val vm: StationEditViewModel = viewModel(
-                            factory = StationEditViewModelFactory(repository, null)
+                            factory = viewModelFactory {
+                                initializer { StationEditViewModel(repository, null) }
+                            }
                         )
                         StationEditScreen(
                             viewModel = vm,
@@ -106,7 +115,9 @@ class MainActivity : AppCompatActivity() {
                     ) { backStackEntry ->
                         val stationId = backStackEntry.arguments?.getLong("stationId")
                         val vm: StationEditViewModel = viewModel(
-                            factory = StationEditViewModelFactory(repository, stationId)
+                            factory = viewModelFactory {
+                                initializer { StationEditViewModel(repository, stationId) }
+                            }
                         )
                         StationEditScreen(
                             viewModel = vm,

@@ -7,8 +7,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
 import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
@@ -227,15 +225,4 @@ class SettingsViewModel(
 
     private fun safeFileName(name: String): String =
         name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "logo" }
-}
-
-class SettingsViewModelFactory(
-    private val application: Application,
-    private val repository: StationRepository,
-    private val dataStore: DataStore<Preferences>,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        @Suppress("UNCHECKED_CAST")
-        return SettingsViewModel(application, repository, dataStore) as T
-    }
 }
