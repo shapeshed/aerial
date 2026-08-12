@@ -753,12 +753,14 @@ fun MainScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.safeMarquee(),
                             )
                             Text(
                                 text = miniPlayerSubtitle,
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.safeMarquee(),
                             )
                         }
                 }

@@ -353,6 +353,7 @@ fun NowPlayingScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                                    modifier = Modifier.fillMaxWidth().safeMarquee(),
                                 )
                                 if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
                                     Text(
@@ -362,6 +363,7 @@ fun NowPlayingScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                                        modifier = Modifier.fillMaxWidth().safeMarquee(),
                                     )
                                 }
                             }
