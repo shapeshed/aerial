@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
@@ -41,15 +42,21 @@ import com.google.common.util.concurrent.SettableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
+import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.httpGetText
+import com.shapeshed.aerial.data.lastPlayedStationSnapshot
+import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
+import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
@@ -62,6 +69,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -77,6 +85,7 @@ class PlayerService : MediaLibraryService() {
     private var sleepTimerJob: Job? = null
 
     private lateinit var player: ExoPlayer
+    private lateinit var sessionPlayer: Player
     private lateinit var mediaSession: MediaLibrarySession
     private lateinit var repository: StationRepository
     private lateinit var registryRepository: RegistryRepository
@@ -143,19 +152,25 @@ class PlayerService : MediaLibraryService() {
                 true,
             )
             .setHandleAudioBecomingNoisy(true)
-            // Player's default seekToPrevious() (what hardware/Bluetooth "previous" calls)
-            // restarts the current item instead of moving back unless playback position is
-            // under this threshold — meant for "restart the song" on a track you're a few
-            // seconds into. There's no such position to rewind to on a live station, so with
-            // the 3s default, "previous" almost always just replays the current station
-            // instead of moving to the one before it. Zero makes it always move back.
-            .setMaxSeekToPreviousPositionMs(0)
+            // Player's default seekToPrevious() (what notification and hardware/Bluetooth
+            // "previous" calls use) restarts the current item when playback is beyond this
+            // threshold. Live stations have no meaningful rewind position, so use an unlimited
+            // threshold to make Back always move to the previous station in the queue.
+            .setMaxSeekToPreviousPositionMs(Long.MAX_VALUE)
             .build()
         // Wraps skip next/previous around a browsed list's queue (e.g. Android Auto's mood
         // folders), matching the phone UI's circular swipe-through-favourites pager.
         player.repeatMode = Player.REPEAT_MODE_ALL
         player.addListener(icyListener)
-        mediaSession = MediaLibrarySession.Builder(this, player, librarySessionCallback)
+        // Notifications and lock-screen controls call seekToNext()/seekToPrevious(). For live
+        // radio those generic methods can restart the current item instead of moving through the
+        // playlist. Expose a forwarding player to the session so those calls always navigate by
+        // media item; the service continues to use the ExoPlayer instance directly.
+        sessionPlayer = object : ForwardingPlayer(player) {
+            override fun seekToPrevious() = seekToPreviousMediaItem()
+            override fun seekToNext() = seekToNextMediaItem()
+        }
+        mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, librarySessionCallback)
             .setSessionActivity(pendingIntent())
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
             .setBitmapLoader(CoilBitmapLoader(this))
@@ -437,6 +452,43 @@ class PlayerService : MediaLibraryService() {
             } else {
                 val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
                 MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+            }
+        }
+
+        // Called when a controller (lock-screen/notification, Bluetooth, Assistant) reconnects
+        // to a session whose player has no media item — e.g. the whole process was killed while
+        // the screen was off and the system is now restarting the service to handle a media
+        // button press. Without this, that reconnection carries only whatever single item the
+        // system cached, so Previous/Next on the lock screen have nothing to navigate — the same
+        // "queue collapses to one station" bug loadStationPaused fixes for the app-driven restore
+        // path, but for the case where the app itself never reopens.
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
+            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
+                ?: throw UnsupportedOperationException("No last-played station to resume")
+            val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
+                ?: repository.getByStreamUrl(snapshot.station.streamUrl)
+            val sort = dataStore.data.first()[FAVORITES_SORT_KEY]
+                ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
+                ?: FavoritesSort.AZ
+            val queue = sortStations(repository.getAll().first(), sort)
+            val startIndex = savedStation?.let { resolveQueueStart(queue, it) }
+            if (startIndex != null) {
+                MediaSession.MediaItemsWithStartPosition(
+                    queue.map { it.toPlayableMediaItem(this@PlayerService) },
+                    startIndex,
+                    C.TIME_UNSET,
+                )
+            } else {
+                val resumed = savedStation ?: snapshot.station.copy(id = 0)
+                MediaSession.MediaItemsWithStartPosition(
+                    listOf(resumed.toPlayableMediaItem(this@PlayerService)),
+                    0,
+                    C.TIME_UNSET,
+                )
             }
         }
     }

@@ -168,6 +168,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import androidx.compose.ui.res.stringResource
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import java.io.File
