@@ -10,9 +10,21 @@
     <string name="save_all">ਸਾਰੇ ਸੇਵ ਕਰੋ</string>
     <string name="search_hint">ਸਟੇਸ਼ਨ ਖੋਜੋ</string>
     <string name="settings">ਸੈਟਿੰਗਾਂ</string>
-    <string name="buffering">ਬਫ਼ਰ ਕਰ ਰਿਹਾ…</string>
+    <string name="buffering">ਬਫਰਿੰਗ…</string>
     <string name="play">ਚਲਾਓ</string>
-    <string name="stop">ਬੰਦ ਕਰੋ</string>
-    <string name="pause">ਰੋਕੋ</string>
+    <string name="stop">ਰੋਕੋ</string>
+    <string name="pause">ਵਿਰਾਮ</string>
     <string name="filter_country">ਦੇਸ਼</string>
+    <string name="clear_search">ਖੋਜ ਸਾਫ਼ ਕਰੋ</string>
+    <string name="filter_genre">ਸ਼ੈਲੀ</string>
+    <string name="search_countries">ਦੇਸ਼ ਖੋਜੋ</string>
+    <string name="search_genres">ਸ਼ੈਲੀਆਂ ਖੋਜੋ</string>
+    <string name="clear_all">ਸਭ ਸਾਫ਼ ਕਰੋ</string>
+    <string name="remove_station_title">ਕੀ ਸਟੇਸ਼ਨ ਹਟਾਉਣਾ ਹੈ?</string>
+    <string name="remove_station_message">\"%1$s\" ਨੂੰ ਤੁਹਾਡੇ ਮਨਪਸੰਦ ਵਿੱਚੋਂ ਹਟਾ ਦਿੱਤਾ ਜਾਵੇਗਾ।</string>
+    <string name="no_stations_found">ਕੋਈ ਸਟੇਸ਼ਨ ਨਹੀਂ ਮਿਲਿਆ</string>
+    <string name="no_stations_found_desc">ਇੱਕ ਵੱਖਰੀ ਖੋਜ ਅਜ਼ਮਾਓ, ਜਾਂ ਇਸਦੇ ਸਟ੍ਰੀਮ URL ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਇੱਕ ਸਟੇਸ਼ਨ ਸ਼ਾਮਲ ਕਰੋ।</string>
+    <string name="add_your_own_station">ਆਪਣਾ ਸਟੇਸ਼ਨ ਸ਼ਾਮਲ ਕਰੋ</string>
+    <string name="save_to_favorites">ਮਨਪਸੰਦ ਵਿੱਚ ਸੇਵ ਕਰੋ</string>
+    <string name="remove_from_favorites">ਮਨਪਸੰਦ ਵਿੱਚੋਂ ਹਟਾਓ</string>
 </resources>
