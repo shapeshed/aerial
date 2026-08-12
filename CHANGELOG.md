@@ -6,10 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-12
+
 ### Added
 
+- Long track and station titles now scroll in the mini player and Now Playing screen. (#142, #160)
 - Russian translation, contributed by `kTmepg` and `chip` via Weblate. (#139, #145)
 - Estonian translation, contributed by Priit Jõerüüt via Weblate. (#145)
+- Turkish translation, contributed by Nuri Efe via Weblate.
+
+### Fixed
+
+- Restoring paused playback after screen sleep now keeps the full Favourites queue, including notification navigation. (#158)
+- Hardened the Now Playing artwork pager against settling on the wrong station. (#159)
 
 ## [0.6.0] - 2026-07-31
 
