@@ -902,12 +902,27 @@ class MainViewModel(
         }
     }
 
-    private fun loadStationPaused(station: Station) {
-        val startIndex = resolveQueueStart(stations.value, station)
+    private suspend fun loadStationPaused(station: Station) {
+        // `stations` is a WhileSubscribed StateFlow because it is primarily a UI stream. During
+        // screen sleep there may be no collector, leaving its initial empty value in place. Using
+        // that value here restores only the current station, so the lock-screen Next action has
+        // no favourite to advance to. Read the database directly for service/resumption work.
+        val queue = repository.getAll().first().let { savedStations ->
+            when (_favoritesSort.value) {
+                FavoritesSort.AZ -> savedStations.sortedWith(compareBy { stationSortKey(it.name) })
+                FavoritesSort.LAST_PLAYED -> savedStations.sortedWith(
+                    compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
+                )
+                FavoritesSort.MOST_PLAYED -> savedStations.sortedWith(
+                    compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
+                )
+            }
+        }
+        val startIndex = resolveQueueStart(queue, station)
 
         controller?.apply {
             if (startIndex != null) {
-                val mediaItems = stations.value.map { it.toPlayableMediaItem(getApplication()) }
+                val mediaItems = queue.map { it.toPlayableMediaItem(getApplication()) }
                 setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
             } else {
                 setMediaItem(station.toPlayableMediaItem(getApplication()))

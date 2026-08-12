@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
@@ -77,6 +78,7 @@ class PlayerService : MediaLibraryService() {
     private var sleepTimerJob: Job? = null
 
     private lateinit var player: ExoPlayer
+    private lateinit var sessionPlayer: Player
     private lateinit var mediaSession: MediaLibrarySession
     private lateinit var repository: StationRepository
     private lateinit var registryRepository: RegistryRepository
@@ -143,19 +145,25 @@ class PlayerService : MediaLibraryService() {
                 true,
             )
             .setHandleAudioBecomingNoisy(true)
-            // Player's default seekToPrevious() (what hardware/Bluetooth "previous" calls)
-            // restarts the current item instead of moving back unless playback position is
-            // under this threshold — meant for "restart the song" on a track you're a few
-            // seconds into. There's no such position to rewind to on a live station, so with
-            // the 3s default, "previous" almost always just replays the current station
-            // instead of moving to the one before it. Zero makes it always move back.
-            .setMaxSeekToPreviousPositionMs(0)
+            // Player's default seekToPrevious() (what notification and hardware/Bluetooth
+            // "previous" calls use) restarts the current item when playback is beyond this
+            // threshold. Live stations have no meaningful rewind position, so use an unlimited
+            // threshold to make Back always move to the previous station in the queue.
+            .setMaxSeekToPreviousPositionMs(Long.MAX_VALUE)
             .build()
         // Wraps skip next/previous around a browsed list's queue (e.g. Android Auto's mood
         // folders), matching the phone UI's circular swipe-through-favourites pager.
         player.repeatMode = Player.REPEAT_MODE_ALL
         player.addListener(icyListener)
-        mediaSession = MediaLibrarySession.Builder(this, player, librarySessionCallback)
+        // Notifications and lock-screen controls call seekToNext()/seekToPrevious(). For live
+        // radio those generic methods can restart the current item instead of moving through the
+        // playlist. Expose a forwarding player to the session so those calls always navigate by
+        // media item; the service continues to use the ExoPlayer instance directly.
+        sessionPlayer = object : ForwardingPlayer(player) {
+            override fun seekToPrevious() = seekToPreviousMediaItem()
+            override fun seekToNext() = seekToNextMediaItem()
+        }
+        mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, librarySessionCallback)
             .setSessionActivity(pendingIntent())
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
             .setBitmapLoader(CoilBitmapLoader(this))
