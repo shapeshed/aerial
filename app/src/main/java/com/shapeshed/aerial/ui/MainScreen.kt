@@ -598,9 +598,6 @@ fun MainScreen(
                         onMoodTap = { selectedMoodId = it.id },
                         onRecentlyPlayedStationTap = { viewModel.playFromRegistry(it, recentlyPlayedStations) },
                         onFeaturedStationTap = { viewModel.playFromRegistry(it, forYouOrFeatured) },
-                        onRecentlyPlayedStationTap = {
-                            viewModel.playFromRegistry(it, recentlyPlayedStations)
-                        },
                         onForYouViewAll = {
                             if (hasCountrySelection) openCountrySearch(forYouCountryCode) else openRegistrySearch()
                         },
@@ -1468,7 +1465,6 @@ private fun HomeTabContent(
     onMoodTap: (CuratedMood) -> Unit,
     onRecentlyPlayedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
-    onRecentlyPlayedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
 ) {
     // On launch the splash screen holds until the Recently Played row is resolved (see
