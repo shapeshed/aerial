@@ -35,7 +35,7 @@
     <string name="search_stations_header">Станции</string>
     <string name="view_all">Показать всё</string>
     <string name="no_matches">Нет совпадений</string>
-    <string name="no_matches_desc">Попробуйте другой поиск.</string>
+    <string name="no_matches_desc">Попробуйте другой поиск</string>
     <string name="listen_by_mood">Под ваше настроение</string>
     <string name="mood_relax">Расслабление</string>
     <string name="mood_relax_desc">Расслабьтесь и отпустите всё</string>

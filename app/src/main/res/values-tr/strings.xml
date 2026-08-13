@@ -35,7 +35,7 @@
     <string name="search_stations_header">İstasyonlar</string>
     <string name="view_all">Tümünü görüntüle</string>
     <string name="no_matches">Eşleşme bulunamadı</string>
-    <string name="no_matches_desc">Farklı bir arama yapmayı deneyin.</string>
+    <string name="no_matches_desc">Farklı bir arama yapmayı deneyin</string>
     <string name="listen_by_mood">Ruh halinize uygun</string>
     <string name="mood_relax">Rahatlayın</string>
     <string name="mood_relax_desc">Gevşeyin ve akışına bırakın</string>

@@ -37,7 +37,7 @@
     <string name="search_stations_header">电台</string>
     <string name="view_all">查看全部</string>
     <string name="no_matches">无匹配结果</string>
-    <string name="no_matches_desc">请尝试其他搜索。</string>
+    <string name="no_matches_desc">请尝试其他搜索</string>
     <string name="listen_by_mood">匹配你的心情</string>
     <string name="mood_relax">放松</string>
     <string name="mood_relax_desc">放慢节奏，释放压力</string>

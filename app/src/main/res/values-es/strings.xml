@@ -37,7 +37,7 @@
     <string name="search_stations_header">Emisoras</string>
     <string name="view_all">Ver todo</string>
     <string name="no_matches">Sin resultados</string>
-    <string name="no_matches_desc">Prueba otra búsqueda.</string>
+    <string name="no_matches_desc">Prueba otra búsqueda</string>
     <string name="listen_by_mood">Según tu estado de ánimo</string>
     <string name="mood_relax">Relajarse</string>
     <string name="mood_relax_desc">Desconecta y déjate llevar</string>

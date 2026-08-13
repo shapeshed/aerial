@@ -37,7 +37,7 @@
     <string name="search_stations_header">방송국</string>
     <string name="view_all">모두 보기</string>
     <string name="no_matches">일치하는 항목 없음</string>
-    <string name="no_matches_desc">다른 검색어를 시도하세요.</string>
+    <string name="no_matches_desc">다른 검색어를 시도하세요</string>
     <string name="listen_by_mood">기분에 맞게</string>
     <string name="mood_relax">휴식</string>
     <string name="mood_relax_desc">긴장을 풀고 여유를 느껴보세요</string>
