@@ -37,7 +37,7 @@
     <string name="search_stations_header">Stazioni</string>
     <string name="view_all">Vedi tutto</string>
     <string name="no_matches">Nessun risultato</string>
-    <string name="no_matches_desc">Prova un\'altra ricerca.</string>
+    <string name="no_matches_desc">Prova un\'altra ricerca</string>
     <string name="listen_by_mood">In base al tuo umore</string>
     <string name="mood_relax">Relax</string>
     <string name="mood_relax_desc">Rilassati e lascia andare</string>
