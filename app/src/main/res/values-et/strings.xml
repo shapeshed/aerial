@@ -21,7 +21,7 @@
     <string name="search_genres">Otsi žanreid</string>
     <string name="clear_all">Tühjenda kõik</string>
     <string name="remove_station_title">Eemalda jaam?</string>
-    <string name="remove_station_message">&quot;%1$s&quot; eemaldatakse lemmikutest.</string>
+    <string name="remove_station_message">"%1$s" eemaldatakse lemmikutest.</string>
     <string name="no_stations_found">Jaamu ei leitud</string>
     <string name="no_stations_found_desc">Proovi teistsugust otsingut või lisa jaam voo URL-i abil.</string>
     <string name="add_your_own_station">Lisa oma jaam</string>
@@ -35,7 +35,7 @@
     <string name="search_stations_header">Jaamad</string>
     <string name="view_all">Vaata kõiki</string>
     <string name="no_matches">Vasteid ei leitud</string>
-    <string name="no_matches_desc">Proovi teistsugust otsingut.</string>
+    <string name="no_matches_desc">Proovi teistsugust otsingut</string>
     <string name="listen_by_mood">Sobita meeleoluga</string>
     <string name="mood_relax">Lõõgastus</string>
     <string name="mood_relax_desc">Lõõgastu ja lase vabaks</string>
