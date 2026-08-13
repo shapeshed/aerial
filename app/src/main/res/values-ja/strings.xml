@@ -37,7 +37,7 @@
     <string name="search_stations_header">放送局</string>
     <string name="view_all">すべて表示</string>
     <string name="no_matches">一致するものがありません</string>
-    <string name="no_matches_desc">別のキーワードで検索してください。</string>
+    <string name="no_matches_desc">別のキーワードで検索してください</string>
     <string name="listen_by_mood">気分に合わせて</string>
     <string name="mood_relax">リラックス</string>
     <string name="mood_relax_desc">肩の力を抜いてくつろぐ</string>
