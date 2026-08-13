@@ -113,4 +113,6 @@
     <string name="no_favorites_desc">Añade las emisoras que te gustan para encontrarlas fácilmente aquí</string>
     <string name="car_moods">Estados de ánimo</string>
     <string name="recently_played">Reproducidos recientemente</string>
+    <string name="favorite_removed_message">%1$s eliminado de favoritos</string>
+    <string name="undo">Deshacer</string>
 </resources>
