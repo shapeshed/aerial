@@ -21,7 +21,7 @@
     <string name="search_genres">Otsi žanreid</string>
     <string name="clear_all">Tühjenda kõik</string>
     <string name="remove_station_title">Eemalda jaam?</string>
-    <string name="remove_station_message">"%1$s" eemaldatakse lemmikutest.</string>
+    <string name="remove_station_message">\"%1$s\" eemaldatakse teie lemmikute hulgast.</string>
     <string name="no_stations_found">Jaamu ei leitud</string>
     <string name="no_stations_found_desc">Proovi teistsugust otsingut või lisa jaam voo URL-i abil.</string>
     <string name="add_your_own_station">Lisa oma jaam</string>
