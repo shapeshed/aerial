@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Hindi and Punjabi translations, contributed by `whistlingwoods` via Weblate. (#177)
+
 ## [0.6.1] - 2026-08-12
 
 ### Added
