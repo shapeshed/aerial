@@ -304,9 +304,10 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val stations by viewModel.stations.collectAsStateWithLifecycle()
-    val currentStation by viewModel.currentStation.collectAsStateWithLifecycle()
-    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
+    val playbackUiState by viewModel.playbackUiState.collectAsStateWithLifecycle()
+    val currentStation = playbackUiState.station
+    val isPlaying = playbackUiState.isPlaying
+    val isBuffering = playbackUiState.isBuffering
     val currentTrackTitle by viewModel.currentTrackTitle.collectAsStateWithLifecycle()
     val currentTrackArtist by viewModel.currentTrackArtist.collectAsStateWithLifecycle()
     val currentBitrateKbps by viewModel.currentBitrateKbps.collectAsStateWithLifecycle()
@@ -374,9 +375,6 @@ fun MainScreen(
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
     val selectedMood = selectedMoodId?.let { id -> CURATED_MOODS.firstOrNull { it.id == id } }
     val selectedMoodStations = selectedMoodId?.let { curatedMoodStations[it] }.orEmpty()
-    val moodSwipeStations = remember(selectedMoodStations) {
-        selectedMoodStations.map { it.toPlaybackStation() }
-    }
 
     BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
     BackHandler(enabled = selectedMood != null && !showNowPlaying) { selectedMoodId = null }
@@ -784,11 +782,10 @@ fun MainScreen(
                 // Swipe order frozen for the lifetime of the pane: under the Last/Most played
                 // sorts, playing a station immediately re-sorts the live list, which would make
                 // consecutive swipes ping-pong between the same two stations.
-                val favoriteSwipeStations = remember { viewModel.stations.value }
-                val useMoodSwipeStations = selectedMood != null &&
-                    moodSwipeStations.size > 1 &&
-                    moodSwipeStations.any { moodStation -> station.matches(moodStation) }
-                val swipeStations = if (useMoodSwipeStations) moodSwipeStations else favoriteSwipeStations
+                val fallbackSwipeStations = remember { viewModel.stations.value }
+                val swipeStations = playbackUiState.queue
+                    .takeIf { queue -> queue.size > 1 && queue.any(station::matches) }
+                    ?: fallbackSwipeStations
                 NowPlayingScreen(
                     station = station,
                     isPlaying = isPlaying,

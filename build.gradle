@@ -8,5 +8,5 @@ plugins {
 tasks.register('quality') {
     group = 'verification'
     description = 'Runs the maintenance quality gate for compile errors, lint, and unit tests.'
-    dependsOn ':app:compileDebugKotlin', ':app:lintDebug', ':app:testDebugUnitTest'
+    dependsOn ':app:compileDebugKotlin', ':app:lintDebug', ':app:testDeviceTestUnitTest'
 }

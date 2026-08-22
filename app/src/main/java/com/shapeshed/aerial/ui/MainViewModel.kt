@@ -218,6 +218,8 @@ class MainViewModel(
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
     private val _ephemeralStation = MutableStateFlow<Station?>(null)
+    private val _playbackUiState = MutableStateFlow(PlaybackUiState())
+    val playbackUiState: StateFlow<PlaybackUiState> = _playbackUiState.asStateFlow()
     // Carries the last-played station to loadStationPaused() once the MediaController connects.
     // CompletableDeferred ensures the handoff is safe regardless of which side wins the race.
     private val pendingRestoreStation = CompletableDeferred<Station?>()
@@ -234,28 +236,15 @@ class MainViewModel(
                 val id = _currentStationId.value
                 if (id != null && list.none { it.id == id }) {
                     previous.firstOrNull { it.id == id }?.let { removed ->
-                        _ephemeralStation.value = removed.copy(id = 0, isFavorite = false)
-                        _currentStationId.value = null
+                        setCurrentStation(removed.copy(id = 0, isFavorite = false))
                     }
+                } else if (id != null) {
+                    list.firstOrNull { it.id == id }?.let(::refreshCurrentStation)
                 }
                 previous = list
             }
         }
     }
-
-    val currentStation: StateFlow<Station?> = combine(
-        _allStations,
-        _currentStationId,
-        _ephemeralStation,
-    ) { list, id, ephemeral ->
-        ephemeral ?: id?.let { i -> list.firstOrNull { s -> s.id == i } }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
-
-    private val _isBuffering = MutableStateFlow(false)
-    val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
     private val _currentTrackTitle = MutableStateFlow<String?>(null)
     val currentTrackTitle: StateFlow<String?> = _currentTrackTitle.asStateFlow()
@@ -273,11 +262,11 @@ class MainViewModel(
     // current station changes so the UI never has
     // to reconcile the sources itself.
     val nowPlayingDisplay: StateFlow<NowPlayingDisplay> = combine(
-        currentStation,
+        playbackUiState,
         _currentTrackTitle,
         _currentTrackArtist,
-    ) { station, icyTitle, icyArtist ->
-        computeNowPlayingDisplay(station?.name.orEmpty(), icyTitle, icyArtist, liveRadio())
+    ) { playback, icyTitle, icyArtist ->
+        computeNowPlayingDisplay(playback.station?.name.orEmpty(), icyTitle, icyArtist, liveRadio())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NowPlayingDisplay("", ""))
 
     // Localized "Live Radio" — the placeholder shown in the notification / mini player when a
@@ -543,18 +532,12 @@ class MainViewModel(
             controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
                 val station = _allStations.value.firstOrNull { it.id == id }
                 if (station != null) {
-                    _currentStationId.value = station.id
-                    if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
-                        _ephemeralStation.value = null
-                    }
-                    _isPlaying.value = controller?.isPlaying ?: false
-                    updateCurrentBitrate(controller?.currentTracks ?: Tracks.EMPTY)
+                    syncPlaybackState(controller, station)
                     controller?.mediaMetadata?.artist?.toString()?.trim()
                         ?.takeIf { it.isNotEmpty() && it != liveRadio() }
                         ?.let { _currentTrackTitle.value = it }
                 } else if (_currentStationId.value == null) {
-                    _isPlaying.value = controller?.isPlaying ?: false
-                    updateCurrentBitrate(controller?.currentTracks ?: Tracks.EMPTY)
+                    syncPlaybackState(controller)
                 }
             }
             if (controller?.currentMediaItem == null) {
@@ -574,7 +557,7 @@ class MainViewModel(
                 val id = repository.saveAsFavorite(ensureLocalLogo(station))
                 _currentStationId.value = id
                 _allStations.first { list -> list.any { it.id == id } }
-                _ephemeralStation.value = null
+                setCurrentStation(repository.getById(id) ?: station.copy(id = id, isFavorite = true))
                 return@launch
             }
             if (!station.isFavorite) {
@@ -589,8 +572,7 @@ class MainViewModel(
             // its logo files so re-favouriting restores the same artwork.
             val isCurrent = _currentStationId.value == station.id
             if (isCurrent) {
-                _ephemeralStation.value = station.copy(id = 0, isFavorite = false)
-                _currentStationId.value = null
+                setCurrentStation(station.copy(id = 0, isFavorite = false))
             } else {
                 clearLastPlayedStationIfMatching(station)
             }
@@ -607,74 +589,29 @@ class MainViewModel(
         // session's media item, not just this ViewModel's own play() calls. When play() did
         // initiate the change the state already matches and the guards below make this a
         // no-op.
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val item = mediaItem ?: return
-            val extras = item.mediaMetadata.extras
-            val streamUrl = extras?.getString("streamUrl").orEmpty()
-            val provider = extras?.getString("provider").orEmpty()
-            val providerId = extras?.getString("providerId").orEmpty()
-            // Resolve to a saved row the same way PlayerService.stationForMediaItem does:
-            // numeric mediaId first, then provider identity, then stream URL.
-            val saved = item.mediaId.toLongOrNull()
-                ?.let { id -> _allStations.value.firstOrNull { it.id == id } }
-                ?: _allStations.value.firstOrNull {
-                    provider.isNotBlank() && providerId.isNotBlank() &&
-                        it.provider == provider && it.providerId == providerId
-                }
-                ?: _allStations.value.firstOrNull { streamUrl.isNotBlank() && it.streamUrl == streamUrl }
-            val current = currentStation.value
-            when {
-                saved != null -> {
-                    if (current?.id == saved.id) return
-                    _ephemeralStation.value = null
-                    _currentStationId.value = saved.id
-                }
-                streamUrl.isNotBlank() -> {
-                    if (current?.id == 0L && current.streamUrl == streamUrl) return
-                    _currentStationId.value = null
-                    _ephemeralStation.value = Station(
-                        name = item.mediaMetadata.title?.toString().orEmpty(),
-                        streamUrl = streamUrl,
-                        logoPath = extras?.getString("logoPath").orEmpty(),
-                        provider = provider,
-                        providerId = providerId,
-                    )
-                }
-                else -> return
-            }
-            // Per-track state belongs to the previous station; onMediaMetadataChanged
-            // repopulates it for the new one.
-            _currentTrackTitle.value = null
-            _currentTrackArtist.value = null
-            _currentBitrateKbps.value = null
-            _playbackError.value = null
-        }
-
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            _isPlaying.value = isPlaying
-            if (!suppressLastPlayedPersist) {
-                currentStation.value?.let { station ->
-                    persistLastPlayedStation(station)
-                }
-            }
-        }
         override fun onEvents(player: Player, events: Player.Events) {
-            if (events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED, Player.EVENT_PLAY_WHEN_READY_CHANGED)) {
-                // Only show buffering when the user intends to play; suppress the transient
-                // STATE_BUFFERING that fires during prepare() when restoring a paused station.
-                // Read both off the player itself (settled as of this batch) rather than off
-                // the individual onPlaybackStateChanged callback, whose isolated playWhenReady
-                // read can still be stale mid-batch — e.g. the very first play() of a session,
-                // where STATE_BUFFERING can be delivered before playWhenReady=true has
-                // propagated, silently dropping the buffering spinner for that first play.
-                _isBuffering.value = player.playbackState == Player.STATE_BUFFERING && player.playWhenReady
+            if (events.containsAny(
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_TIMELINE_CHANGED,
+                    Player.EVENT_IS_PLAYING_CHANGED,
+                    Player.EVENT_PLAYBACK_STATE_CHANGED,
+                    Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                )
+            ) {
+                // onEvents runs after the individual callbacks in the batch. Reading the Player
+                // here gives the UI one coherent station/playback snapshot even while lifecycle-
+                // aware Compose collection is stopped during screen sleep.
+                syncPlaybackState(player)
             }
         }
         override fun onPlayerError(error: PlaybackException) {
-            _isBuffering.value = false
-            _isPlaying.value = false
+            _playbackUiState.value = _playbackUiState.value.copy(
+                isPlaying = false,
+                isBuffering = false,
+            )
             _playbackError.value = error.userMessage()
         }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             val title = mediaMetadata.title?.toString()?.trim()
             val artist = mediaMetadata.artist?.toString()?.trim()
@@ -684,8 +621,130 @@ class MainViewModel(
             }
             _currentTrackArtist.value = artist?.takeIf { it.isNotEmpty() && it != liveRadio() }
         }
+
         override fun onTracksChanged(tracks: Tracks) {
             updateCurrentBitrate(tracks)
+        }
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun handlePlaybackEvents(
+        mediaItem: MediaItem?,
+        isPlaying: Boolean,
+        playbackState: Int = Player.STATE_READY,
+        playWhenReady: Boolean = isPlaying,
+        queue: List<Station> = emptyList(),
+    ) {
+        syncPlaybackState(mediaItem, isPlaying, playbackState, playWhenReady, queue = queue)
+    }
+
+    private fun syncPlaybackState(player: Player?, resolvedStation: Station? = null) {
+        if (player == null) return
+        syncPlaybackState(
+            mediaItem = player.currentMediaItem,
+            isPlaying = player.isPlaying,
+            playbackState = player.playbackState,
+            playWhenReady = player.playWhenReady,
+            resolvedStation = resolvedStation,
+            queue = (0 until player.mediaItemCount)
+                .mapNotNull { index -> resolveStation(player.getMediaItemAt(index)) },
+        )
+        updateCurrentBitrate(player.currentTracks)
+    }
+
+    private fun syncPlaybackState(
+        mediaItem: MediaItem?,
+        isPlaying: Boolean,
+        playbackState: Int,
+        playWhenReady: Boolean,
+        resolvedStation: Station? = null,
+        queue: List<Station> = emptyList(),
+    ) {
+        val station = resolvedStation ?: resolveStation(mediaItem)
+        if (station != null) {
+            val changed = stationChanged(station)
+            updateStationIdentity(station)
+            clearPerStationStateIfChanged(changed)
+            if (!suppressLastPlayedPersist) {
+                persistLastPlayedStation(station, queue)
+            }
+        }
+        _playbackUiState.value = PlaybackUiState(
+            station = station ?: _playbackUiState.value.station,
+            isPlaying = isPlaying,
+            isBuffering = playbackState == Player.STATE_BUFFERING && playWhenReady,
+            queue = queue.ifEmpty { _playbackUiState.value.queue },
+        )
+    }
+
+    private fun resolveStation(mediaItem: MediaItem?): Station? {
+        val item = mediaItem ?: return null
+        val extras = item.mediaMetadata.extras
+        val streamUrl = extras?.getString("streamUrl").orEmpty()
+        val provider = extras?.getString("provider").orEmpty()
+        val providerId = extras?.getString("providerId").orEmpty()
+        // Resolve to a saved row the same way PlayerService.stationForMediaItem does:
+        // numeric mediaId first, then provider identity, then stream URL.
+        val saved = item.mediaId.toLongOrNull()
+            ?.let { id -> _allStations.value.firstOrNull { it.id == id } }
+            ?: _allStations.value.firstOrNull {
+                provider.isNotBlank() && providerId.isNotBlank() &&
+                    it.provider == provider && it.providerId == providerId
+            }
+            ?: _allStations.value.firstOrNull { streamUrl.isNotBlank() && it.streamUrl == streamUrl }
+        return saved ?: streamUrl.takeIf { it.isNotBlank() }?.let {
+            Station(
+                name = item.mediaMetadata.title?.toString().orEmpty(),
+                streamUrl = streamUrl,
+                logoPath = extras?.getString("logoPath").orEmpty(),
+                provider = provider,
+                providerId = providerId,
+            )
+        }
+    }
+
+    private fun setCurrentStation(station: Station?) {
+        val changed = stationChanged(station)
+        updateStationIdentity(station)
+        _playbackUiState.value = _playbackUiState.value.copy(station = station)
+        clearPerStationStateIfChanged(changed)
+    }
+
+    private fun updateStationIdentity(station: Station?) {
+        if (station == null) {
+            _currentStationId.value = null
+            _ephemeralStation.value = null
+        } else if (station.id == 0L) {
+            _currentStationId.value = null
+            _ephemeralStation.value = station
+        } else {
+            _currentStationId.value = station.id
+            _ephemeralStation.value = null
+        }
+    }
+
+    private fun stationChanged(station: Station?): Boolean {
+        val previous = _playbackUiState.value.station
+        return when {
+            previous == null -> station != null
+            station == null -> true
+            else -> !previous.matches(station)
+        }
+    }
+
+    private fun clearPerStationStateIfChanged(changed: Boolean) {
+        if (!changed) return
+        // Per-track state belongs to the previous station; onMediaMetadataChanged
+        // repopulates it for the new one.
+        _currentTrackTitle.value = null
+        _currentTrackArtist.value = null
+        _currentBitrateKbps.value = null
+        _playbackError.value = null
+    }
+
+    private fun refreshCurrentStation(station: Station) {
+        if (_playbackUiState.value.station?.id == station.id) {
+            _playbackUiState.value = _playbackUiState.value.copy(station = station)
         }
     }
 
@@ -711,18 +770,11 @@ class MainViewModel(
     // next/previous work: Media3's default session callback already handles those by seeking
     // within the player's timeline, it just needs a timeline with neighbours to seek to.
     fun play(station: Station, queue: List<Station> = emptyList()) {
-        if (station.id == 0L) {
-            _ephemeralStation.value = station
-            _currentStationId.value = null
-        } else {
-            _ephemeralStation.value = null
-            _currentStationId.value = station.id
-        }
-        _currentTrackTitle.value = null
-        _currentTrackArtist.value = null
-        _currentBitrateKbps.value = null
-        _playbackError.value = null
-        persistLastPlayedStation(station)
+        setCurrentStation(station)
+        _playbackUiState.value = _playbackUiState.value.copy(
+            queue = queue.takeIf { resolveQueueStart(it, station) != null } ?: listOf(station),
+        )
+        persistLastPlayedStation(station, queue)
         val startIndex = resolveQueueStart(queue, station)
         controller?.apply {
             if (startIndex != null) {
@@ -762,14 +814,12 @@ class MainViewModel(
             stop()
             clearMediaItems()
         }
-        _currentStationId.value = null
-        _ephemeralStation.value = null
+        setCurrentStation(null)
         _currentTrackTitle.value = null
         _currentTrackArtist.value = null
         _currentBitrateKbps.value = null
         _playbackError.value = null
-        _isPlaying.value = false
-        _isBuffering.value = false
+        _playbackUiState.value = PlaybackUiState()
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
             suppressLastPlayedPersist = false
@@ -832,10 +882,10 @@ class MainViewModel(
     private suspend fun deleteStationRecord(station: Station) {
         if (_currentStationId.value == station.id) {
             controller?.stop()
-            _currentStationId.value = null
+            setCurrentStation(null)
         }
         if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
-            _ephemeralStation.value = null
+            setCurrentStation(null)
         }
         clearLastPlayedStationIfMatching(station)
         repository.delete(station)
@@ -858,19 +908,25 @@ class MainViewModel(
         } ?: repository.getByStreamUrl(snapshot.station.streamUrl)
 
         if (savedStation != null) {
-            _currentStationId.value = savedStation.id
-            _ephemeralStation.value = null
+            setCurrentStation(savedStation)
         } else {
-            _ephemeralStation.value = snapshot.station.toEphemeral()
+            setCurrentStation(snapshot.station.toEphemeral())
         }
+        _playbackUiState.value = _playbackUiState.value.copy(queue = snapshot.queue)
 
         pendingRestoreStation.complete(savedStation ?: snapshot.station.toEphemeral())
     }
 
-    private fun persistLastPlayedStation(station: Station) {
+    private fun persistLastPlayedStation(station: Station, queue: List<Station> = emptyList()) {
         viewModelScope.launch {
             dataStore.edit { prefs ->
-                prefs[LAST_PLAYED_STATION_KEY] = station.toLastPlayedJson().toString()
+                val existingQueue = prefs[LAST_PLAYED_STATION_KEY]
+                    ?.let(::lastPlayedStationSnapshot)
+                    ?.queue
+                    .orEmpty()
+                prefs[LAST_PLAYED_STATION_KEY] = station
+                    .toLastPlayedJson(queue.ifEmpty { existingQueue })
+                    .toString()
             }
         }
     }
@@ -885,11 +941,12 @@ class MainViewModel(
     }
 
     private suspend fun loadStationPaused(station: Station) {
-        // `stations` is a WhileSubscribed StateFlow because it is primarily a UI stream. During
-        // screen sleep there may be no collector, leaving its initial empty value in place. Using
-        // that value here restores only the current station, so the lock-screen Next action has
-        // no favourite to advance to. Read the database directly for service/resumption work.
-        val queue = sortStations(repository.getAll().first(), _favoritesSort.value)
+        // Prefer the exact timeline captured by the Media3 session. Legacy snapshots did not
+        // include a queue, so only those fall back to rebuilding from the database and sort.
+        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]
+            ?.let(::lastPlayedStationSnapshot)
+        val queue = snapshot?.queue?.takeIf { it.size > 1 }
+            ?: sortStations(repository.getAll().first(), _favoritesSort.value)
         val startIndex = resolveQueueStart(queue, station)
 
         controller?.apply {
@@ -904,6 +961,14 @@ class MainViewModel(
         }
     }
 }
+
+/** Coherent player snapshot consumed by Compose as one lifecycle-aware state value. */
+data class PlaybackUiState(
+    val station: Station? = null,
+    val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
+    val queue: List<Station> = emptyList(),
+)
 
 /** Two-line "what's playing" summary for the mini player / notifications. */
 data class NowPlayingDisplay(val title: String, val subtitle: String)
@@ -966,4 +1031,3 @@ private fun PlaybackException.userMessage(): String {
         else -> "Playback failed"
     }
 }
-

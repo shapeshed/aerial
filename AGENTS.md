@@ -33,6 +33,23 @@ Build only debug Kotlin when checking a small UI/code change:
 ./gradlew compileDebugKotlin
 ```
 
+## On-device tests
+
+Instrumented tests use the `deviceTest` build type and the isolated application id
+`com.shapeshed.aerial.deviceTest`. This keeps the test APK, database, preferences,
+and cleanup separate from the normal development application
+`com.shapeshed.aerial`.
+
+Run them with:
+
+```sh
+./gradlew connectedDeviceTestAndroidTest
+```
+
+Do not change `testBuildType` to `debug` or run test automation against the normal
+application id: installing or clearing that target can replace or wipe a developer's
+local app and data.
+
 ## Release Versioning
 
 Release versions use:
