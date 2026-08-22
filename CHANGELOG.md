@@ -8,7 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- Hindi and Punjabi translations, contributed by `whistlingwoods` via Weblate. (#177)
+- Hindi and Punjabi translations are now available in the app, contributed by
+  `whistlingwoods` via Weblate. (#177, #178)
+
+### Fixed
+
+- Sleep timer hour labels now use locale-aware plural forms. (#166, #176)
+
+### Changed
+
+- Partial translations now fall back to the default locale without failing the lint gate.
 
 ## [0.6.1] - 2026-08-12
 
