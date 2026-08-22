@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,7 +76,7 @@ private fun presetLabel(ms: Long): String {
     val min = (ms / MINUTE_MS).toInt()
     return when {
         min < 60 -> stringResource(R.string.sleep_preset_minutes, min)
-        min % 60 == 0 -> stringResource(R.string.sleep_preset_hours, min / 60)
+        min % 60 == 0 -> pluralStringResource(R.plurals.sleep_preset_hours, min / 60, min / 60)
         else -> stringResource(R.string.sleep_preset_hours_minutes, min / 60, min % 60)
     }
 }

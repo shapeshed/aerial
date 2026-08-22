@@ -85,7 +85,10 @@
     <string name="sleep_set_new_duration">새 시간 설정</string>
     <string name="sleep_preset_seconds">%1$d초</string>
     <string name="sleep_preset_minutes">%1$d분</string>
-    <string name="sleep_preset_hours">%1$d시간</string>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d시간</item>
+        <item quantity="other">%1$d시간</item>
+    </plurals>
     <string name="sleep_preset_hours_minutes">%1$d시간 %2$d분</string>
     <string name="live_radio">라이브 라디오</string>
     <string name="tag_news">뉴스</string>

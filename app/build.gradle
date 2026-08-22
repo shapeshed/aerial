@@ -91,6 +91,9 @@ android {
 
     lint {
         fatal 'UnusedResources'
+        // Translation coverage is intentionally incremental; Android falls back to the
+        // default locale for strings not yet translated in a locale.
+        disable 'MissingTranslation'
     }
 
     testOptions {

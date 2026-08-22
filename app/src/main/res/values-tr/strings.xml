@@ -90,7 +90,10 @@
     <string name="sleep_set_new_duration">Yeni bir süre belirle</string>
     <string name="sleep_preset_seconds">%1$d sn.</string>
     <string name="sleep_preset_minutes">%1$d dk.</string>
-    <string name="sleep_preset_hours">%1$d sa.</string>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d saat</item>
+        <item quantity="other">%1$d saat</item>
+    </plurals>
     <string name="sleep_preset_hours_minutes">%1$d sa. %2$d dk.</string>
     <string name="tab_home">Ana Sayfa</string>
     <string name="tab_favorites">Favoriler</string>

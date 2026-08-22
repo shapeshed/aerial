@@ -85,7 +85,10 @@
     <string name="sleep_set_new_duration">Nieuwe duur instellen</string>
     <string name="sleep_preset_seconds">%1$d sec</string>
     <string name="sleep_preset_minutes">%1$d min</string>
-    <string name="sleep_preset_hours">%1$d u</string>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d uur</item>
+        <item quantity="other">%1$d uur</item>
+    </plurals>
     <string name="sleep_preset_hours_minutes">%1$d u %2$d min</string>
     <string name="live_radio">Live radio</string>
     <string name="tag_news">Nieuws</string>
