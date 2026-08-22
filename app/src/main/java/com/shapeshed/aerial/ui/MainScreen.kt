@@ -71,6 +71,7 @@ import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -108,6 +109,10 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SearchBar
@@ -358,6 +363,9 @@ fun MainScreen(
     var genreFilterQuery by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val favoriteRemovedMessage = stringResource(R.string.favorite_removed_message)
+    val undoLabel = stringResource(R.string.undo)
 
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
     val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
@@ -504,6 +512,7 @@ fun MainScreen(
                     .weight(1f)
                     .semantics { traversalIndex = 0f },
                 contentWindowInsets = WindowInsets.navigationBars,
+                snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
                     if (!useNavigationRail && showHome) {
                         // surfaceContainerLow matches the reference bar (Google Drive) rather
@@ -580,7 +589,6 @@ fun MainScreen(
                                 ?.let { viewModel.playFromRegistry(it, selectedMoodStations) }
                         },
                         onSave = { selectedMoodStations.forEach(viewModel::addFromRegistry) },
-                        onTogglePlayback = { viewModel.togglePlayback() },
                         onAddStation = { viewModel.addFromRegistry(it) },
                         onRemoveStation = { viewModel.removeFromRegistry(it) },
                         onPlayStation = { viewModel.playFromRegistry(it, selectedMoodStations) },
@@ -619,10 +627,21 @@ fun MainScreen(
                         listState = favoritesListState,
                         bottomPadding = stationContentBottomPadding,
                         onPlay = { viewModel.play(it, stations) },
-                        onTogglePlayback = { viewModel.togglePlayback() },
-                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onHomeViewModeChange = { viewModel.setHomeViewMode(it) },
                         onSortSelected = { viewModel.setFavoritesSort(it) },
+                        onRemoveFavorite = { station ->
+                            viewModel.toggleFavorite(station)
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = favoriteRemovedMessage.format(station.name),
+                                    actionLabel = undoLabel,
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.restoreFavorite(station)
+                                }
+                            }
+                        },
                         onStationLongPress = { contextStation = it },
                     )
                 }
@@ -1694,7 +1713,6 @@ private fun MoodDetailScreen(
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSave: () -> Unit,
-    onTogglePlayback: () -> Unit,
     onAddStation: (RegistryStation) -> Unit,
     onRemoveStation: (RegistryStation) -> Unit,
     onPlayStation: (RegistryStation) -> Unit,
@@ -1802,7 +1820,6 @@ private fun MoodDetailScreen(
                 isPlaying = isPlaying && isActive,
                 isBuffering = isBuffering && isActive,
                 onPlay = { onPlayStation(station) },
-                onTogglePlayback = onTogglePlayback,
                 isSaved = isSaved,
                 onToggleFavorite = {
                     if (isSaved) onRemoveStation(station) else onAddStation(station)
@@ -1819,84 +1836,94 @@ private fun MoodStationRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPlay: () -> Unit,
-    onTogglePlayback: () -> Unit,
     isSaved: Boolean,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pauseLabel = stringResource(R.string.pause)
-    ListItem(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onPlay),
-        leadingContent = {
-            // Circle rather than a rounded square, matching the search and favourites rows.
-            StationLogoCircle(
-                logoModel = logoModelFor(station.logoUrl),
-                size = 56.dp,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Radio,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-        },
-        supportingContent = {
-            // Localized country from the ISO code, matching the search result rows.
-            val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
-                ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
-                ?: station.country
-            if (countryLabel.isNotBlank()) {
-                Text(
-                    text = countryLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = if (isPlaying) onTogglePlayback else onPlay,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
-                    when {
-                        isBuffering -> CircularWavyProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                        )
-                        isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(width = 28.dp, height = 22.dp)
-                                .semantics { contentDescription = pauseLabel },
-                            barCount = 3,
-                        )
-                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
-                    }
-                }
-                IconButton(
-                    onClick = onToggleFavorite,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+    val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+        ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
+        ?: station.country
+    Surface(
+        color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = if (isActive) 0.dp else 1.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .clickable(onClick = onPlay),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = {
+                StationLogoCircle(
+                    logoModel = logoModelFor(station.logoUrl),
+                    size = 50.dp,
                 ) {
                     Icon(
-                        imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = stringResource(if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites),
-                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
-            }
-        },
-    ) {
-        Text(
-            text = station.name,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+            },
+            supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
+                {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isBuffering || isPlaying) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(50.dp),
+                        ) {
+                            when {
+                                isBuffering -> CircularWavyProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    trackColor = (if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        .copy(alpha = 0.3f),
+                                )
+                                else -> EqualizerBars(
+                                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(width = 28.dp, height = 22.dp)
+                                        .semantics { contentDescription = pauseLabel },
+                                    barCount = 3,
+                                )
+                            }
+                        }
+                    }
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = stringResource(if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites),
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+        ) {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
 
@@ -1922,8 +1949,7 @@ private fun FavoritesTabContent(
     listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
-    onTogglePlayback: () -> Unit,
-    onToggleFavorite: (Station) -> Unit,
+    onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
@@ -1940,9 +1966,6 @@ private fun FavoritesTabContent(
         return
     }
 
-    val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val activeTileColor = MaterialTheme.colorScheme.primaryContainer
-    val tileContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val favoriteRows = remember(stations, gridColumns) {
         stations.indices.toList().chunked(gridColumns)
     }
@@ -2009,9 +2032,6 @@ private fun FavoritesTabContent(
                     currentStation = currentStation,
                     isPlaying = isPlaying,
                     isBuffering = isBuffering,
-                    tileColor = tileColor,
-                    activeTileColor = activeTileColor,
-                    tileContentColor = tileContentColor,
                     onPlay = onPlay,
                     onStationLongPress = onStationLongPress,
                 )
@@ -2029,9 +2049,9 @@ private fun FavoritesTabContent(
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
                     onPlay = { onPlay(station) },
-                    onTogglePlayback = onTogglePlayback,
-                    onToggleFavorite = { onToggleFavorite(station) },
                     onLongClick = { onStationLongPress(station) },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                    onDismiss = { onRemoveFavorite(station) },
                 )
             }
         }
@@ -2143,9 +2163,6 @@ private fun FavoriteStationCardRow(
     currentStation: Station?,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    tileColor: androidx.compose.ui.graphics.Color,
-    activeTileColor: androidx.compose.ui.graphics.Color,
-    tileContentColor: androidx.compose.ui.graphics.Color,
     onPlay: (Station) -> Unit,
     onStationLongPress: (Station) -> Unit,
     modifier: Modifier = Modifier,
@@ -2163,8 +2180,6 @@ private fun FavoriteStationCardRow(
             val isActive = currentStation?.id == station.id
             StationTile(
                 station = station,
-                tileColor = if (isActive) activeTileColor else tileColor,
-                contentColor = tileContentColor,
                 isActive = isActive,
                 isPlaying = isPlaying && isActive,
                 isBuffering = isBuffering && isActive,
@@ -2179,6 +2194,7 @@ private fun FavoriteStationCardRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StationListRow(
     station: Station,
@@ -2186,10 +2202,9 @@ private fun StationListRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPlay: () -> Unit,
-    onTogglePlayback: () -> Unit,
-    onToggleFavorite: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
     val pauseLabel = stringResource(R.string.pause)
     val haptic = LocalHapticFeedback.current
@@ -2197,71 +2212,109 @@ private fun StationListRow(
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
         ?.let { countryName(it, appLocale) }
         ?: station.country
-    ListItem(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onPlay,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-            ),
-        leadingContent = {
-            StationAvatar(station = station, isActive = isActive, size = 50.dp)
-        },
-        supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
-            {
-                Text(
-                    text = label,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    val swipeErrorColor = MaterialTheme.colorScheme.errorContainer
+    val swipeIconColor = MaterialTheme.colorScheme.onErrorContainer
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onDismiss()
             }
+            true
         },
-        trailingContent = {
-            // Same preview-play + favourite pattern as the mood and search rows: a dedicated
-            // button toggles playback in place (rather than only via the row tap), and the
-            // heart removes the row directly.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
-                    when {
-                        isBuffering -> CircularWavyProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                        )
-                        isActive && isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(width = 28.dp, height = 22.dp)
-                                .semantics { contentDescription = pauseLabel },
-                            barCount = 3,
-                        )
-                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
-                    }
-                }
-                IconButton(
-                    onClick = onToggleFavorite,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
+    )
+    val rowShape = MaterialTheme.shapes.medium
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Box(
+                modifier = Modifier.fillMaxSize().background(swipeErrorColor),
+            ) {
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
                     Icon(
-                        imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.save_to_favorites),
-                        tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = stringResource(R.string.remove_from_favorites),
+                        tint = swipeIconColor,
+                        modifier = Modifier
+                            .align(
+                                if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                    Alignment.CenterStart
+                                } else {
+                                    Alignment.CenterEnd
+                                },
+                            )
+                            .padding(12.dp),
                     )
                 }
             }
         },
+        modifier = modifier.clip(rowShape),
     ) {
-        Text(
-            text = station.name,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Surface(
+            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium,
+            tonalElevation = if (isActive) 0.dp else 1.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onPlay,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                ),
+        ) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = {
+                    StationAvatar(station = station, isActive = isActive, size = 50.dp)
+                },
+                supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
+                    {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                trailingContent = if (isBuffering || (isActive && isPlaying)) {
+                    {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(50.dp),
+                        ) {
+                            when {
+                                isBuffering -> CircularWavyProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                                )
+                                else -> EqualizerBars(
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier
+                                        .size(width = 28.dp, height = 22.dp)
+                                        .semantics { contentDescription = pauseLabel },
+                                    barCount = 3,
+                                )
+                            }
+                        }
+                    }
+                } else null,
+            ) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -2271,8 +2324,6 @@ private const val GRID_LOGO_INSET_FRACTION = 0.85f
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun StationTile(
     station: Station,
-    tileColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
@@ -2295,7 +2346,9 @@ private fun StationTile(
         Surface(
             // Same plate treatment as the other artwork surfaces: an adaptive plate behind
             // rendered logos (visible only through transparency), tonal otherwise.
-            color = if (showLogo) stationLogoPlateColor(logoIsLight) else tileColor,
+            color = if (showLogo) stationLogoPlateColor(logoIsLight) else {
+                if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+            },
             // Medium card radius like the other cards: a fixed 28dp reads far rounder on
             // the small tiles of a 4-5 column grid, so keep the modest spec radius at
             // every grid width.
@@ -2344,11 +2397,15 @@ private fun StationTile(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)),
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)),
                         )
                     }
                 }
-                val indicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
+                val indicatorColor = if (isActive) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 when {
                     !showActivityIndicator -> Unit
                     isBuffering -> CircularWavyProgressIndicator(
@@ -2367,7 +2424,7 @@ private fun StationTile(
         Text(
             text = station.name,
             style = MaterialTheme.typography.labelMedium,
-            color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,

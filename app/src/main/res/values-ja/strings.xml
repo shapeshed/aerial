@@ -113,4 +113,6 @@
     <string name="no_favorites_desc">お気に入りの放送局を追加すると、ここからすぐに見つけられます</string>
     <string name="car_moods">気分</string>
     <string name="recently_played">最近再生</string>
+    <string name="favorite_removed_message">%1$sをお気に入りから削除しました</string>
+    <string name="undo">元に戻す</string>
 </resources>

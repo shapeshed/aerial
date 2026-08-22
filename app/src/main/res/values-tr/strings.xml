@@ -107,4 +107,6 @@
     <string name="no_favorites_desc">Burada kolayca bulabilmek için sevdiğiniz istasyonları ekleyin</string>
     <string name="car_moods">Ruh halleri</string>
     <string name="recently_played">Son oynatılanlar</string>
+    <string name="favorite_removed_message">%1$s favorilerden kaldırıldı</string>
+    <string name="undo">Geri al</string>
 </resources>

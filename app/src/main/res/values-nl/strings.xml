@@ -113,4 +113,6 @@
     <string name="no_favorites_desc">Voeg zenders toe die je leuk vindt om ze hier snel terug te vinden</string>
     <string name="car_moods">Stemmingen</string>
     <string name="recently_played">Laatst afgespeeld</string>
+    <string name="favorite_removed_message">%1$s verwijderd uit favorieten</string>
+    <string name="undo">Ongedaan maken</string>
 </resources>
