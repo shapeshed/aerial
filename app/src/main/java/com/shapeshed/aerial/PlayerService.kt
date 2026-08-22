@@ -252,7 +252,10 @@ class PlayerService : MediaLibraryService() {
                 if (title.isNullOrEmpty() || title == lastIcyTitle) return
                 lastIcyTitle = title
                 val item = player.currentMediaItem ?: return
-                val stationName = currentStation()?.name ?: item.mediaMetadata.title?.toString().orEmpty()
+                val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
+                    item.mediaMetadata.extras?.getString("stationName"),
+                    item.mediaMetadata.title,
+                )
                 val (icyArtist, icyTrackTitle) = parseIcyTitle(title)
                 replaceCurrentMediaItem(
                     item,
@@ -269,7 +272,10 @@ class PlayerService : MediaLibraryService() {
                 if (id3Title != lastId3Title) {
                     lastId3Title = id3Title
                     val item = player.currentMediaItem ?: return
-                    val stationName = currentStation()?.name ?: item.mediaMetadata.title?.toString().orEmpty()
+                    val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
+                        item.mediaMetadata.extras?.getString("stationName"),
+                        item.mediaMetadata.title,
+                    )
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
@@ -439,28 +445,16 @@ class PlayerService : MediaLibraryService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            // startIndex arrives as C.INDEX_UNSET (-1) — "unspecified" — for a single-item legacy
-            // play request, not an actual out-of-range index.
-            val effectiveIndex = startIndex.takeIf { it in mediaItems.indices } ?: 0
-            val tappedId = mediaItems.getOrNull(effectiveIndex)?.mediaId
-            // Queue expansion is for browse-driven controllers (Android Auto) only — the in-app
-            // controller sends deliberate single-item plays, and its mediaIds are the same
-            // numeric row ids Auto browses, so without the package check a phone tap would be
-            // silently expanded into whatever folder Auto last prefetched.
-            val parentId = tappedId
-                ?.takeIf { mediaItems.size == 1 && controller.packageName != packageName }
-                ?.let { parentIdByMediaId[it] }
-            // Rebuilt fresh (not served from a browse-time cache) so a folder edited since it
-            // was browsed — an unfavorited station, a changed stream URL — can't queue stale
-            // entries.
-            val siblings = parentId?.let { mediaBrowseTree.children(it) }
-            val siblingIndex = siblings?.indexOfFirst { it.mediaId == tappedId } ?: -1
-            if (siblings != null && siblingIndex >= 0) {
-                MediaSession.MediaItemsWithStartPosition(siblings, siblingIndex, startPositionMs)
-            } else {
-                val resolved = mediaItems.map { item -> mediaBrowseTree.resolve(item.mediaId) ?: item }
-                MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
-            }
+            expandControllerQueue(
+                mediaItems = mediaItems,
+                startIndex = startIndex,
+                startPositionMs = startPositionMs,
+                controllerPackage = controller.packageName,
+                appPackage = packageName,
+                parentIdForMediaId = { parentIdByMediaId[it] },
+                childrenForParent = { mediaBrowseTree.children(it) },
+                resolveMediaItem = { mediaBrowseTree.resolve(it) },
+            )
         }
 
         // Called when a controller (lock-screen/notification, Bluetooth, Assistant) reconnects
@@ -645,7 +639,10 @@ class PlayerService : MediaLibraryService() {
         stations.firstOrNull { it.streamUrl == streamUrl }?.let { return it }
         return Station(
             id = 0,
-            name = mediaItem.mediaMetadata.title?.toString() ?: "",
+            name = stationNameFromMediaMetadata(
+                mediaItem.mediaMetadata.extras?.getString("stationName"),
+                mediaItem.mediaMetadata.title,
+            ),
             streamUrl = streamUrl,
             logoPath = extras.getString("logoPath").orEmpty(),
             provider = provider,
@@ -693,10 +690,7 @@ class PlayerService : MediaLibraryService() {
         lastIcyTitle = null
         lastId3Title = null
         runCatching {
-            player.stop()
-            player.setMediaItem(item)
-            player.prepare()
-            player.playWhenReady = shouldResume
+            reconnectPlayerAfterError(player, shouldResume)
         }.onFailure { error ->
             Log.w(TAG, "Failed to reconnect current stream", error)
         }
@@ -735,5 +729,37 @@ class PlayerService : MediaLibraryService() {
         const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
         const val RECONNECT_RETRY_COOLDOWN_MS = 10_000L
         const val HTTP_TIMEOUT_MS = 8_000
+    }
+}
+
+/** Re-prepares a failed item without replacing the player's timeline. */
+internal fun reconnectPlayerAfterError(player: Player, shouldResume: Boolean = player.playWhenReady) {
+    player.stop()
+    player.prepare()
+    player.playWhenReady = shouldResume
+}
+
+internal suspend fun expandControllerQueue(
+    mediaItems: List<MediaItem>,
+    startIndex: Int,
+    startPositionMs: Long,
+    controllerPackage: String,
+    appPackage: String,
+    parentIdForMediaId: (String) -> String?,
+    childrenForParent: suspend (String) -> List<MediaItem>?,
+    resolveMediaItem: suspend (String) -> MediaItem?,
+): MediaSession.MediaItemsWithStartPosition {
+    val effectiveIndex = startIndex.takeIf { it in mediaItems.indices } ?: 0
+    val tappedId = mediaItems.getOrNull(effectiveIndex)?.mediaId
+    val parentId = tappedId
+        ?.takeIf { mediaItems.size == 1 && controllerPackage != appPackage }
+        ?.let(parentIdForMediaId)
+    val siblings = if (parentId != null) childrenForParent(parentId) else null
+    val siblingIndex = siblings?.indexOfFirst { it.mediaId == tappedId } ?: -1
+    return if (siblings != null && siblingIndex >= 0) {
+        MediaSession.MediaItemsWithStartPosition(siblings, siblingIndex, startPositionMs)
+    } else {
+        val resolved = mediaItems.map { item -> resolveMediaItem(item.mediaId) ?: item }
+        MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
     }
 }

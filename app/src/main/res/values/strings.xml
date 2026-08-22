@@ -119,4 +119,5 @@
     <!-- Media browse tree (Android Auto, Google TV) -->
     <string name="car_moods">Moods</string>
     <string name="recently_played">Recently Played</string>
+    <string name="station_options">Station options</string>
 </resources>

@@ -47,3 +47,54 @@ jobs:
           name: aerial-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  emulator:
+    name: Instrumented tests and coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run local unit tests with coverage
+        run: ./gradlew jacocoDeviceTestUnitTestReport
+
+      - name: Start Android emulator and run isolated device tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: Pixel 2
+          target: google_apis
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: ./gradlew connectedDeviceTestAndroidTest
+
+      - name: Upload unit coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerial-unit-coverage
+          path: app/build/reports/jacoco/jacocoDeviceTestUnitTestReport
+          if-no-files-found: warn
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerial-device-test-reports
+          path: app/build/reports/androidTests/connected
+          if-no-files-found: warn

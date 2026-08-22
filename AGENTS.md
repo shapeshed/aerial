@@ -33,6 +33,31 @@ Build only debug Kotlin when checking a small UI/code change:
 ./gradlew compileDebugKotlin
 ```
 
+Gradle's local build cache is enabled in `gradle.properties`. Configuration cache
+is not enabled globally: with the current Android lint and KSP plugins it makes the
+documented combined release gate race generated KSP sources. It can still be used
+for a narrow iterative task such as `./gradlew compileDebugKotlin
+--configuration-cache`, but rerun the normal release gate without it.
+
+## Preview screenshot tests
+
+Adaptive UI goldens live in `app/src/screenshotTestDebug/reference/`. Validate
+them without a device:
+
+```sh
+./gradlew validateDebugScreenshotTest
+```
+
+After an intentional, visually reviewed UI change, update them with:
+
+```sh
+./gradlew updateDebugScreenshotTest
+```
+
+Do not update references merely to make a failing comparison pass. Review the
+rendered images across compact, medium, expanded, short, tall, dark, and large-font
+previews first.
+
 ## On-device tests
 
 Instrumented tests use the `deviceTest` build type and the isolated application id
@@ -49,6 +74,11 @@ Run them with:
 Do not change `testBuildType` to `debug` or run test automation against the normal
 application id: installing or clearing that target can replace or wipe a developer's
 local app and data.
+
+Compose UI tests use the v2 Compose test rule, `ui-test-manifest` on the `deviceTest`
+build type, and an explicit Espresso 3.7.0 dependency for Android 17 compatibility.
+Navigation tests should cover the pure `AerialNavigator` contract locally and
+`rememberNavBackStack` saved-state restoration on device.
 
 ## Release Versioning
 

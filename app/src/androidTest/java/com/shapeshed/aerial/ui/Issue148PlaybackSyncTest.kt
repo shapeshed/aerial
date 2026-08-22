@@ -25,6 +25,28 @@ import org.junit.runner.RunWith
 class Issue148PlaybackSyncTest {
 
     @Test
+    fun stationTransitionClearsPreviousMetadataInTheSameSnapshot() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<AerialApp>()
+        val left = station("Metadata left", "metadata-left")
+        val right = station("Metadata right", "metadata-right")
+        val viewModel = withContext(Dispatchers.Main) {
+            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+        }
+
+        withContext(Dispatchers.Main) {
+            viewModel.handlePlaybackEvents(left.toPlayableMediaItem(app), isPlaying = true)
+            viewModel.handlePlaybackMetadata(title = "Left song", artist = "Left artist")
+            assertEquals("Left song", viewModel.playbackUiState.value.trackTitle)
+
+            viewModel.handlePlaybackEvents(right.toPlayableMediaItem(app), isPlaying = true)
+
+            assertEquals(right.streamUrl, viewModel.playbackUiState.value.station?.streamUrl)
+            assertEquals(null, viewModel.playbackUiState.value.trackTitle)
+            assertEquals(null, viewModel.playbackUiState.value.trackArtist)
+        }
+    }
+
+    @Test
     fun playbackSnapshotKeepsStationQueueAndPlayStateCoherent() = runBlocking {
         val app = ApplicationProvider.getApplicationContext<AerialApp>()
         val leftId = app.repository.insertOrGetExisting(station("Snapshot left", "snapshot-left"))

@@ -5,12 +5,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -42,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -57,6 +60,7 @@ import com.shapeshed.aerial.R
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val showStreamBitrate by viewModel.showStreamBitrate.collectAsStateWithLifecycle()
@@ -79,7 +83,40 @@ fun SettingsScreen(
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
 
+    SettingsContent(
+        showStreamBitrate = showStreamBitrate,
+        showHome = showHome,
+        favoritesGridColumns = favoritesGridColumns,
+        versionName = versionName,
+        snackbarHostState = snackbarHostState,
+        onShowStreamBitrateChange = viewModel::setShowStreamBitrate,
+        onShowHomeChange = viewModel::setShowHome,
+        onFavoritesGridColumnsChange = viewModel::setFavoritesGridColumns,
+        onExport = { exportLauncher.launch("aerial-backup.zip") },
+        onImport = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+        onDismiss = onDismiss,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun SettingsContent(
+    showStreamBitrate: Boolean,
+    showHome: Boolean,
+    favoritesGridColumns: Int,
+    versionName: String,
+    snackbarHostState: SnackbarHostState,
+    onShowStreamBitrateChange: (Boolean) -> Unit,
+    onShowHomeChange: (Boolean) -> Unit,
+    onFavoritesGridColumnsChange: (Int) -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -95,19 +132,21 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LazyColumn(
+                modifier = Modifier
+                    .widthIn(max = 840.dp)
+                    .fillMaxSize()
+                    .align(Alignment.TopCenter),
+            ) {
             item(contentType = "setting") {
                 ListItem(
-                    modifier = Modifier.clickable { viewModel.setShowHome(!showHome) },
+                    modifier = Modifier.clickable { onShowHomeChange(!showHome) },
                     supportingContent = { Text(stringResource(R.string.show_home_desc)) },
                     trailingContent = {
                         Switch(
                             checked = showHome,
-                            onCheckedChange = { viewModel.setShowHome(it) },
+                            onCheckedChange = onShowHomeChange,
                         )
                     },
                 ) {
@@ -117,12 +156,12 @@ fun SettingsScreen(
             }
             item(contentType = "setting") {
                 ListItem(
-                    modifier = Modifier.clickable { viewModel.setShowStreamBitrate(!showStreamBitrate) },
+                    modifier = Modifier.clickable { onShowStreamBitrateChange(!showStreamBitrate) },
                     supportingContent = { Text(stringResource(R.string.show_stream_bitrate_desc)) },
                     trailingContent = {
                         Switch(
                             checked = showStreamBitrate,
-                            onCheckedChange = { viewModel.setShowStreamBitrate(it) },
+                            onCheckedChange = onShowStreamBitrateChange,
                         )
                     },
                 ) {
@@ -151,7 +190,7 @@ fun SettingsScreen(
                                         buttonGroupContent = {
                                             ToggleButton(
                                                 checked = favoritesGridColumns == columns,
-                                                onCheckedChange = { if (it) viewModel.setFavoritesGridColumns(columns) },
+                                                onCheckedChange = { if (it) onFavoritesGridColumnsChange(columns) },
                                                 shapes = when (index) {
                                                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                                                     options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
@@ -190,9 +229,7 @@ fun SettingsScreen(
             }
             item(contentType = "action") {
                 ListItem(
-                    modifier = Modifier.clickable {
-                        exportLauncher.launch("aerial-backup.zip")
-                    },
+                    modifier = Modifier.clickable(onClick = onExport),
                     leadingContent = {
                         Icon(Icons.Rounded.FileDownload, contentDescription = null)
                     },
@@ -204,9 +241,7 @@ fun SettingsScreen(
             }
             item(contentType = "action") {
                 ListItem(
-                    modifier = Modifier.clickable {
-                        importLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
-                    },
+                    modifier = Modifier.clickable(onClick = onImport),
                     leadingContent = {
                         Icon(Icons.Rounded.FileUpload, contentDescription = null)
                     },
@@ -226,6 +261,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(vertical = 24.dp),
                 )
+            }
             }
         }
     }

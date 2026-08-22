@@ -3,9 +3,12 @@ import com.github.triplet.gradle.androidpublisher.ResolutionStrategy
 
 plugins {
     id 'com.android.application'
+    id 'jacoco'
     id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization'
     id 'com.google.devtools.ksp'
     id 'com.github.triplet.play'
+    id 'com.android.compose.screenshot'
 }
 
 def registrySourceFile = layout.projectDirectory.file("src/main/registry/registry.json")
@@ -15,6 +18,7 @@ def generatedRegistryAssetsDir = layout.buildDirectory.dir("generated/aerialRegi
 def generatedRegistryAssetFile = generatedRegistryAssetsDir.map { it.file("registry.db.compressed") }
 
 android {
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
     namespace = 'com.shapeshed.aerial'
     compileSdk 37
     ndkVersion = "28.2.13676358"
@@ -64,7 +68,7 @@ android {
         }
     }
 
-    testBuildType "deviceTest"
+    testBuildType = "deviceTest"
 
     ksp {
         arg("room.schemaLocation", "$projectDir/schemas")
@@ -147,6 +151,38 @@ tasks.configureEach {
     if (name ==~ /merge.*Assets/ || name.contains("Lint") || name.contains("lint")) {
         dependsOn(generateRegistryAsset)
     }
+
+    // AGP's device-test lint models include release KSP sources but do not declare the
+    // producer dependency. Without this edge the documented combined release gate can
+    // race Room/KSP regeneration and fail with a transient FileNotFoundException.
+    if (name in ["lintAnalyzeDeviceTestUnitTest", "lintAnalyzeDeviceTestAndroidTest"]) {
+        dependsOn("kspReleaseKotlin")
+    }
+}
+
+tasks.register("jacocoDeviceTestUnitTestReport", JacocoReport) {
+    dependsOn("testDeviceTestUnitTest")
+    group = "verification"
+    description = "Generates JaCoCo coverage for local deviceTest unit tests."
+
+    executionData.from(fileTree(layout.buildDirectory).include(
+        "jacoco/testDeviceTestUnitTest.exec",
+        "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
+    ))
+    sourceDirectories.from(files("src/main/java", "src/main/kotlin"))
+    classDirectories.from(files(
+        fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/deviceTest/compileDeviceTestKotlin/classes")) {
+            exclude('**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*')
+        },
+        fileTree(layout.buildDirectory.dir("intermediates/javac/deviceTest/compileDeviceTestJavaWithJavac/classes")) {
+            exclude('**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*')
+        },
+    ))
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = false
+    }
 }
 
 dependencies {
@@ -155,9 +191,12 @@ dependencies {
 
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.material3:material3:1.5.0-alpha26'
+    implementation 'androidx.compose.material3:material3-adaptive-navigation-suite'
     implementation 'androidx.compose.material:material-icons-extended'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    deviceTestImplementation 'androidx.compose.ui:ui-test-manifest'
 
     implementation 'androidx.core:core-ktx:1.19.0'
     implementation 'androidx.appcompat:appcompat:1.8.0'
@@ -176,7 +215,11 @@ dependencies {
     implementation "androidx.room:room-ktx:$roomVersion"
     ksp "androidx.room:room-compiler:$roomVersion"
 
-    implementation 'androidx.navigation:navigation-compose:2.9.8'
+    def navigation3Version = '1.1.6'
+    implementation "androidx.navigation3:navigation3-runtime:$navigation3Version"
+    implementation "androidx.navigation3:navigation3-ui:$navigation3Version"
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0'
     implementation 'io.coil-kt.coil3:coil-compose:3.5.0'
     implementation 'io.coil-kt.coil3:coil-network-okhttp:3.5.0'
     implementation 'io.coil-kt.coil3:coil-svg:3.5.0'
@@ -187,9 +230,17 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
     testImplementation 'org.mockito.kotlin:mockito-kotlin:6.3.0'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
 
     androidTestImplementation 'androidx.test:runner:1.7.0'
     androidTestImplementation 'androidx.test:rules:1.7.0'
     androidTestImplementation 'androidx.test:core-ktx:1.7.0'
     androidTestImplementation 'androidx.test.ext:junit-ktx:1.3.0'
+    // Compose UI Test still declares Espresso 3.5 transitively. Pin the current stable
+    // bridge, which uses Context#getSystemService and supports Android 17 input APIs.
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+    androidTestImplementation composeBom
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha15'
+    screenshotTestImplementation 'androidx.compose.ui:ui-tooling'
 }

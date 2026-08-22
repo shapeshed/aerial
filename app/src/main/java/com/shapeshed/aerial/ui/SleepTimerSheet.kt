@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.shapeshed.aerial.BuildConfig
 import com.shapeshed.aerial.R
@@ -84,7 +83,11 @@ private fun presetLabel(ms: Long): String {
 /** Now Playing top-bar action: a plain icon when idle, a tonal icon with countdown when active. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
+fun SleepTimerAction(
+    active: SleepTimerState?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     if (active != null) {
         // Active state: a filled Material You accent pill (primaryContainer) holding the icon
         // and live countdown. The whole pill opens the picker, and it's inset to sit at the
@@ -96,7 +99,7 @@ fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             // End inset so the pill's right edge lines up with the 24.dp content margin of the
             // main artwork below it.
-            modifier = Modifier.padding(end = 20.dp),
+            modifier = modifier.padding(end = 20.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -111,7 +114,6 @@ fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
                 Text(
                     text = formatSleepRemaining(active.remainingMs),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -121,7 +123,7 @@ fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit) {
         IconButton(
             onClick = onClick,
             shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-            modifier = Modifier.padding(end = 8.dp),
+            modifier = modifier.padding(end = 8.dp),
         ) {
             Icon(Icons.Rounded.Bedtime, contentDescription = stringResource(R.string.sleep_timer))
         }
@@ -135,12 +137,17 @@ fun SleepTimerSheet(
     onSet: (Long) -> Unit,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
         enabledValues = SHEET_ENABLED_VALUES,
     )
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = modifier,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -149,16 +156,14 @@ fun SleepTimerSheet(
         ) {
             Text(
                 text = stringResource(R.string.sleep_timer),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
 
             if (active != null) {
                 Spacer(Modifier.height(20.dp))
                 Text(
                     text = formatSleepRemaining(active.remainingMs),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.displaySmallEmphasized,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -231,7 +236,7 @@ fun SleepTimerSheet(
                         // Larger touch target — these are primary actions.
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                     ) {
-                        Text(presetLabel(ms), style = MaterialTheme.typography.titleMedium)
+                        Text(presetLabel(ms))
                     }
                 }
             }
