@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.datastore.preferences.core.edit
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -15,6 +16,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -60,6 +62,7 @@ import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseIcyTitle
+import com.shapeshed.aerial.data.toLastPlayedJson
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -217,6 +220,11 @@ class PlayerService : MediaLibraryService() {
             lastIcyTitle = null
             lastId3Title = null
             updateFavoriteButton()
+            persistPlaybackSnapshot()
+        }
+
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            persistPlaybackSnapshot()
         }
 
         @OptIn(UnstableApi::class)
@@ -471,11 +479,17 @@ class PlayerService : MediaLibraryService() {
                 ?: throw UnsupportedOperationException("No last-played station to resume")
             val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
                 ?: repository.getByStreamUrl(snapshot.station.streamUrl)
-            val sort = dataStore.data.first()[FAVORITES_SORT_KEY]
-                ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
-                ?: FavoritesSort.AZ
-            val queue = sortStations(repository.getAll().first(), sort)
-            val startIndex = savedStation?.let { resolveQueueStart(queue, it) }
+            val queue = snapshot.queue.takeIf { it.size > 1 } ?: run {
+                // Backward compatibility for snapshots written before ordered queues were
+                // persisted. New snapshots restore the exact Media3 timeline instead of
+                // rebuilding it from mutable Last/Most Played statistics.
+                val sort = dataStore.data.first()[FAVORITES_SORT_KEY]
+                    ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
+                    ?: FavoritesSort.AZ
+                sortStations(repository.getAll().first(), sort)
+            }
+            val resumed = savedStation ?: snapshot.station.copy(id = 0)
+            val startIndex = resolveQueueStart(queue, resumed)
             if (startIndex != null) {
                 MediaSession.MediaItemsWithStartPosition(
                     queue.map { it.toPlayableMediaItem(this@PlayerService) },
@@ -483,7 +497,6 @@ class PlayerService : MediaLibraryService() {
                     C.TIME_UNSET,
                 )
             } else {
-                val resumed = savedStation ?: snapshot.station.copy(id = 0)
                 MediaSession.MediaItemsWithStartPosition(
                     listOf(resumed.toPlayableMediaItem(this@PlayerService)),
                     0,
@@ -601,6 +614,17 @@ class PlayerService : MediaLibraryService() {
     }
 
     private fun currentStation(): Station? = stationForMediaItem(player.currentMediaItem)
+
+    private fun persistPlaybackSnapshot() {
+        val current = currentStation() ?: return
+        val queue = (0 until player.mediaItemCount)
+            .mapNotNull { index -> stationForMediaItem(player.getMediaItemAt(index)) }
+        serviceScope.launch {
+            dataStore.edit { preferences ->
+                preferences[LAST_PLAYED_STATION_KEY] = current.toLastPlayedJson(queue).toString()
+            }
+        }
+    }
 
     private fun stationForMediaItem(mediaItem: MediaItem?): Station? {
         if (mediaItem == null) return null

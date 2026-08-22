@@ -17,40 +17,53 @@ enum class FavoritesSort {
 
 data class LastPlayedStationSnapshot(
     val station: Station,
+    val queue: List<Station> = emptyList(),
 )
 
-fun Station.toLastPlayedJson(): JSONObject =
+fun Station.toLastPlayedJson(queue: List<Station> = emptyList()): JSONObject =
+    stationJson(this)
+        .put("queue", org.json.JSONArray().apply {
+            queue.forEach { put(stationJson(it)) }
+        })
+
+private fun stationJson(station: Station): JSONObject =
     JSONObject()
-        .put("id", id)
-        .put("name", name)
-        .put("streamUrl", streamUrl)
-        .put("logoPath", logoPath)
-        .put("isFavorite", isFavorite)
-        .put("provider", provider)
-        .put("providerId", providerId)
-        .put("tags", tags)
-        .put("description", description)
-        .put("country", country)
-        .put("countryCode", countryCode)
+        .put("id", station.id)
+        .put("name", station.name)
+        .put("streamUrl", station.streamUrl)
+        .put("logoPath", station.logoPath)
+        .put("isFavorite", station.isFavorite)
+        .put("provider", station.provider)
+        .put("providerId", station.providerId)
+        .put("tags", station.tags)
+        .put("description", station.description)
+        .put("country", station.country)
+        .put("countryCode", station.countryCode)
 
 fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     val obj = JSONObject(json)
     return LastPlayedStationSnapshot(
-        station = Station(
-            id = obj.optLong("id"),
-            name = obj.optString("name"),
-            streamUrl = obj.optString("streamUrl"),
-            logoPath = obj.optString("logoPath"),
-            isFavorite = obj.optBoolean("isFavorite"),
-            provider = obj.optString("provider"),
-            providerId = obj.optString("providerId"),
-            tags = obj.optString("tags"),
-            description = obj.optString("description"),
-            country = obj.optString("country"),
-            countryCode = obj.optString("countryCode"),
-        ),
+        station = obj.toStation(),
+        queue = obj.optJSONArray("queue")?.let { array ->
+            (0 until array.length()).map { index -> array.getJSONObject(index).toStation() }
+        }.orEmpty(),
     )
 }
+
+private fun JSONObject.toStation(): Station =
+    Station(
+        id = optLong("id"),
+        name = optString("name"),
+        streamUrl = optString("streamUrl"),
+        logoPath = optString("logoPath"),
+        isFavorite = optBoolean("isFavorite"),
+        provider = optString("provider"),
+        providerId = optString("providerId"),
+        tags = optString("tags"),
+        description = optString("description"),
+        country = optString("country"),
+        countryCode = optString("countryCode"),
+    )
 
 fun sortStations(stations: List<Station>, sort: FavoritesSort): List<Station> = when (sort) {
     FavoritesSort.AZ -> stations.sortedWith(compareBy { stationSortKey(it.name) })
