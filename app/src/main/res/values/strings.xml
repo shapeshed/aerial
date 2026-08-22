@@ -98,7 +98,10 @@
     <string name="sleep_set_new_duration">Set a new duration</string>
     <string name="sleep_preset_seconds">%1$d sec</string>
     <string name="sleep_preset_minutes">%1$d min</string>
-    <string name="sleep_preset_hours">%1$d hr</string>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
     <string name="sleep_preset_hours_minutes">%1$dh %2$dm</string>
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorites</string>

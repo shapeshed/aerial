@@ -90,7 +90,10 @@
     <string name="sleep_set_new_duration">नई अवधि सेट करें</string>
     <string name="sleep_preset_seconds">%1$d सेकंड</string>
     <string name="sleep_preset_minutes">%1$d मिनट</string>
-    <string name="sleep_preset_hours">%1$d घंटे</string>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d घंटा</item>
+        <item quantity="other">%1$d घंटे</item>
+    </plurals>
     <string name="sleep_preset_hours_minutes">%1$d घंटे %2$d मिनट</string>
     <string name="tab_home">होम</string>
     <string name="tab_favorites">पसंदीदा</string>
