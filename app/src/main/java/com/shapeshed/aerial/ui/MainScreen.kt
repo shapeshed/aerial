@@ -75,6 +75,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalToggleButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -1977,7 +1978,7 @@ private fun FavoritesTabContent(
                     colors = ButtonDefaults.textButtonColors(
                         // Same colour as the checked pill of the view-mode switcher beside
                         // it, so the two header controls read as one family.
-                        contentColor = ToggleButtonDefaults.filledTonalToggleButtonColors().checkedContainerColor,
+                        contentColor = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors().checkedContainerColor,
                     ),
                 ) {
                     Icon(
@@ -2103,7 +2104,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.Cards,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.Cards) },
                     shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                    colors = ToggleButtonDefaults.filledTonalToggleButtonColors(),
+                    colors = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors(),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.GridView,
@@ -2120,7 +2121,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.List,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.List) },
                     shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                    colors = ToggleButtonDefaults.filledTonalToggleButtonColors(),
+                    colors = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors(),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ViewList,

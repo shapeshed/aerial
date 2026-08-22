@@ -223,9 +223,9 @@ fun SleepTimerSheet(
                         // Visual hierarchy per applying-m-3-expressive: unselected siblings are
                         // squarer and the selected one rounds out to stand apart.
                         shapes = ToggleButtonShapes(
-                            shape = ToggleButtonDefaults.squareShape,
+                            shape = ToggleButtonDefaults.shape,
                             pressedShape = ToggleButtonDefaults.pressedShape,
-                            checkedShape = ToggleButtonDefaults.roundShape,
+                            checkedShape = ToggleButtonDefaults.checkedShape,
                         ),
                         // Larger touch target — these are primary actions.
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
