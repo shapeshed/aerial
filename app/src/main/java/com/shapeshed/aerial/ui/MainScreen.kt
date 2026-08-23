@@ -541,6 +541,8 @@ fun MainScreen(
                     uiState = uiState,
                     selectedMood = selectedMood,
                     selectedMoodStations = selectedMoodStations,
+                    savedStreamUrls = savedStreamUrls,
+                    savedRegistryKeys = savedRegistryKeys,
                     bottomPadding = stationContentBottomPadding,
                     selectedTab = effectiveSelectedTab,
                     appLocale = appLocale,
@@ -554,6 +556,7 @@ fun MainScreen(
                     onPlayRegistryStation = viewModel::playFromRegistry,
                     onPlayRegistryQueue = viewModel::playFromRegistry,
                     onAddRegistryStation = viewModel::addFromRegistry,
+                    onRemoveRegistryStation = viewModel::removeFromRegistry,
                     onPlayFavorite = { viewModel.play(it, stations) },
                     onRemoveFavorite = { station ->
                         viewModel.toggleFavorite(station)
@@ -707,6 +710,8 @@ private fun MainDestinationContent(
     uiState: MainUiState,
     selectedMood: CuratedMood?,
     selectedMoodStations: List<RegistryStation>,
+    savedStreamUrls: Set<String>,
+    savedRegistryKeys: Set<RegistryStationKey>,
     bottomPadding: Dp,
     selectedTab: Int,
     appLocale: java.util.Locale,
@@ -720,6 +725,7 @@ private fun MainDestinationContent(
     onPlayRegistryStation: (RegistryStation) -> Unit,
     onPlayRegistryQueue: (RegistryStation, List<RegistryStation>) -> Unit,
     onAddRegistryStation: (RegistryStation) -> Unit,
+    onRemoveRegistryStation: (RegistryStation) -> Unit,
     onPlayFavorite: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
@@ -737,11 +743,14 @@ private fun MainDestinationContent(
             currentStation = playback.station,
             isPlaying = playback.isPlaying,
             isBuffering = playback.isBuffering,
+            savedStreamUrls = savedStreamUrls,
+            savedRegistryKeys = savedRegistryKeys,
             bottomPadding = bottomPadding,
             onBack = onMoodBack,
             onPlay = { selectedMoodStations.firstOrNull()?.let { onPlayRegistryQueue(it, selectedMoodStations) } },
             onSave = { selectedMoodStations.forEach(onAddRegistryStation) },
             onAddStation = onAddRegistryStation,
+            onRemoveStation = onRemoveRegistryStation,
             onPlayStation = { onPlayRegistryQueue(it, selectedMoodStations) },
         )
     } else if (selectedTab == TAB_HOME) {
@@ -1689,11 +1698,14 @@ private fun MoodDetailScreen(
     currentStation: Station?,
     isPlaying: Boolean,
     isBuffering: Boolean,
+    savedStreamUrls: Set<String>,
+    savedRegistryKeys: Set<RegistryStationKey>,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSave: () -> Unit,
     onAddStation: (RegistryStation) -> Unit,
+    onRemoveStation: (RegistryStation) -> Unit,
     onPlayStation: (RegistryStation) -> Unit,
 ) {
     LazyColumn(
@@ -1792,12 +1804,17 @@ private fun MoodDetailScreen(
                         active.provider == station.provider &&
                         active.providerId == station.providerId)
             } ?: false
+            val isSaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
             MoodStationRow(
                 station = station,
                 isActive = isActive,
                 isPlaying = isPlaying && isActive,
                 isBuffering = isBuffering && isActive,
                 onPlay = { onPlayStation(station) },
+                isSaved = isSaved,
+                onToggleFavorite = {
+                    if (isSaved) onRemoveStation(station) else onAddStation(station)
+                },
             )
         }
     }
@@ -1810,6 +1827,8 @@ private fun MoodStationRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPlay: () -> Unit,
+    isSaved: Boolean,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pauseLabel = stringResource(R.string.pause)
@@ -1851,25 +1870,39 @@ private fun MoodStationRow(
                     )
                 }
             },
-            trailingContent = if (isActive && (isPlaying || isBuffering)) {
-                {
-                    when {
-                        isBuffering -> CircularWavyProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
-                        )
-                        isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier
-                                .size(width = 28.dp, height = 22.dp)
-                                .semantics { contentDescription = pauseLabel },
-                            barCount = 3,
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isActive && (isPlaying || isBuffering)) {
+                        when {
+                            isBuffering -> CircularWavyProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                            )
+                            isPlaying -> EqualizerBars(
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .size(width = 28.dp, height = 22.dp)
+                                    .semantics { contentDescription = pauseLabel },
+                                barCount = 3,
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                    ) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = stringResource(
+                                if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites,
+                            ),
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else {
+                                if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         )
                     }
                 }
-            } else {
-                null
             },
         ) {
             Text(
