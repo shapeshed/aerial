@@ -21,6 +21,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Now Playing controls remain accessible at large font sizes. (#172, #184)
 - Tag and country pickers now close and reopen smoothly, keep selected tags at
   the top, and restore the search bar when switching destinations. (#171, #188)
+- The active Favourites playback queue now follows the selected sort order when
+  the sort is changed during playback. (#190)
+- Now Playing now presents the song title above the artist with the same
+  hierarchy used by Android's media controls. (#190)
 
 ### Changed
 
@@ -29,6 +33,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   isolated on-device test application. (#180)
 - Remote artwork loading now uses Coil for fetching, caching, decoding, and
   bounded sampling, including Media3 artwork surfaces. (#169)
+- Material Expressive themes now use the library's default typography and
+  color scheme fallbacks, while retaining dynamic color on supported devices.
 
 ## [0.6.1] - 2026-08-12
 
