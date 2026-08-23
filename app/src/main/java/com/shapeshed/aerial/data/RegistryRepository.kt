@@ -210,6 +210,8 @@ class RegistryRepository(private val dao: RegistryDao) {
     suspend fun getByProviderId(provider: String, providerId: String): RegistryStation? =
         dao.getByProviderId(provider, providerId)
 
+    suspend fun getByStreamUrl(streamUrl: String): RegistryStation? = dao.getByStreamUrl(streamUrl)
+
     suspend fun availableCountryCodes(): List<String> = dao.distinctCountryCodes()
 
     suspend fun availableTags(): List<String> {

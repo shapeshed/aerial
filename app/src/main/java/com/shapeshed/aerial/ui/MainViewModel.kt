@@ -79,6 +79,14 @@ private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val MAX_RECENT_SEARCHES = 5
 private const val RECENTLY_PLAYED_LIMIT = 10
 
+/** Keeps a favourite usable when its app-private cached logo disappeared during reinstall. */
+internal fun recoverLogoPath(storedPath: String, remoteLogoUrl: String, fileExists: Boolean): String =
+    when {
+        storedPath.startsWith("http") || fileExists -> storedPath
+        remoteLogoUrl.isNotBlank() -> remoteLogoUrl
+        else -> storedPath
+    }
+
 class MainViewModel(
     application: Application,
     private val repository: StationRepository,
@@ -198,7 +206,20 @@ class MainViewModel(
     }
 
     private val _allStations: StateFlow<List<Station>> = repository.getAll()
+        .map { stations -> stations.map { recoverStationArtwork(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private suspend fun recoverStationArtwork(station: Station): Station {
+        val localPath = station.logoPath
+        if (localPath.startsWith("http") || localPath.isBlank() || File(localPath).isFile) return station
+        val registry = when {
+            station.provider.isNotBlank() && station.providerId.isNotBlank() ->
+                registryRepository.getByProviderId(station.provider, station.providerId)
+            else -> registryRepository.getByStreamUrl(station.streamUrl)
+        }
+        val recoveredPath = recoverLogoPath(localPath, registry?.logoUrl.orEmpty(), fileExists = false)
+        return if (recoveredPath == localPath) station else station.copy(logoPath = recoveredPath)
+    }
 
     // Sort order for the Favourites tab. Updated synchronously so the list reorders
     // immediately; the DataStore write catches up in the background.
