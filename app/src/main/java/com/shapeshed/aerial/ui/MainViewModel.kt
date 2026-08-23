@@ -131,7 +131,7 @@ class MainViewModel(
     val recentlyPlayedStations: StateFlow<List<RegistryStation>> = _recentlyPlayedStations.asStateFlow()
     private val recentlyPlayedFirstLoad = CompletableDeferred<Unit>()
 
-    init {
+    private fun initialize() {
         viewModelScope.launch {
             repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
                 .map { entries ->
@@ -694,6 +694,10 @@ class MainViewModel(
 
     @androidx.annotation.VisibleForTesting
     internal fun handlePlaybackMetadata(title: String?, artist: String?) {
+        applyPlaybackMetadata(title, artist)
+    }
+
+    private fun applyPlaybackMetadata(title: String?, artist: String?) {
         val normalizedTitle = title?.trim()?.takeIf { it.isNotEmpty() && it != liveRadio() }
         val normalizedArtist = artist?.trim()?.takeIf { it.isNotEmpty() && it != liveRadio() }
         _playbackUiState.value = _playbackUiState.value.copy(
@@ -1025,6 +1029,12 @@ class MainViewModel(
             prepare()
             pause()
         }
+    }
+
+    init {
+        // Start collectors only after every StateFlow they touch has been initialized.
+        // This matters on a real Android main looper, where launch can run immediately.
+        initialize()
     }
 }
 
