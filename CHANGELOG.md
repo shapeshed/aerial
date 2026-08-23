@@ -23,6 +23,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the top, and restore the search bar when switching destinations. (#171, #188)
 - The active Favourites playback queue now follows the selected sort order when
   the sort is changed during playback. (#190)
+- Last Played Favourites navigation now keeps the visible order stable while
+  skipping and refreshes from the latest play history when returning to the
+  screen. (#190)
+- The Home Recently Played row now appears at the top on first launch without
+  interrupting an in-progress scroll.
 - Now Playing now presents the song title above the artist with the same
   hierarchy used by Android's media controls. (#190)
 - Favourite rows now use Material 3 swipe-to-dismiss with an Undo action and
