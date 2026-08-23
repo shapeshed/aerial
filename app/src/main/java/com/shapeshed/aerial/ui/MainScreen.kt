@@ -1833,7 +1833,7 @@ private fun MoodStationRow(
 ) {
     val pauseLabel = stringResource(R.string.pause)
     Surface(
-        color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
+        color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = if (isActive) 0.dp else 1.dp,
         modifier = modifier
@@ -1851,7 +1851,7 @@ private fun MoodStationRow(
                     Icon(
                         imageVector = Icons.Rounded.Radio,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(26.dp),
                     )
                 }
@@ -1864,7 +1864,7 @@ private fun MoodStationRow(
                     Text(
                         text = countryLabel,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1876,11 +1876,11 @@ private fun MoodStationRow(
                         when {
                             isBuffering -> CircularWavyProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                             )
                             isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier
                                     .size(width = 28.dp, height = 22.dp)
                                     .semantics { contentDescription = pauseLabel },
@@ -1898,7 +1898,7 @@ private fun MoodStationRow(
                                 if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites,
                             ),
                             tint = if (isSaved) MaterialTheme.colorScheme.primary else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             },
                         )
                     }
@@ -1908,7 +1908,7 @@ private fun MoodStationRow(
             Text(
                 text = station.name,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -2216,7 +2216,7 @@ private fun StationListRow(
         },
     ) {
         Surface(
-        color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
+            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.medium,
             tonalElevation = if (isActive) 0.dp else 1.dp,
             modifier = modifier
@@ -2238,7 +2238,12 @@ private fun StationListRow(
                 },
                 supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
                     {
-                        Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = label,
+                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 },
                 trailingContent = if (isActive && (isPlaying || isBuffering)) {
@@ -2247,11 +2252,11 @@ private fun StationListRow(
                             when {
                                 isBuffering -> CircularWavyProgressIndicator(
                                     modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                                 )
                                 isPlaying -> EqualizerBars(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier
                                         .size(width = 28.dp, height = 22.dp)
                                         .semantics { contentDescription = pauseLabel },
@@ -2267,7 +2272,7 @@ private fun StationListRow(
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
