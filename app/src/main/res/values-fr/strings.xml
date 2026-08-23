@@ -116,4 +116,6 @@
     <string name="no_favorites_desc">Ajoutez vos stations préférées pour les retrouver facilement ici</string>
     <string name="car_moods">Humeurs</string>
     <string name="recently_played">Écouté récemment</string>
+    <string name="favorite_removed_message">%1$s retirée des favoris</string>
+    <string name="undo">Annuler</string>
 </resources>

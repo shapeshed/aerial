@@ -29,6 +29,8 @@
     <string name="add_your_own_station">Add your own station</string>
     <string name="save_to_favorites">Save to favorites</string>
     <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="favorite_removed_message">%1$s removed from favorites</string>
+    <string name="undo">Undo</string>
     <string name="no_internet_title">No internet connection</string>
     <string name="no_internet_desc">Radio streams require an active internet connection.</string>
     <string name="favorites_header">Your favorites</string>

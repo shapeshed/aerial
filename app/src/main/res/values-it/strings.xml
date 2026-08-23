@@ -116,4 +116,6 @@
     <string name="no_favorites_desc">Aggiungi le stazioni che ami per ritrovarle facilmente qui</string>
     <string name="car_moods">Umori</string>
     <string name="recently_played">Ascoltati di recente</string>
+    <string name="favorite_removed_message">%1$s rimosso dai preferiti</string>
+    <string name="undo">Annulla</string>
 </resources>

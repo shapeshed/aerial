@@ -110,4 +110,6 @@
     <string name="no_favorites_desc">Lisa lemmikjaamad, et need siit hõlpsalt leida</string>
     <string name="car_moods">Meeleolud</string>
     <string name="recently_played">Hiljuti esitatud</string>
+    <string name="favorite_removed_message">%1$s eemaldati lemmikutest</string>
+    <string name="undo">Võta tagasi</string>
 </resources>

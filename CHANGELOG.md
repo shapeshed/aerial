@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the sort is changed during playback. (#190)
 - Now Playing now presents the song title above the artist with the same
   hierarchy used by Android's media controls. (#190)
+- Favourite rows now use Material 3 swipe-to-dismiss with an Undo action and
+  animated list-item settling. (#165)
 
 ### Changed
 
