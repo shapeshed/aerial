@@ -5,17 +5,17 @@ import org.junit.Test
 
 class FilterPickerItemsTest {
     @Test
-    fun selectedItemsSortFirstThenLabelsSortAlphabetically() {
+    fun selectedItemsAppearAtTopWhenPickerIsReopened() {
         val labels = mapOf("gb" to "United Kingdom", "de" to "Germany", "fr" to "France")
         val result = filterPickerItems(
             items = listOf("gb", "de", "fr"),
-            selectedItems = setOf("fr"),
+            selectedItems = setOf("gb"),
             query = "",
             displayName = { labels.getValue(it) },
         )
 
-        assertEquals(listOf("fr", "de", "gb"), result.map(FilterPickerItem::value))
-        assertEquals(listOf("France", "Germany", "United Kingdom"), result.map(FilterPickerItem::label))
+        assertEquals(listOf("gb", "fr", "de"), result.map(FilterPickerItem::value))
+        assertEquals(listOf("United Kingdom", "France", "Germany"), result.map(FilterPickerItem::label))
     }
 
     @Test

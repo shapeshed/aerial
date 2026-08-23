@@ -42,6 +42,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
@@ -97,6 +98,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -112,6 +114,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarScrollBehavior
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -128,6 +131,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,6 +147,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -299,6 +305,8 @@ fun MainScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val uiState by viewModel.mainUiState.collectAsStateWithLifecycle()
     val playbackUiState = uiState.playback.playback
     val stations = uiState.home.stations
@@ -338,6 +346,12 @@ fun MainScreen(
 
     val textFieldState = rememberTextFieldState()
     val searchBarState = rememberContainedSearchBarState()
+    val searchDestination = if (showHome) uiState.home.selectedTab else TAB_FAVORITES
+    val searchScrollBehaviorState = remember { mutableStateOf<SearchBarScrollBehavior?>(null) }
+    key(searchDestination) {
+        searchScrollBehaviorState.value = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
+    }
+    val searchScrollBehavior = requireNotNull(searchScrollBehaviorState.value)
     val isSearchExpanded by remember { derivedStateOf { searchBarState.currentValue == SearchBarValue.Expanded } }
     val searchQueryText by remember { derivedStateOf { textFieldState.text.toString() } }
     var showCountrySheet by remember { mutableStateOf(false) }
@@ -357,6 +371,29 @@ fun MainScreen(
     var genreFilterQuery by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
+    val dismissCountrySheet = {
+        scope.launch {
+            countrySheetState.hide()
+            showCountrySheet = false
+            countryFilterQuery = ""
+        }
+        Unit
+    }
+    val dismissGenreSheet = {
+        scope.launch {
+            genreSheetState.hide()
+            showGenreSheet = false
+            genreFilterQuery = ""
+        }
+        Unit
+    }
+    fun openFilterSheet(open: () -> Unit) {
+        // Release the search field before presenting the sheet so the IME does not resize
+        // the sheet during its entrance animation.
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        open()
+    }
 
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
     val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
@@ -433,14 +470,6 @@ fun MainScreen(
                             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_search))
                         }
                     }
-                    !isSearchExpanded -> {
-                        IconButton(
-                            onClick = onSettings,
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        ) {
-                            Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings))
-                        }
-                    }
                 }
             },
         )
@@ -455,22 +484,43 @@ fun MainScreen(
             selectedDestination = effectiveSelectedTab,
             showHome = showHome,
             onDestinationSelected = { destination ->
+                // A destination change is a fresh top-level surface. Restore the app bar
+                // before the new content is drawn so a search bar scrolled off Home does not
+                // remain hidden on Favorites (or when returning to Home).
                 selectedMoodId = null
                 viewModel.setSelectedHomeTab(destination)
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(searchScrollBehavior.nestedScrollConnection),
         ) {
             Column(Modifier.fillMaxSize()) {
                 if (selectedMood == null) {
-                    SearchBar(
+                    AppBarWithSearch(
                         state = searchBarState,
                         inputField = searchInputField,
-                        colors = SearchBarDefaults.containedColors(searchBarState),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .windowInsetsPadding(WindowInsets.statusBars)
-                            .padding(top = 8.dp, bottom = 8.dp),
+                        colors = SearchBarDefaults.appBarWithSearchColors(
+                            searchBarColors = SearchBarDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                            scrolledSearchBarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            appBarContainerColor = MaterialTheme.colorScheme.surface,
+                            scrolledAppBarContainerColor = MaterialTheme.colorScheme.surface,
+                            appBarNavigationIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            appBarActionIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        actions = {
+                            if (!isSearchExpanded) {
+                                IconButton(
+                                    onClick = onSettings,
+                                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                ) {
+                                    Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings))
+                                }
+                            }
+                        },
+                        scrollBehavior = searchScrollBehavior,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
 
@@ -566,8 +616,8 @@ fun MainScreen(
             uiState = uiState,
             savedStreamUrls = savedStreamUrls,
             savedRegistryKeys = savedRegistryKeys,
-            onCountryFilter = { showCountrySheet = true },
-            onGenreFilter = { showGenreSheet = true },
+            onCountryFilter = { openFilterSheet { showCountrySheet = true } },
+            onGenreFilter = { openFilterSheet { showGenreSheet = true } },
             onClearFilters = viewModel::clearAllFilters,
             onSearch = viewModel::searchRegistry,
             onSaveRecentSearch = viewModel::saveRecentSearch,
@@ -596,8 +646,8 @@ fun MainScreen(
             appLocale = appLocale,
             contextStation = contextStation,
             stationToDelete = stationToDelete,
-            onDismissCountry = { showCountrySheet = false; countryFilterQuery = "" },
-            onDismissGenre = { showGenreSheet = false; genreFilterQuery = "" },
+            onDismissCountry = dismissCountrySheet,
+            onDismissGenre = dismissGenreSheet,
             onCountryQueryChange = { countryFilterQuery = it },
             onGenreQueryChange = { genreFilterQuery = it },
             onToggleCountry = viewModel::toggleCountryFilter,
@@ -735,6 +785,19 @@ private fun MainSearchOverlay(
     onCollapse: () -> Unit,
     onAddManually: () -> Unit,
 ) {
+    val resultsGridState = rememberLazyGridState()
+    val filterHeader: @Composable () -> Unit = {
+        SearchFilterRow(
+            selectedCountries = uiState.search.filters.selectedCountries,
+            selectedTags = uiState.search.filters.selectedTags,
+            onCountryClick = onCountryFilter,
+            onGenreClick = onGenreFilter,
+            onClearAll = onClearFilters,
+            hasFilters = uiState.search.filters.selectedCountries.isNotEmpty() ||
+                uiState.search.filters.selectedTags.isNotEmpty(),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
     ExpandedFullScreenContainedSearchBar(
         state = searchBarState,
         inputField = inputField,
@@ -746,15 +809,6 @@ private fun MainSearchOverlay(
         val search = uiState.search
         val playback = uiState.playback.playback
         val hasFilters = search.filters.selectedCountries.isNotEmpty() || search.filters.selectedTags.isNotEmpty()
-        SearchFilterRow(
-            selectedCountries = search.filters.selectedCountries,
-            selectedTags = search.filters.selectedTags,
-            onCountryClick = onCountryFilter,
-            onGenreClick = onGenreFilter,
-            onClearAll = onClearFilters,
-            hasFilters = hasFilters,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
         if (query.isBlank() && !hasFilters) {
             if (search.results.recentQueries.isNotEmpty()) {
                 RecentSearches(
@@ -764,6 +818,8 @@ private fun MainSearchOverlay(
                         onSearch(selectedQuery)
                     },
                     onRemove = onRemoveRecentSearch,
+                    state = resultsGridState,
+                    header = filterHeader,
                 )
             } else {
                 DefaultSearchResults(
@@ -782,6 +838,8 @@ private fun MainSearchOverlay(
                     onTogglePlayback = onTogglePlayback,
                     onAdd = onAddRegistry,
                     onRemove = onRemoveRegistry,
+                    state = resultsGridState,
+                    header = filterHeader,
                 )
             }
         } else {
@@ -821,6 +879,8 @@ private fun MainSearchOverlay(
                     onCollapse()
                     onAddManually()
                 },
+                state = resultsGridState,
+                header = filterHeader,
             )
         }
     }
@@ -868,6 +928,7 @@ private fun MainModalHost(
                 selectedItems = selectedCountries,
                 displayName = { countryName(it, appLocale) },
                 onToggle = onToggleCountry,
+                onSelectionComplete = onDismissCountry,
                 onClear = onClearCountry,
             )
         }
@@ -883,6 +944,7 @@ private fun MainModalHost(
                 selectedItems = selectedTags,
                 displayName = { tagLabels[it] ?: it },
                 onToggle = onToggleTag,
+                onSelectionComplete = onDismissGenre,
                 onClear = onClearTag,
             )
         }
@@ -935,9 +997,12 @@ private fun DefaultSearchResults(
     onTogglePlayback: () -> Unit,
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
+    state: androidx.compose.foundation.lazy.grid.LazyGridState,
+    header: @Composable () -> Unit,
 ) {
     if (stations.isEmpty()) return
-    LazyVerticalGrid(columns = GridCells.Adaptive(360.dp)) {
+    LazyVerticalGrid(state = state, columns = GridCells.Adaptive(360.dp)) {
+        item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
         gridItems(
             items = stations,
             key = { it.id },
@@ -973,9 +1038,12 @@ private fun RecentSearches(
     searches: List<String>,
     onSelect: (String) -> Unit,
     onRemove: (String) -> Unit,
+    state: androidx.compose.foundation.lazy.grid.LazyGridState,
+    header: @Composable () -> Unit,
 ) {
     if (searches.isEmpty()) return
-    LazyVerticalGrid(columns = GridCells.Adaptive(360.dp)) {
+    LazyVerticalGrid(state = state, columns = GridCells.Adaptive(360.dp)) {
+        item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
         gridItems(items = searches, key = { it }) { query ->
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable { onSelect(query) },
@@ -1018,62 +1086,69 @@ private fun RegistrySearchResults(
     onAdd: (RegistryStation) -> Unit,
     onRemove: (RegistryStation) -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp,
+    state: androidx.compose.foundation.lazy.grid.LazyGridState,
+    header: @Composable () -> Unit,
     onAddManually: (() -> Unit)? = null,
 ) {
     if (favoriteResults.isEmpty() && results.isEmpty()) {
-        Box(
-            modifier = androidx.compose.ui.Modifier.fillMaxSize().padding(32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+        Column(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+            header()
+            Box(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth().weight(1f).padding(32.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = androidx.compose.ui.Modifier.size(88.dp),
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = Icons.Rounded.Radio,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = androidx.compose.ui.Modifier.size(36.dp),
-                        )
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = androidx.compose.ui.Modifier.size(88.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                            Icon(
+                                imageVector = Icons.Rounded.Radio,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = androidx.compose.ui.Modifier.size(36.dp),
+                            )
+                        }
                     }
-                }
-                Text(
-                    text = stringResource(R.string.no_stations_found),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = stringResource(R.string.no_stations_found_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                if (onAddManually != null) {
-                    Spacer(androidx.compose.ui.Modifier.height(4.dp))
-                    Button(onClick = onAddManually) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
-                            modifier = androidx.compose.ui.Modifier.size(18.dp),
-                        )
-                        Spacer(androidx.compose.ui.Modifier.width(8.dp))
-                        Text(stringResource(R.string.add_your_own_station))
+                    Text(
+                        text = stringResource(R.string.no_stations_found),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = stringResource(R.string.no_stations_found_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (onAddManually != null) {
+                        Spacer(androidx.compose.ui.Modifier.height(4.dp))
+                        Button(onClick = onAddManually) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                modifier = androidx.compose.ui.Modifier.size(18.dp),
+                            )
+                            Spacer(androidx.compose.ui.Modifier.width(8.dp))
+                            Text(stringResource(R.string.add_your_own_station))
+                        }
                     }
                 }
             }
         }
     } else {
         LazyVerticalGrid(
+            state = state,
             columns = GridCells.Adaptive(360.dp),
             contentPadding = PaddingValues(bottom = bottomPadding),
         ) {
+            item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
             if (favoriteResults.isNotEmpty()) {
                 item("favorite-results-header", span = { GridItemSpan(maxLineSpan) }) {
                     Text(
