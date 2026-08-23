@@ -5,7 +5,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import android.os.Bundle
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.PlayHistoryEntry
@@ -105,6 +109,31 @@ class MainViewModelStateTest {
         assertEquals(emptySet<String>(), viewModel.selectedCountries.value)
         assertEquals(emptySet<String>(), viewModel.selectedTags.value)
         verify(registryRepository, atLeastOnce()).search("mango", emptySet(), emptySet())
+    }
+
+    @Test
+    fun metadataBeforeStationTransitionRemainsVisibleForNowPlaying() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        val left = station(1, "Metadata-less station")
+        val right = station(2, "Song station")
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(left, right)))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, registryRepository)
+        runCurrent()
+
+        viewModel.handlePlaybackEvents(mediaItem(left.name, left.id.toString()), isPlaying = true)
+        assertEquals("Metadata-less station", viewModel.playbackUiState.value.station?.name)
+        viewModel.handlePlaybackMetadata(
+            mediaItem = mediaItem(right.name, right.id.toString()),
+            title = "Song delivered by stream",
+            artist = "Artist",
+        )
+        viewModel.handlePlaybackEvents(mediaItem(right.name, right.id.toString()), isPlaying = true)
+
+        assertEquals("Song station", viewModel.playbackUiState.value.station?.name)
+        assertEquals("Song delivered by stream", viewModel.playbackUiState.value.trackTitle)
+        assertEquals("Artist", viewModel.playbackUiState.value.trackArtist)
     }
 
     @Test
@@ -260,13 +289,18 @@ class MainViewModelStateTest {
         verify(repository).insertOrGetExisting(any())
     }
 
-    private fun viewModel(repository: StationRepository, registryRepository: RegistryRepository): MainViewModel {
+    private fun viewModel(
+        repository: StationRepository,
+        registryRepository: RegistryRepository,
+        dataStore: DataStore<Preferences> = MemoryDataStore(),
+    ): MainViewModel {
         val app = mock<AerialApp>()
         val network = mock<NetworkMonitor>()
         whenever(app.networkMonitor).thenReturn(network)
+        whenever(app.getString(R.string.live_radio)).thenReturn("test-live-radio")
         whenever(network.isOnline).thenReturn(MutableStateFlow(true).asStateFlow())
         whenever(registryRepository.countAsFlow()).thenReturn(flowOf(0))
-        return MainViewModel(app, repository, registryRepository, MemoryDataStore(), SavedStateHandle()).also(viewModels::add)
+        return MainViewModel(app, repository, registryRepository, dataStore, SavedStateHandle()).also(viewModels::add)
     }
 
     private fun station(id: Long, name: String, lastPlayedAt: Long = 0, playCount: Int = 0) = Station(
@@ -284,6 +318,19 @@ class MainViewModelStateTest {
         provider = "test",
         providerId = "mango",
     )
+
+    private fun mediaItem(stationName: String, id: String): MediaItem = MediaItem.Builder()
+        .setMediaId(id)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(stationName)
+                .setExtras(Bundle().apply {
+                    putString("streamUrl", "https://example.test/$id")
+                    putString("stationName", stationName)
+                })
+                .build(),
+        )
+        .build()
 
     private class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
         private val state = MutableStateFlow(initial)
