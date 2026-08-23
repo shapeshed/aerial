@@ -300,7 +300,7 @@ class PlayerService : MediaLibraryService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                         .buildUpon()
