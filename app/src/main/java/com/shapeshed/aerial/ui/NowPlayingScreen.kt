@@ -285,17 +285,7 @@ fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxSize(),
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .nestedScroll(dismissNestedScrollConnection)
-                        .verticalScroll(contentScrollState)
-                        .padding(top = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom,
-                ) {
-                    Box(
+                Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(artworkSize)
@@ -303,27 +293,20 @@ fun NowPlayingScreen(
                         .semantics { traversalIndex = 1f },
                 ) {
                     if (swipeIndex != -1 && swipeStations.size > 1) {
-                        // Real pager over the frozen favourites order: the neighbour's artwork is a
-                        // prepared page that slides in with the finger; settling switches playback.
-                        // The rest of the pane stays static.
+                        // Keep the artwork pager outside the metadata scroller so station
+                        // navigation remains available without moving the visual anchor.
                         val virtualPageCount = Int.MAX_VALUE
                         val initialPage = remember(swipeStations, swipeIndex) {
                             val midpoint = virtualPageCount / 2
                             midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
                         }
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
-                        // Set while the effect below is correcting the pager to match an external
-                        // station change, so that correction's own settle doesn't loop back into
-                        // onPlayStation below — a settle it causes reflects a decision already made
-                        // elsewhere, not a new one the user just swiped to.
                         var isSyncingToStation by remember { mutableStateOf(false) }
                         LaunchedEffect(pagerState.settledPage) {
                             if (isSyncingToStation) return@LaunchedEffect
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
                             if (!target.matches(station)) onPlayStation(target)
                         }
-                        // Keep the pager in step when the station changes some other way (e.g. the
-                        // media notification or a tap on the favourites grid behind the pane).
                         LaunchedEffect(swipeIndex) {
                             val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
                             if (currentIndex != swipeIndex && !pagerState.isScrollInProgress) {
@@ -351,9 +334,6 @@ fun NowPlayingScreen(
                                     onArtworkError = { mainArtworkFailed = true },
                                 )
                             } else {
-                                // Own logo, full-bleed — not the small circular avatar, and not
-                                // sharing mainArtworkFailed with the active page (a neighbour's
-                                // logo failing to load must not blank out the real artwork above).
                                 val ownLogoModel = pageStation.ownLogoModel()
                                 var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
                                 StationArtworkSurface(
@@ -381,6 +361,16 @@ fun NowPlayingScreen(
                         )
                     }
                 }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(dismissNestedScrollConnection)
+                        .verticalScroll(contentScrollState)
+                        .padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = station.name,
