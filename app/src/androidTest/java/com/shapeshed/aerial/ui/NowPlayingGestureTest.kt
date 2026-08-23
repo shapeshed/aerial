@@ -19,6 +19,37 @@ class NowPlayingGestureTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
+    fun songTitleAppearsAboveArtistLikeSystemMediaControls() {
+        composeRule.setContent {
+            AerialTheme(dynamicColor = false) {
+                NowPlayingScreen(
+                    station = Station(id = 1, name = "Radio One", streamUrl = "https://example.test/stream"),
+                    isPlaying = true,
+                    isBuffering = false,
+                    currentTrackTitle = "Song title",
+                    currentTrackArtist = "Artist",
+                    currentBitrateKbps = null,
+                    showStreamBitrate = false,
+                    sleepTimer = null,
+                    swipeStations = emptyList(),
+                    onPlayStation = {},
+                    onPreviousStation = {},
+                    onNextStation = {},
+                    onToggle = {},
+                    onToggleFavorite = {},
+                    onSetSleepTimer = {},
+                    onCancelSleepTimer = {},
+                    onDismiss = {},
+                )
+            }
+        }
+
+        val titleTop = composeRule.onNodeWithTag("now_playing_track_title").fetchSemanticsNode().boundsInRoot.top
+        val artistTop = composeRule.onNodeWithTag("now_playing_track_artist").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(titleTop < artistTop)
+    }
+
+    @Test
     fun swipeDownFromScrollableMetadataDismissesPlayer() {
         var dismissed = false
         composeRule.setContent {

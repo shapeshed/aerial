@@ -7,12 +7,11 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val darkScheme = darkColorScheme()
+private val darkFallbackScheme = darkColorScheme()
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -26,13 +25,12 @@ fun AerialTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> darkScheme
+        darkTheme -> darkFallbackScheme
         else -> expressiveLightColorScheme()
     }
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        typography = Typography(),
         content = content,
     )
 }

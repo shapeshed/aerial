@@ -326,7 +326,7 @@ class MainViewModelStateTest {
         val viewModel = viewModel(repository, registryRepository, artworkLoader = artworkLoader)
 
         viewModel.addFromRegistry(registry("Mango Radio").copy(logoUrl = "https://example.test/mango.png"))
-        runCurrent()
+        viewModel.recentlyAddedStationId.first { it == 42L }
 
         assertEquals("https://example.test/mango.png", artworkLoader.url)
         verify(repository).insertOrGetExisting(argThat { logoPath == "/tmp/aerial-logo.png" })
