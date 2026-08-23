@@ -253,6 +253,8 @@ class MediaBrowseTreeTest {
             stations.filter { it.providerId in ids }
         override suspend fun getByProviderId(provider: String, providerId: String): RegistryStation? =
             stations.firstOrNull { it.provider == provider && it.providerId == providerId }
+        override suspend fun getByStreamUrl(streamUrl: String): RegistryStation? =
+            stations.firstOrNull { it.streamUrl == streamUrl }
         override suspend fun getById(id: Long): RegistryStation? = stations.firstOrNull { it.id == id }
         override suspend fun getByNames(names: List<String>): List<RegistryStation> =
             stations.filter { it.name in names }
