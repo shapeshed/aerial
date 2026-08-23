@@ -31,6 +31,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -75,7 +78,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -143,6 +148,30 @@ fun NowPlayingScreen(
     val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
+    val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (available.y > 0f && contentScrollState.value == 0) {
+                    dragOffsetY = (dragOffsetY + available.y).coerceAtLeast(0f)
+                    return androidx.compose.ui.geometry.Offset(0f, available.y)
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY >= dismissThresholdPx) {
+                    onDismiss()
+                    dismissScope.launch {
+                        delay(500)
+                        dragOffsetY = 0f
+                    }
+                    return available
+                }
+                if (dragOffsetY > 0f) dragOffsetY = 0f
+                return Velocity.Zero
+            }
+        }
+    }
     // Station identity and stream metadata are published in one PlaybackUiState snapshot, so
     // metadata can be rendered directly without composition-time reset bookkeeping.
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != station.name
@@ -225,14 +254,17 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .nestedScroll(dismissNestedScrollConnection)
                         .verticalScroll(contentScrollState)
                         .padding(top = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
                 ) {
                     Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(artworkSize)
+                        .testTag("now_playing_artwork")
                         .semantics { traversalIndex = 1f },
                 ) {
                     if (swipeIndex != -1 && swipeStations.size > 1) {
