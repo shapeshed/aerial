@@ -63,7 +63,7 @@ class ArtworkProvider : ContentProvider() {
     companion object {
         const val REGISTRY_ARTWORK_DIR = "registry_artwork"
 
-        // Matches the download directory MainViewModel.downloadLogo caches favourited logos in.
+        // Matches the download directory used by the artwork loader for favourited logos.
         const val LOCAL_LOGO_DIR = "logos"
 
         fun uriFor(context: android.content.Context, dir: String, fileName: String): Uri =

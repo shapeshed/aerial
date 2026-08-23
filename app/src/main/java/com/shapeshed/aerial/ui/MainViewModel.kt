@@ -54,8 +54,6 @@ import com.shapeshed.aerial.data.toLastPlayedJson
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toPlayableMediaItem
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -90,6 +88,7 @@ class MainViewModel(
     // always passes an explicit SavedStateHandle via CreationExtras.createSavedStateHandle().
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
 ) : AndroidViewModel(application) {
 
     val isOnline = (application as AerialApp).networkMonitor.isOnline
@@ -439,7 +438,10 @@ class MainViewModel(
     fun addFromRegistry(registryStation: RegistryStation) {
         viewModelScope.launch {
             val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
-                withContext(Dispatchers.IO) { downloadLogo(registryStation.logoUrl) } ?: registryStation.logoUrl
+                withContext(Dispatchers.IO) {
+                    val dir = File(getApplication<Application>().filesDir, "logos").also { it.mkdirs() }
+                    artworkLoader.download(registryStation.logoUrl, dir)
+                } ?: registryStation.logoUrl
             } else {
                 ""
             }
@@ -929,41 +931,11 @@ class MainViewModel(
     // restore — a bare remote URL isn't embedded in the backup zip (see SettingsViewModel).
     private suspend fun ensureLocalLogo(station: Station): Station {
         if (!station.logoPath.startsWith("http")) return station
-        val localPath = withContext(Dispatchers.IO) { downloadLogo(station.logoPath) } ?: return station
-        return station.copy(logoPath = localPath)
-    }
-
-    private suspend fun downloadLogo(url: String): String? {
-        return try {
+        val localPath = withContext(Dispatchers.IO) {
             val dir = File(getApplication<Application>().filesDir, "logos").also { it.mkdirs() }
-            val conn = URL(url).openConnection() as HttpURLConnection
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 10_000
-            try {
-                // A dead/moved logo URL can respond with a redirect or an HTML error page
-                // instead of an image (e.g. a 301 whose body is just an nginx redirect
-                // notice) — without this check that body gets saved to disk as if it were
-                // the logo. On rejection the caller falls back to the raw URL, which Coil's
-                // own HTTP client can still resolve correctly at render time (it isn't
-                // restricted to same-protocol redirects the way HttpURLConnection is).
-                val contentType = conn.contentType?.substringBefore(';')?.trim()
-                if (conn.responseCode != HttpURLConnection.HTTP_OK ||
-                    (contentType != null && !contentType.startsWith("image/"))
-                ) {
-                    return null
-                }
-                val dest = logoFileForUrl(url, dir, contentType)
-                conn.inputStream.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                }
-                ensureMediaArtworkForLogo(getApplication(), dest)
-                dest.absolutePath
-            } finally {
-                conn.disconnect()
-            }
-        } catch (_: Exception) {
-            null
-        }
+            artworkLoader.download(station.logoPath, dir)
+        } ?: return station
+        return station.copy(logoPath = localPath)
     }
 
     fun deleteStation(station: Station) {

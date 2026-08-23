@@ -1,6 +1,5 @@
 package com.shapeshed.aerial.data
 
-import android.util.LruCache
 import com.shapeshed.aerial.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
@@ -51,30 +50,6 @@ internal fun httpPostJson(url: String, body: String, extraHeaders: Map<String, S
             conn.outputStream.use { it.write(body.toByteArray()) }
             if (conn.responseCode !in 200..299) return null
             conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
-        }
-    } catch (_: Exception) {
-        null
-    }
-}
-
-/**
- * Fetch image bytes from [url], storing results in [cache]. Returns null on any error.
- * Caller is responsible for running this on a background thread (e.g. Dispatchers.IO).
- */
-internal fun httpFetchBytes(url: String, cache: LruCache<String, ByteArray>): ByteArray? {
-    cache[url]?.let { return it }
-    return try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", AERIAL_USER_AGENT)
-        try {
-            if (conn.responseCode !in 200..299) return null
-            conn.inputStream.use { input ->
-                input.readBytes().also { bytes -> cache.put(url, bytes) }
-            }
         } finally {
             conn.disconnect()
         }
