@@ -24,9 +24,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -69,7 +71,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -216,11 +217,18 @@ fun NowPlayingScreen(
             val artworkSize = (maxHeight * 0.42f).coerceAtMost(maxWidth)
 
             Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize(),
             ) {
-                Box(
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(artworkSize)
@@ -309,19 +317,16 @@ fun NowPlayingScreen(
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.headlineLarge,
-                    minLines = 2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     modifier = Modifier
-                        .width(artworkSize)
+                        .fillMaxWidth()
                         .semantics { traversalIndex = 2f },
                 )
                 Spacer(Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
-                        .width(artworkSize)
-                        .height(48.dp),
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                 ) {
                     if (showTrackBlock) {
                         Row(
@@ -337,20 +342,16 @@ fun NowPlayingScreen(
                                     text = trackArtist ?: trackTitle.orEmpty(),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                    modifier = Modifier.fillMaxWidth().safeMarquee(),
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                                 if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
                                     Text(
                                         text = trackTitle,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                        modifier = Modifier.fillMaxWidth().safeMarquee(),
+                                        modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
                             }
@@ -372,7 +373,9 @@ fun NowPlayingScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(24.dp))
+                }
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
