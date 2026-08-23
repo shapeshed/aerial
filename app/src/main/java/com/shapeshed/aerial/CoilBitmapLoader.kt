@@ -2,7 +2,6 @@ package com.shapeshed.aerial
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.concurrent.futures.SuspendToFutureAdapter
 import androidx.media3.common.util.BitmapLoader
@@ -28,8 +27,13 @@ class CoilBitmapLoader(private val context: Context) : BitmapLoader {
 
     override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> =
         SuspendToFutureAdapter.launchFuture(Dispatchers.Default, false) {
-            BitmapFactory.decodeByteArray(data, 0, data.size)
+            val request = ImageRequest.Builder(context)
+                .data(data)
+                .size(512)
+                .build()
+            val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult
                 ?: error("Could not decode artwork bytes")
+            result.image.toOpaqueBitmap(context)
         }
 
     override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> =

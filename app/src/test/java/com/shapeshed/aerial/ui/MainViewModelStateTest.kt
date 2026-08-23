@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import android.os.Bundle
+import java.io.File
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.shapeshed.aerial.AerialApp
@@ -34,6 +35,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.atLeastOnce
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -289,10 +291,28 @@ class MainViewModelStateTest {
         verify(repository).insertOrGetExisting(any())
     }
 
+    @Test
+    fun addingRegistryStationUsesArtworkLoaderForRemoteLogo() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.insertOrGetExisting(any())).thenReturn(42L)
+        val artworkLoader = RecordingArtworkLoader("/tmp/aerial-logo.png")
+        val viewModel = viewModel(repository, registryRepository, artworkLoader = artworkLoader)
+
+        viewModel.addFromRegistry(registry("Mango Radio").copy(logoUrl = "https://example.test/mango.png"))
+        runCurrent()
+
+        assertEquals("https://example.test/mango.png", artworkLoader.url)
+        verify(repository).insertOrGetExisting(argThat { logoPath == "/tmp/aerial-logo.png" })
+    }
+
     private fun viewModel(
         repository: StationRepository,
         registryRepository: RegistryRepository,
         dataStore: DataStore<Preferences> = MemoryDataStore(),
+        artworkLoader: ArtworkLoader = CoilArtworkLoader(mock()),
     ): MainViewModel {
         val app = mock<AerialApp>()
         val network = mock<NetworkMonitor>()
@@ -300,7 +320,15 @@ class MainViewModelStateTest {
         whenever(app.getString(R.string.live_radio)).thenReturn("test-live-radio")
         whenever(network.isOnline).thenReturn(MutableStateFlow(true).asStateFlow())
         whenever(registryRepository.countAsFlow()).thenReturn(flowOf(0))
-        return MainViewModel(app, repository, registryRepository, dataStore, SavedStateHandle()).also(viewModels::add)
+        return MainViewModel(app, repository, registryRepository, dataStore, SavedStateHandle(), artworkLoader).also(viewModels::add)
+    }
+
+    private class RecordingArtworkLoader(private val path: String) : ArtworkLoader {
+        var url: String? = null
+        override suspend fun download(url: String, directory: File): String? {
+            this.url = url
+            return path
+        }
     }
 
     private fun station(id: Long, name: String, lastPlayedAt: Long = 0, playCount: Int = 0) = Station(

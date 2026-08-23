@@ -176,7 +176,7 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
 
 /**
  * A stable content:// URI for a favourited station's locally-cached logo file (already on disk
- * under filesDir/logos — see MainViewModel.downloadLogo), for the same reason
+ * under filesDir/logos — see [ArtworkLoader]), for the same reason
  * [cachedRemoteArtworkUri] proxies remote logos: Media3's legacy queue bridge only decodes and
  * embeds a Bitmap in a queue item when its MediaMetadata carries embedded artworkData bytes — an
  * artworkUri-only item is skipped entirely. Handing the phone/Bluetooth playback queue a URI

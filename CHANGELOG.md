@@ -10,14 +10,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Hindi and Punjabi translations are now available in the app, contributed by
   `whistlingwoods` via Weblate. (#177, #178)
+- Now Playing and the mini player can navigate to the next or previous station
+  in the active playback queue. (#173, #185)
 
 ### Fixed
 
 - Sleep timer hour labels now use locale-aware plural forms. (#166, #176)
+- Playback metadata now follows station transitions without retaining the
+  previous station's track information. (#175, #183)
+- Now Playing controls remain accessible at large font sizes. (#172, #184)
+- Tag and country pickers now close and reopen smoothly, keep selected tags at
+  the top, and restore the search bar when switching destinations. (#171, #188)
 
 ### Changed
 
 - Partial translations now fall back to the default locale without failing the lint gate.
+- Compose navigation and test infrastructure now use the Navigation 3 APIs and
+  isolated on-device test application. (#180)
+- Remote artwork loading now uses Coil for fetching, caching, decoding, and
+  bounded sampling, including Media3 artwork surfaces. (#169)
 
 ## [0.6.1] - 2026-08-12
 
