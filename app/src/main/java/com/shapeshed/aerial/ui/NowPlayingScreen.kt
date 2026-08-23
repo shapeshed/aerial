@@ -12,6 +12,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -75,6 +76,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -128,7 +130,7 @@ fun NowPlayingScreen(
 ) {
     val context = LocalContext.current
     val shareStationLabel = stringResource(R.string.share_station)
-    val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
+    val dismissThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val dismissScope = rememberCoroutineScope()
     // Horizontal paging steps through swipeStations (the favourites in their selected sort
@@ -148,6 +150,7 @@ fun NowPlayingScreen(
     val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
+    val touchSlop = LocalViewConfiguration.current.touchSlop
     val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
@@ -189,6 +192,28 @@ fun NowPlayingScreen(
             .semantics { isTraversalGroup = true },
         topBar = {
             TopAppBar(
+                modifier = Modifier.pointerInput(dismissThresholdPx, onDismiss) {
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, dragAmount ->
+                            if (dragAmount > 0f) {
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            }
+                        },
+                        onDragEnd = {
+                            if (dragOffsetY >= dismissThresholdPx) {
+                                onDismiss()
+                                dismissScope.launch {
+                                    delay(500)
+                                    dragOffsetY = 0f
+                                }
+                            } else {
+                                dragOffsetY = 0f
+                            }
+                        },
+                        onDragCancel = { dragOffsetY = 0f },
+                    )
+                },
                 title = {},
                 navigationIcon = {
                     IconButton(
@@ -214,16 +239,26 @@ fun NowPlayingScreen(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         var dragging = false
+                        var directionLocked = false
+                        var totalX = 0f
+                        var totalY = 0f
                         while (true) {
                             val change = awaitPointerEvent(PointerEventPass.Initial)
                                 .changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
-                            val dragAmount = change.positionChange().y
-                            if (dragAmount > 0f && (dragging || contentScrollState.value == 0)) {
+                            val positionChange = change.positionChange()
+                            totalX += positionChange.x
+                            totalY += positionChange.y
+                            if (!directionLocked && (totalX * totalX + totalY * totalY) >= touchSlop * touchSlop) {
+                                if (abs(totalX) > abs(totalY) || totalY <= 0f) break
+                                directionLocked = true
+                            }
+                            val dragAmount = positionChange.y
+                            if (directionLocked && dragAmount > 0f && (dragging || contentScrollState.value == 0)) {
                                 dragging = true
                                 dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
                                 change.consume()
-                            } else if (dragging) {
+                            } else if (directionLocked && dragging) {
                                 dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
                                 change.consume()
                             }
