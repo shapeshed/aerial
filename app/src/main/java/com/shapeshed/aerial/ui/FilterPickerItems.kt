@@ -70,6 +70,7 @@ internal fun FilterPickerSheetContent(
     selectedItems: Set<String>,
     displayName: (String) -> String,
     onToggle: (String) -> Unit,
+    onSelectionComplete: () -> Unit = {},
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -129,7 +130,10 @@ internal fun FilterPickerSheetContent(
             ) {
                 items(visibleItems, key = { it.value }) { item ->
                     ListItem(
-                        modifier = Modifier.clickable { onToggle(item.value) },
+                        modifier = Modifier.clickable {
+                            onToggle(item.value)
+                            onSelectionComplete()
+                        },
                         trailingContent = { Checkbox(checked = item.selected, onCheckedChange = null) },
                     ) {
                         Text(item.label)
