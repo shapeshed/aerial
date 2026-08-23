@@ -10,7 +10,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -66,6 +67,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -139,6 +142,7 @@ fun NowPlayingScreen(
     val trackArtist = currentTrackArtist?.takeIf { it.isNotBlank() && it != station.name }
     val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
+    val contentScrollState = rememberScrollState()
     // Station identity and stream metadata are published in one PlaybackUiState snapshot, so
     // metadata can be rendered directly without composition-time reset bookkeeping.
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != station.name
@@ -153,40 +157,7 @@ fun NowPlayingScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier
             .graphicsLayer { translationY = dragOffsetY }
-            .semantics { isTraversalGroup = true }
-            .pointerInput(dismissThresholdPx, onDismiss) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        val nextOffset = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                        if (nextOffset > 0f) {
-                            change.consume()
-                        }
-                        dragOffsetY = nextOffset
-                    },
-                    onDragEnd = {
-                        if (dragOffsetY >= dismissThresholdPx) {
-                            onDismiss()
-                            // Deferred, not immediate: resetting dragOffsetY synchronously here
-                            // would zero out this graphicsLayer's translationY on the same frame
-                            // the outer AnimatedVisibility's own exit slide starts from *its*
-                            // zero baseline, so the pane visibly snapped up before sliding back
-                            // down. Waiting until well after the exit animation has finished
-                            // avoids that flicker, while still guaranteeing the offset is clean
-                            // before a fast reopen — the scenario this reset exists for — could
-                            // plausibly reuse this composable's state mid-exit.
-                            dismissScope.launch {
-                                delay(500)
-                                dragOffsetY = 0f
-                            }
-                        } else {
-                            dragOffsetY = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        dragOffsetY = 0f
-                    },
-                )
-            },
+            .semantics { isTraversalGroup = true },
         topBar = {
             TopAppBar(
                 title = {},
@@ -209,7 +180,36 @@ fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .pointerInput(dismissThresholdPx, onDismiss, contentScrollState) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var dragging = false
+                        while (true) {
+                            val change = awaitPointerEvent(PointerEventPass.Initial)
+                                .changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            val dragAmount = change.positionChange().y
+                            if (dragAmount > 0f && (dragging || contentScrollState.value == 0)) {
+                                dragging = true
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            } else if (dragging) {
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            }
+                        }
+                        if (dragging && dragOffsetY >= dismissThresholdPx) {
+                            onDismiss()
+                            dismissScope.launch {
+                                delay(500)
+                                dragOffsetY = 0f
+                            }
+                        } else if (dragging) {
+                            dragOffsetY = 0f
+                        }
+                    }
+                },
         ) {
             // Cap the artwork to a share of the pane's height rather than letting it fill the
             // full width unconditionally — on a wide landscape/tablet window (the new nav rail
@@ -225,7 +225,7 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(contentScrollState)
                         .padding(top = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
