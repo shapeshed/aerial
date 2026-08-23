@@ -29,6 +29,8 @@ fun NowPlayingLargeFontScreenshot() {
             sleepTimer = null,
             swipeStations = emptyList(),
             onPlayStation = {},
+            onPreviousStation = {},
+            onNextStation = {},
             onToggle = {},
             onToggleFavorite = {},
             onSetSleepTimer = {},

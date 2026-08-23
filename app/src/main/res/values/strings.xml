@@ -81,6 +81,8 @@
     <string name="field_stream_url">Stream URL</string>
     <!-- Playback -->
     <string name="live_radio">Live Radio</string>
+    <string name="previous_station">Previous station</string>
+    <string name="next_station">Next station</string>
     <!-- Curated genre/category tags. Display only — the English tag is the matching key. -->
     <string name="tag_news">News</string>
     <string name="tag_sport">Sport</string>
