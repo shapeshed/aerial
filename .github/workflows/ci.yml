@@ -77,7 +77,7 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
-          profile: Pixel 2
+          profile: pixel_2
           target: google_apis
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true

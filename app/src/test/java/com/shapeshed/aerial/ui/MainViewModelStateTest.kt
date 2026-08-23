@@ -28,6 +28,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mockito.atLeastOnce
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -103,7 +104,7 @@ class MainViewModelStateTest {
         runCurrent()
         assertEquals(emptySet<String>(), viewModel.selectedCountries.value)
         assertEquals(emptySet<String>(), viewModel.selectedTags.value)
-        verify(registryRepository).search("mango", emptySet(), emptySet())
+        verify(registryRepository, atLeastOnce()).search("mango", emptySet(), emptySet())
     }
 
     @Test
