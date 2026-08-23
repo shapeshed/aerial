@@ -207,9 +207,38 @@ class MainViewModel(
 
     fun setFavoritesSort(sort: FavoritesSort) {
         _favoritesSort.value = sort
+        refreshActiveFavoritesQueue(sort)
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[FAVORITES_SORT_KEY] = sort.name }
         }
+    }
+
+    /** Keeps next/previous aligned with the order currently shown in the favourites tab. */
+    private fun refreshActiveFavoritesQueue(sort: FavoritesSort) {
+        val activeQueue = _playbackUiState.value.queue
+        if (activeQueue.size < 2) return
+
+        val favorites = _allStations.value.filter(Station::isFavorite)
+        val isFavoritesQueue = favorites.size == activeQueue.size &&
+            favorites.all { favorite -> activeQueue.any { it.matches(favorite) } }
+        if (!isFavoritesQueue) return
+
+        val reorderedQueue = sortStations(favorites, sort)
+        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
+        val currentStation = _playbackUiState.value.station ?: return
+        val startIndex = resolveQueueStart(reorderedQueue, currentStation) ?: return
+        controller?.let { player ->
+            val wasPlaying = player.isPlaying
+            val position = player.currentPosition
+            player.setMediaItems(
+                reorderedQueue.map { it.toPlayableMediaItem(getApplication()) },
+                startIndex,
+                position,
+            )
+            player.prepare()
+            if (wasPlaying) player.play() else player.pause()
+        }
+        persistLastPlayedStation(currentStation, reorderedQueue)
     }
 
     val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort) { list, sort ->
