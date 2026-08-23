@@ -733,12 +733,14 @@ class PlayerService : MediaLibraryService() {
 }
 
 /** Re-prepares a failed item without replacing the player's timeline. */
+@OptIn(UnstableApi::class)
 internal fun reconnectPlayerAfterError(player: Player, shouldResume: Boolean = player.playWhenReady) {
     player.stop()
     player.prepare()
     player.playWhenReady = shouldResume
 }
 
+@OptIn(UnstableApi::class)
 internal suspend fun expandControllerQueue(
     mediaItems: List<MediaItem>,
     startIndex: Int,
