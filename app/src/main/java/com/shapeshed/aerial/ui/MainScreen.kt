@@ -1516,17 +1516,15 @@ internal fun HomeTabContent(
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
 ) {
-    // On launch the splash screen holds until the Recently Played row is resolved (see
-    // MainViewModel.isInitialized), so scroll restoration composes against the full list. The
-    // one remaining shift is the section's very first appearance mid-session (first play ever
-    // recorded): keyed items keep the viewport anchored, hiding the new section above it, so
-    // snap to the top when it appears — but only if the user is in the top header region and
-    // not mid-scroll.
+    // Recently Played can arrive after the grid's first composition. Re-anchor only when the
+    // user has not moved the Home list at all; never interrupt an in-progress or mid-list scroll.
     val hasRecentlyPlayed = recentlyPlayedStations.isNotEmpty()
     var hadRecentlyPlayed by rememberSaveable { mutableStateOf(hasRecentlyPlayed) }
     LaunchedEffect(hasRecentlyPlayed) {
         if (hasRecentlyPlayed && !hadRecentlyPlayed &&
-            !listState.isScrollInProgress && listState.firstVisibleItemIndex <= 2
+            !listState.isScrollInProgress &&
+            listState.firstVisibleItemIndex <= 2 &&
+            listState.firstVisibleItemScrollOffset == 0
         ) {
             listState.scrollToItem(0)
         }
