@@ -20,10 +20,50 @@ import coil3.svg.SvgDecoder
 import java.io.File
 import java.net.URL
 import java.util.Locale
+import java.util.LinkedHashMap
 import java.util.UUID
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val ARTWORK_FETCH_TIMEOUT_MS = 3_000L
+
+data class LogoAppearance(
+    val isLight: Boolean,
+    val hasTransparentMargin: Boolean,
+)
+
+class LogoAppearanceCache(private val maxEntries: Int = 128) {
+    init {
+        require(maxEntries > 0) { "Logo appearance cache must hold at least one entry" }
+    }
+
+    private val entries = object : LinkedHashMap<String, LogoAppearance>(maxEntries, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LogoAppearance>): Boolean =
+            size > maxEntries
+    }
+
+    @Synchronized
+    fun getOrCompute(key: String, compute: () -> LogoAppearance): LogoAppearance =
+        entries[key] ?: compute().also { entries[key] = it }
+}
+
+class LogoAppearanceAnalyzer(
+    private val cache: LogoAppearanceCache = LogoAppearanceCache(),
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+) {
+    suspend fun analyze(key: String, image: Image): LogoAppearance = withContext(dispatcher) {
+        cache.getOrCompute(key) {
+            LogoAppearance(
+                isLight = image.isPredominantlyLight(),
+                hasTransparentMargin = image.hasTransparentMargin(),
+            )
+        }
+    }
+}
+
+val sharedLogoAppearanceAnalyzer = LogoAppearanceAnalyzer()
 
 suspend fun copyLogoFromUri(context: Context, uri: Uri, directory: File): File? {
     val contentResolver = context.contentResolver

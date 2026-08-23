@@ -45,7 +45,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -104,17 +103,18 @@ fun NowPlayingScreen(
     isPlaying: Boolean,
     isBuffering: Boolean,
     currentTrackTitle: String?,
-    currentTrackArtist: String? = null,
-    currentBitrateKbps: Int? = null,
-    showStreamBitrate: Boolean = false,
-    sleepTimer: SleepTimerState? = null,
-    swipeStations: List<Station> = emptyList(),
-    onPlayStation: (Station) -> Unit = {},
+    currentTrackArtist: String?,
+    currentBitrateKbps: Int?,
+    showStreamBitrate: Boolean,
+    sleepTimer: SleepTimerState?,
+    swipeStations: List<Station>,
+    onPlayStation: (Station) -> Unit,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onSetSleepTimer: (Long) -> Unit = {},
-    onCancelSleepTimer: () -> Unit = {},
+    onSetSleepTimer: (Long) -> Unit,
+    onCancelSleepTimer: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val shareStationLabel = stringResource(R.string.share_station)
@@ -137,22 +137,9 @@ fun NowPlayingScreen(
     val trackArtist = currentTrackArtist?.takeIf { it.isNotBlank() && it != station.name }
     val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
-    // The track flows reset asynchronously when the station changes, so for a frame or two
-    // the previous station's song can pair with the new station. Hide the track card from
-    // the moment the station changes until that reset has been observed, so stale track
-    // info never flashes on the new page. On the pane's first composition the metadata is
-    // live for the current station (e.g. opened mid-song from the mini player), so it shows
-    // immediately — only an in-pane station change arms the gate.
-    val seenStreamUrl = remember { mutableStateOf<String?>(null) }
-    var trackResetSeen by remember(station.streamUrl) {
-        val stationChanged = seenStreamUrl.value != null && seenStreamUrl.value != station.streamUrl
-        seenStreamUrl.value = station.streamUrl
-        mutableStateOf(!stationChanged || trackTitle == null)
-    }
-    LaunchedEffect(trackTitle, station.streamUrl) {
-        if (trackTitle == null) trackResetSeen = true
-    }
-    val showTrackBlock = trackResetSeen && !trackTitle.isNullOrBlank() && trackTitle != station.name
+    // Station identity and stream metadata are published in one PlaybackUiState snapshot, so
+    // metadata can be rendered directly without composition-time reset bookkeeping.
+    val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != station.name
     val bitrateLabel = currentBitrateKbps
         ?.takeIf { showStreamBitrate && it > 0 }
         ?.let { stringResource(R.string.stream_bitrate_format, it) }
@@ -162,7 +149,7 @@ fun NowPlayingScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer { translationY = dragOffsetY }
             .semantics { isTraversalGroup = true }
             .pointerInput(dismissThresholdPx, onDismiss) {
@@ -404,7 +391,6 @@ fun NowPlayingScreen(
                             Icon(
                                 imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
-                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                             )
                         }
                     }
@@ -500,6 +486,13 @@ private fun StationArtworkSurface(
     modifier: Modifier = Modifier,
 ) {
     var artworkIsLight by remember(artworkModel) { mutableStateOf(false) }
+    var loadedArtwork by remember(artworkModel) { mutableStateOf<coil3.Image?>(null) }
+    LaunchedEffect(artworkModel, loadedArtwork) {
+        val image = loadedArtwork ?: return@LaunchedEffect
+        artworkIsLight = sharedLogoAppearanceAnalyzer
+            .analyze(artworkModel.toString(), image)
+            .isLight
+    }
     Surface(
         shape = shape,
         // Adaptive plate behind rendered artwork so transparent station logos (and
@@ -510,7 +503,6 @@ private fun StationArtworkSurface(
         } else {
             MaterialTheme.colorScheme.primaryContainer
         },
-        tonalElevation = 8.dp,
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f),
@@ -532,7 +524,7 @@ private fun StationArtworkSurface(
                     // surface colour fills the letterbox space.
                     contentScale = ContentScale.Fit,
                     onError = { onArtworkError() },
-                    onSuccess = { state -> artworkIsLight = state.result.image.isPredominantlyLight() },
+                    onSuccess = { state -> loadedArtwork = state.result.image },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -560,7 +552,6 @@ private fun StreamBitratePill(
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 1.dp,
         modifier = modifier,
     ) {
         Text(

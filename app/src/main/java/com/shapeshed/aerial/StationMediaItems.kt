@@ -14,6 +14,9 @@ import com.shapeshed.aerial.ui.cachedRemoteArtworkUri
 import com.shapeshed.aerial.ui.localLogoArtworkUri
 import java.io.File
 
+internal fun stationNameFromMediaMetadata(stationName: String?, metadataTitle: CharSequence?): String =
+    stationName?.takeIf { it.isNotBlank() } ?: metadataTitle?.toString().orEmpty()
+
 /**
  * A registry catalogue result not yet saved locally, mirrored as an ephemeral (id=0) [Station] so
  * it can be played and displayed the same way as a saved one.
@@ -66,6 +69,7 @@ fun stationMediaMetadata(
         .setIsPlayable(true)
         .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
         .setExtras(Bundle().apply {
+            putString("stationName", station.name)
             putString("provider", station.provider)
             putString("providerId", station.providerId)
             putString("streamUrl", station.streamUrl)

@@ -168,6 +168,17 @@ class StationRepositoryTest {
     }
 
     @Test
+    fun saveAsFavoriteInsertsNewStationAsFavorite() = runBlocking {
+        val dao = FakeStationDao()
+        val repository = StationRepository(dao, FakePlayHistoryDao())
+
+        val id = repository.saveAsFavorite(station(name = "New Station"))
+
+        assertEquals(1L, id)
+        assertEquals(true, dao.stations.single().isFavorite)
+    }
+
+    @Test
     fun upsertImportedKeepsNewerLocalPlayStats() = runBlocking {
         val existing = station(id = 6L, playCount = 12, lastPlayedAt = 2_000L)
         val dao = FakeStationDao(existing)
@@ -218,6 +229,42 @@ class StationRepositoryTest {
         assertEquals(listOf(dao.stations.single()), repository.searchFavorites("jungle"))
         assertEquals(listOf(dao.stations.single()), repository.searchFavorites("underground"))
         assertEquals(listOf(dao.stations.single()), repository.searchFavorites("kingdom"))
+    }
+
+    @Test
+    fun recordPlayUpdatesPlayCountAndTimestamp() = runBlocking {
+        val dao = FakeStationDao(station(id = 4L, playCount = 2, lastPlayedAt = 1_000L))
+        val repository = StationRepository(dao, FakePlayHistoryDao())
+
+        repository.recordPlay(4L, playedAt = 9_000L)
+
+        assertEquals(station(id = 4L, playCount = 3, lastPlayedAt = 9_000L), dao.stations.single())
+    }
+
+    @Test
+    fun recentlyPlayedReturnsNewestEntriesAndHonorsLimit() = runBlocking {
+        val history = FakePlayHistoryDao(
+            PlayHistoryEntry("radio", "old", playedAt = 1_000L),
+            PlayHistoryEntry("radio", "new", playedAt = 3_000L),
+            PlayHistoryEntry("radio", "middle", playedAt = 2_000L),
+        )
+        val repository = StationRepository(FakeStationDao(), history)
+
+        assertEquals(
+            listOf("new", "middle"),
+            repository.recentlyPlayed(limit = 2).map(PlayHistoryEntry::providerId),
+        )
+    }
+
+    @Test
+    fun deletingStationRemovesFavoriteRow() = runBlocking {
+        val saved = station(id = 8L, isFavorite = true)
+        val dao = FakeStationDao(saved)
+        val repository = StationRepository(dao, FakePlayHistoryDao())
+
+        repository.delete(saved)
+
+        assertEquals(emptyList<Station>(), dao.stations)
     }
 
     private fun station(

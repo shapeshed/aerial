@@ -66,14 +66,14 @@ private fun setAppLanguage(tag: String) {
  * the system per-app language picker (Settings → Apps → Aerial → Language) is used instead.
  */
 @Composable
-fun LanguageSettingRow() {
+fun LanguageSettingRow(modifier: Modifier = Modifier) {
     var showDialog by remember { mutableStateOf(false) }
     val currentTag = AppCompatDelegate.getApplicationLocales().toLanguageTags()
     val currentLabel = APP_LANGUAGES.firstOrNull { it.tag.equals(currentTag, ignoreCase = true) }?.autonym
         ?: stringResource(R.string.language_system_default)
 
     ListItem(
-        modifier = Modifier.fillMaxWidth().clickable { showDialog = true },
+        modifier = modifier.fillMaxWidth().clickable { showDialog = true },
         leadingContent = { Icon(Icons.Rounded.Language, contentDescription = null) },
         supportingContent = { Text(currentLabel) },
     ) {

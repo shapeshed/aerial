@@ -22,6 +22,18 @@ class StationQueueTest {
     }
 
     @Test
+    fun notificationResumptionStartsAtPersistedCurrentStation() {
+        val queue = listOf(station(10, "Right"), station(20, "Left"), station(30, "Middle"))
+        val snapshot = lastPlayedStationSnapshot(
+            queue[2].toLastPlayedJson(queue).toString(),
+        )
+
+        assertEquals(30L, snapshot.station.id)
+        assertEquals(2, resolveQueueStart(snapshot.queue, snapshot.station))
+        assertEquals(listOf(10L, 20L, 30L), snapshot.queue.map { it.id })
+    }
+
+    @Test
     fun legacySnapshotWithoutQueueStillRestoresStation() {
         val restored = lastPlayedStationSnapshot(station(7, "Legacy").toLastPlayedJson().toString())
 

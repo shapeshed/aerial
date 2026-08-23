@@ -16,13 +16,13 @@ class NowPlayingDisplayTest {
         val display = computeNowPlayingDisplay(
             "KISS Dance", icyTitle = "Slow Burner", icyArtist = "Interplanetary Criminal",
         )
-        assertEquals(NowPlayingDisplay("Interplanetary Criminal", "Slow Burner"), display)
+        assertEquals(NowPlayingDisplay("KISS Dance", "Interplanetary Criminal — Slow Burner"), display)
     }
 
     @Test
     fun icyTitleOnlyFallsBackToStationName() {
         val display = computeNowPlayingDisplay("Radio X", icyTitle = "Some Show", icyArtist = null)
-        assertEquals(NowPlayingDisplay("Some Show", "Radio X"), display)
+        assertEquals(NowPlayingDisplay("Radio X", "Some Show"), display)
     }
 
     @Test
@@ -36,7 +36,7 @@ class NowPlayingDisplayTest {
     fun icyArtistEqualToStationNameIsIgnored() {
         // ICY with no "artist - title" separator: PlayerService sets artist = station name.
         val display = computeNowPlayingDisplay("Radio X", icyTitle = "Some Show", icyArtist = "Radio X")
-        assertEquals(NowPlayingDisplay("Some Show", "Radio X"), display)
+        assertEquals(NowPlayingDisplay("Radio X", "Some Show"), display)
     }
 
 }
