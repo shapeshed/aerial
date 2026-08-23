@@ -87,6 +87,18 @@ internal fun recoverLogoPath(storedPath: String, remoteLogoUrl: String, fileExis
         else -> storedPath
     }
 
+/** Reorders an existing Media3 playlist without clearing or preparing the active item. */
+internal fun reorderPlayerPlaylist(player: Player, current: List<Station>, desired: List<Station>) {
+    val working = current.toMutableList()
+    desired.forEachIndexed { targetIndex, station ->
+        val currentIndex = working.indexOfFirst { it.matches(station) }
+        if (currentIndex >= 0 && currentIndex != targetIndex) {
+            player.moveMediaItem(currentIndex, targetIndex)
+            working.add(targetIndex, working.removeAt(currentIndex))
+        }
+    }
+}
+
 class MainViewModel(
     application: Application,
     private val repository: StationRepository,
@@ -246,19 +258,8 @@ class MainViewModel(
 
         val reorderedQueue = sortStations(favorites, sort)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
+        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
         val currentStation = _playbackUiState.value.station ?: return
-        val startIndex = resolveQueueStart(reorderedQueue, currentStation) ?: return
-        controller?.let { player ->
-            val wasPlaying = player.isPlaying
-            val position = player.currentPosition
-            player.setMediaItems(
-                reorderedQueue.map { it.toPlayableMediaItem(getApplication()) },
-                startIndex,
-                position,
-            )
-            player.prepare()
-            if (wasPlaying) player.play() else player.pause()
-        }
         persistLastPlayedStation(currentStation, reorderedQueue)
     }
 
