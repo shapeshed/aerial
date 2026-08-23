@@ -541,8 +541,6 @@ fun MainScreen(
                     uiState = uiState,
                     selectedMood = selectedMood,
                     selectedMoodStations = selectedMoodStations,
-                    savedStreamUrls = savedStreamUrls,
-                    savedRegistryKeys = savedRegistryKeys,
                     bottomPadding = stationContentBottomPadding,
                     selectedTab = effectiveSelectedTab,
                     appLocale = appLocale,
@@ -556,10 +554,7 @@ fun MainScreen(
                     onPlayRegistryStation = viewModel::playFromRegistry,
                     onPlayRegistryQueue = viewModel::playFromRegistry,
                     onAddRegistryStation = viewModel::addFromRegistry,
-                    onRemoveRegistryStation = viewModel::removeFromRegistry,
                     onPlayFavorite = { viewModel.play(it, stations) },
-                    onTogglePlayback = viewModel::togglePlayback,
-                    onToggleFavorite = viewModel::toggleFavorite,
                     onRemoveFavorite = { station ->
                         viewModel.toggleFavorite(station)
                         scope.launch {
@@ -712,8 +707,6 @@ private fun MainDestinationContent(
     uiState: MainUiState,
     selectedMood: CuratedMood?,
     selectedMoodStations: List<RegistryStation>,
-    savedStreamUrls: Set<String>,
-    savedRegistryKeys: Set<RegistryStationKey>,
     bottomPadding: Dp,
     selectedTab: Int,
     appLocale: java.util.Locale,
@@ -727,10 +720,7 @@ private fun MainDestinationContent(
     onPlayRegistryStation: (RegistryStation) -> Unit,
     onPlayRegistryQueue: (RegistryStation, List<RegistryStation>) -> Unit,
     onAddRegistryStation: (RegistryStation) -> Unit,
-    onRemoveRegistryStation: (RegistryStation) -> Unit,
     onPlayFavorite: (Station) -> Unit,
-    onTogglePlayback: () -> Unit,
-    onToggleFavorite: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
@@ -747,15 +737,11 @@ private fun MainDestinationContent(
             currentStation = playback.station,
             isPlaying = playback.isPlaying,
             isBuffering = playback.isBuffering,
-            savedStreamUrls = savedStreamUrls,
-            savedRegistryKeys = savedRegistryKeys,
             bottomPadding = bottomPadding,
             onBack = onMoodBack,
             onPlay = { selectedMoodStations.firstOrNull()?.let { onPlayRegistryQueue(it, selectedMoodStations) } },
             onSave = { selectedMoodStations.forEach(onAddRegistryStation) },
-            onTogglePlayback = onTogglePlayback,
             onAddStation = onAddRegistryStation,
-            onRemoveStation = onRemoveRegistryStation,
             onPlayStation = { onPlayRegistryQueue(it, selectedMoodStations) },
         )
     } else if (selectedTab == TAB_HOME) {
@@ -788,8 +774,6 @@ private fun MainDestinationContent(
             listState = favoritesListState,
             bottomPadding = bottomPadding,
             onPlay = onPlayFavorite,
-            onTogglePlayback = onTogglePlayback,
-            onToggleFavorite = onToggleFavorite,
             onRemoveFavorite = onRemoveFavorite,
             onHomeViewModeChange = onHomeViewModeChange,
             onSortSelected = onSortSelected,
@@ -1705,15 +1689,11 @@ private fun MoodDetailScreen(
     currentStation: Station?,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    savedStreamUrls: Set<String>,
-    savedRegistryKeys: Set<RegistryStationKey>,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onSave: () -> Unit,
-    onTogglePlayback: () -> Unit,
     onAddStation: (RegistryStation) -> Unit,
-    onRemoveStation: (RegistryStation) -> Unit,
     onPlayStation: (RegistryStation) -> Unit,
 ) {
     LazyColumn(
@@ -1812,18 +1792,12 @@ private fun MoodDetailScreen(
                         active.provider == station.provider &&
                         active.providerId == station.providerId)
             } ?: false
-            val isSaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
             MoodStationRow(
                 station = station,
                 isActive = isActive,
                 isPlaying = isPlaying && isActive,
                 isBuffering = isBuffering && isActive,
                 onPlay = { onPlayStation(station) },
-                onTogglePlayback = onTogglePlayback,
-                isSaved = isSaved,
-                onToggleFavorite = {
-                    if (isSaved) onRemoveStation(station) else onAddStation(station)
-                },
             )
         }
     }
@@ -1836,94 +1810,76 @@ private fun MoodStationRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPlay: () -> Unit,
-    onTogglePlayback: () -> Unit,
-    isSaved: Boolean,
-    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pauseLabel = stringResource(R.string.pause)
-    ListItem(
-        colors = ListItemDefaults.colors(
-            containerColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-        ),
+    Surface(
+        color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = if (isActive) 0.dp else 1.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
-            .clickable(onClick = onPlay),
-        leadingContent = {
-            // Circle rather than a rounded square, matching the search and favourites rows.
-            StationLogoCircle(
-                logoModel = logoModelFor(station.logoUrl),
-                size = 56.dp,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Radio,
-                    contentDescription = null,
-                    tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-        },
-        supportingContent = {
-            // Localized country from the ISO code, matching the search result rows.
-            val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
-                ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
-                ?: station.country
-            if (countryLabel.isNotBlank()) {
-                Text(
-                    text = countryLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = if (isPlaying) onTogglePlayback else onPlay,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+            .padding(horizontal = 16.dp, vertical = 2.dp),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            modifier = Modifier.clickable(onClick = onPlay),
+            leadingContent = {
+                StationLogoCircle(
+                    logoModel = logoModelFor(station.logoUrl),
+                    size = 50.dp,
                 ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            },
+            supportingContent = {
+                val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
+                    ?.let { countryName(it, LocalConfiguration.current.locales[0]) }
+                    ?: station.country
+                if (countryLabel.isNotBlank()) {
+                    Text(
+                        text = countryLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            },
+            trailingContent = if (isActive && (isPlaying || isBuffering)) {
+                {
                     when {
                         isBuffering -> CircularWavyProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = (if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
-                                .copy(alpha = 0.3f),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                         )
                         isPlaying -> EqualizerBars(
-                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier
                                 .size(width = 28.dp, height = 22.dp)
                                 .semantics { contentDescription = pauseLabel },
                             barCount = 3,
                         )
-                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
                     }
                 }
-                IconButton(
-                    onClick = onToggleFavorite,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
-                    Icon(
-                        imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = stringResource(if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites),
-                        tint = if (isSaved) MaterialTheme.colorScheme.primary else {
-                            if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
-            }
-        },
-    ) {
-        Text(
-            text = station.name,
-            style = MaterialTheme.typography.titleMedium,
-            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+            } else {
+                null
+            },
+        ) {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1949,8 +1905,6 @@ internal fun FavoritesTabContent(
     listState: LazyGridState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
-    onTogglePlayback: () -> Unit,
-    onToggleFavorite: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
@@ -2053,8 +2007,6 @@ internal fun FavoritesTabContent(
                     isPlaying = isPlaying && isActive,
                     isBuffering = isBuffering && isActive,
                     onPlay = { onPlay(station) },
-                    onTogglePlayback = onTogglePlayback,
-                    onToggleFavorite = { onToggleFavorite(station) },
                     onDismiss = { onRemoveFavorite(station) },
                     onLongClick = { onStationLongPress(station) },
                     modifier = Modifier.animateItem(),
@@ -2171,8 +2123,6 @@ private fun StationListRow(
     isPlaying: Boolean,
     isBuffering: Boolean,
     onPlay: () -> Unit,
-    onTogglePlayback: () -> Unit,
-    onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -2258,39 +2208,27 @@ private fun StationListRow(
                         Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
-                trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        ) {
+                trailingContent = if (isActive && (isPlaying || isBuffering)) {
+                    {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             when {
                                 isBuffering -> CircularWavyProgressIndicator(
                                     modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                                 )
-                                isActive && isPlaying -> EqualizerBars(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                isPlaying -> EqualizerBars(
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier
                                         .size(width = 28.dp, height = 22.dp)
                                         .semantics { contentDescription = pauseLabel },
                                     barCount = 3,
                                 )
-                                else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
                             }
                         }
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                        ) {
-                            Icon(
-                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.save_to_favorites),
-                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
+                } else {
+                    null
                 },
             ) {
                 Text(
