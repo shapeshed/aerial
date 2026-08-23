@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -414,7 +415,8 @@ fun MainScreen(
     val effectiveSelectedTab = if (showHome) selectedTab else TAB_FAVORITES
     // Hoisted so each tab keeps its scroll position across tab switches.
     val homeListState = rememberLazyGridState()
-    val favoritesListState = rememberLazyGridState()
+    val favoritesGridState = rememberLazyGridState()
+    val favoritesListState = rememberLazyListState()
 
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
@@ -547,6 +549,7 @@ fun MainScreen(
                     selectedTab = effectiveSelectedTab,
                     appLocale = appLocale,
                     homeListState = homeListState,
+                    favoritesGridState = favoritesGridState,
                     favoritesListState = favoritesListState,
                     onMoodBack = { selectedMoodId = null },
                     onMoodSelected = { selectedMoodId = it.id },
@@ -716,7 +719,8 @@ private fun MainDestinationContent(
     selectedTab: Int,
     appLocale: java.util.Locale,
     homeListState: LazyGridState,
-    favoritesListState: LazyGridState,
+    favoritesGridState: LazyGridState,
+    favoritesListState: LazyListState,
     onMoodBack: () -> Unit,
     onMoodSelected: (CuratedMood) -> Unit,
     onSetForYouCountry: (String) -> Unit,
@@ -780,6 +784,7 @@ private fun MainDestinationContent(
             homeViewMode = home.preferences.viewMode,
             favoritesSort = home.preferences.favoritesSort,
             gridColumns = home.preferences.gridColumns,
+            gridState = favoritesGridState,
             listState = favoritesListState,
             bottomPadding = bottomPadding,
             onPlay = onPlayFavorite,
@@ -1935,7 +1940,8 @@ internal fun FavoritesTabContent(
     homeViewMode: HomeViewMode,
     favoritesSort: FavoritesSort,
     gridColumns: Int,
-    listState: LazyGridState,
+    gridState: LazyGridState,
+    listState: LazyListState,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
@@ -1970,46 +1976,16 @@ internal fun FavoritesTabContent(
         )
     }
 
-    LazyVerticalGrid(
-        columns = if (homeViewMode == HomeViewMode.Cards) {
-            GridCells.Adaptive(favoriteCardMinimumWidthDp(gridColumns).dp)
-        } else {
-            GridCells.Adaptive(400.dp)
-        },
-        state = listState,
-        horizontalArrangement = Arrangement.spacedBy(if (homeViewMode == HomeViewMode.Cards) 12.dp else 0.dp),
-        contentPadding = PaddingValues(
-            start = if (homeViewMode == HomeViewMode.Cards) 16.dp else 0.dp,
-            end = if (homeViewMode == HomeViewMode.Cards) 16.dp else 0.dp,
-            bottom = bottomPadding + 16.dp,
-        ),
-    ) {
-        item("favorites-header", span = { GridItemSpan(maxLineSpan) }) {
-            // No headline — the Favourites tab already names the screen (Material tabs
-            // convention); just the sort selector and the view-mode toggle.
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-            ) {
-                TextButton(onClick = { showSortSheet = true }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.Sort,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(favoritesSortLabel(favoritesSort))
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                HomeViewModeToggle(
-                    selected = homeViewMode,
-                    onSelected = onHomeViewModeChange,
-                )
+    if (homeViewMode == HomeViewMode.Cards) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(favoriteCardMinimumWidthDp(gridColumns).dp),
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+        ) {
+            item("favorites-header", span = { GridItemSpan(maxLineSpan) }) {
+                FavoritesHeader(favoritesSort, homeViewMode, { showSortSheet = true }, onHomeViewModeChange)
             }
-        }
-        if (homeViewMode == HomeViewMode.Cards) {
             gridItems(
                 items = stations,
                 key = { station -> "favorite-card-${station.id}" },
@@ -2027,8 +2003,16 @@ internal fun FavoritesTabContent(
                     modifier = Modifier.padding(bottom = 12.dp),
                 )
             }
-        } else {
-            gridItems(
+        }
+    } else {
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        ) {
+            item("favorites-header") {
+                FavoritesHeader(favoritesSort, homeViewMode, { showSortSheet = true }, onHomeViewModeChange)
+            }
+            items(
                 items = stations,
                 key = { station -> "favorite-list-${station.id}" },
                 contentType = { "favorite-list-row" },
@@ -2046,6 +2030,29 @@ internal fun FavoritesTabContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FavoritesHeader(
+    favoritesSort: FavoritesSort,
+    homeViewMode: HomeViewMode,
+    onSortClick: () -> Unit,
+    onHomeViewModeChange: (HomeViewMode) -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        TextButton(onClick = onSortClick) {
+            Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(favoritesSortLabel(favoritesSort))
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        HomeViewModeToggle(selected = homeViewMode, onSelected = onHomeViewModeChange)
     }
 }
 
