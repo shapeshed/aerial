@@ -238,6 +238,19 @@ class MainViewModel(
     private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
+    private val _activeFavoritesOrder = MutableStateFlow<List<Long>?>(null)
+
+    private fun favoritesOrder(queue: List<Station>): List<Long>? {
+        if (queue.size < 2 || queue.any { it.id == 0L }) return null
+        val favorites = _allStations.value.filter(Station::isFavorite)
+        return queue.takeIf { ordered ->
+            ordered.size == favorites.size && favorites.all { favorite -> ordered.any { it.matches(favorite) } }
+        }?.map(Station::id)
+    }
+
+    private fun sortFavorites(stations: List<Station>, sort: FavoritesSort): List<Station> =
+        sortStations(stations.filter(Station::isFavorite), sort)
+
     fun setFavoritesSort(sort: FavoritesSort) {
         _favoritesSort.value = sort
         refreshActiveFavoritesQueue(sort)
@@ -257,14 +270,18 @@ class MainViewModel(
         if (!isFavoritesQueue) return
 
         val reorderedQueue = sortStations(favorites, sort)
+        _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
         controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
         val currentStation = _playbackUiState.value.station ?: return
         persistLastPlayedStation(currentStation, reorderedQueue)
     }
 
-    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort) { list, sort ->
-        sortStations(list, sort)
+    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort, _activeFavoritesOrder) { list, sort, activeOrder ->
+        val sorted = sortFavorites(list, sort)
+        activeOrder?.let { order ->
+            sorted.sortedBy { station -> order.indexOf(station.id).takeIf { it >= 0 } ?: Int.MAX_VALUE }
+        } ?: sorted
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
@@ -348,6 +365,7 @@ class MainViewModel(
 
     fun setSelectedHomeTab(tab: Int) {
         _selectedHomeTab.value = tab
+        if (tab != 1) _activeFavoritesOrder.value = null
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[LAST_HOME_TAB_KEY] = tab }
         }
@@ -809,6 +827,9 @@ class MainViewModel(
         queue: List<Station> = emptyList(),
     ) {
         val station = resolvedStation ?: resolveStation(mediaItem)
+        if (queue.isNotEmpty()) {
+            _activeFavoritesOrder.value = favoritesOrder(queue)
+        }
         if (station != null) {
             val changed = stationChanged(station)
             updateStationIdentity(station)
@@ -930,6 +951,7 @@ class MainViewModel(
     // next/previous work: Media3's default session callback already handles those by seeking
     // within the player's timeline, it just needs a timeline with neighbours to seek to.
     fun play(station: Station, queue: List<Station> = emptyList()) {
+        _activeFavoritesOrder.value = favoritesOrder(queue)
         setCurrentStation(station)
         _playbackUiState.value = _playbackUiState.value.copy(
             queue = queue.takeIf { resolveQueueStart(it, station) != null } ?: listOf(station),
@@ -970,6 +992,7 @@ class MainViewModel(
     // play() afterwards goes through the same path as starting a station with no player active.
     fun stopAndClear() {
         suppressLastPlayedPersist = true
+        _activeFavoritesOrder.value = null
         controller?.apply {
             stop()
             clearMediaItems()
