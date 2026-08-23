@@ -44,6 +44,8 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -121,6 +123,8 @@ fun NowPlayingScreen(
     sleepTimer: SleepTimerState?,
     swipeStations: List<Station>,
     onPlayStation: (Station) -> Unit,
+    onPreviousStation: () -> Unit,
+    onNextStation: () -> Unit,
     onToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onSetSleepTimer: (Long) -> Unit,
@@ -138,6 +142,7 @@ fun NowPlayingScreen(
     val swipeIndex = remember(swipeStations, station) {
         swipeStations.indexOfFirst { it.matches(station) }
     }
+    val hasStationNavigation = swipeIndex >= 0 && swipeStations.size > 1
     var showSleepTimer by remember { mutableStateOf(false) }
     val artworkShape = RoundedCornerShape(
         topStart = 28.dp,
@@ -462,12 +467,31 @@ fun NowPlayingScreen(
                         modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
+                        if (hasStationNavigation) {
+                            FilledTonalIconButton(
+                                onClick = onPreviousStation,
+                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .semantics { traversalIndex = 5f },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SkipPrevious,
+                                    contentDescription = stringResource(R.string.previous_station),
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         FilledIconButton(
                             onClick = onToggle,
                             enabled = !isBuffering,
                             modifier = Modifier
                                 .size(88.dp)
-                                .semantics { traversalIndex = 5f },
+                                .semantics { traversalIndex = 6f },
                             shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -501,6 +525,25 @@ fun NowPlayingScreen(
                     }
                     Box(
                         modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (hasStationNavigation) {
+                            FilledTonalIconButton(
+                                onClick = onNextStation,
+                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .semantics { traversalIndex = 7f },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SkipNext,
+                                    contentDescription = stringResource(R.string.next_station),
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         FilledTonalIconButton(
@@ -517,7 +560,7 @@ fun NowPlayingScreen(
                             shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                             modifier = Modifier
                                 .size(56.dp)
-                                .semantics { traversalIndex = 6f },
+                                .semantics { traversalIndex = 8f },
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,

@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -64,6 +67,8 @@ internal fun MiniPlayer(
     onHeightChanged: (Int) -> Unit,
     onStop: () -> Unit,
     onTogglePlayback: () -> Unit,
+    showNextStation: Boolean,
+    onNextStation: () -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -122,7 +127,7 @@ internal fun MiniPlayer(
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                         label = "playPauseCorner",
                     )
-                    val columnWidth = (maxWidth - 140.dp).coerceAtLeast(80.dp)
+                    val columnWidth = (maxWidth - if (showNextStation) 196.dp else 140.dp).coerceAtLeast(80.dp)
                     HorizontalFloatingToolbar(
                         expanded = true,
                         colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
@@ -132,17 +137,21 @@ internal fun MiniPlayer(
                             StationAvatar(station = visibleStation, isActive = true, size = 52.dp)
                         },
                         trailingContent = {
-                            Surface(
-                                shape = RoundedCornerShape(playPauseCorner),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(RoundedCornerShape(playPauseCorner))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onTogglePlayback()
-                                    },
+                            Row(
+                                modifier = Modifier.width(if (showNextStation) 108.dp else 52.dp),
+                                horizontalArrangement = spacedBy(4.dp),
                             ) {
+                                Surface(
+                                    shape = RoundedCornerShape(playPauseCorner),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(RoundedCornerShape(playPauseCorner))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onTogglePlayback()
+                                        },
+                                ) {
                                 val motionScheme = MaterialTheme.motionScheme
                                 Box(contentAlignment = Alignment.Center) {
                                     AnimatedContent(
@@ -165,6 +174,29 @@ internal fun MiniPlayer(
                                                 imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                                 contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                                                 tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(30.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                                }
+                                if (showNextStation) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.large,
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .clip(MaterialTheme.shapes.large)
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                onNextStation()
+                                            },
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.SkipNext,
+                                                contentDescription = stringResource(R.string.next_station),
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 modifier = Modifier.size(30.dp),
                                             )
                                         }

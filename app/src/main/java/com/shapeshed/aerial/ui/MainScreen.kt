@@ -303,6 +303,9 @@ fun MainScreen(
     val playbackUiState = uiState.playback.playback
     val stations = uiState.home.stations
     val currentStation = playbackUiState.station
+    val playbackQueue = playbackUiState.queue
+    val nextPlaybackStation = currentStation?.let { playbackQueue.stationAtOffset(it, 1) }
+    val hasStationNavigation = nextPlaybackStation != null
     val isPlaying = playbackUiState.isPlaying
     val isBuffering = playbackUiState.isBuffering
     val currentTrackTitle = playbackUiState.trackTitle
@@ -513,6 +516,8 @@ fun MainScreen(
             onHeightChanged = { miniPlayerHeightPx = it },
             onStop = viewModel::stopAndClear,
             onTogglePlayback = viewModel::togglePlayback,
+            showNextStation = hasStationNavigation,
+            onNextStation = { nextPlaybackStation?.let { viewModel.play(it, playbackQueue) } },
             onExpand = { viewModel.setShowNowPlaying(true) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -547,6 +552,12 @@ fun MainScreen(
                     sleepTimer = sleepTimer,
                     swipeStations = swipeStations,
                     onPlayStation = { viewModel.play(it, swipeStations) },
+                    onPreviousStation = {
+                        swipeStations.stationAtOffset(station, -1)?.let { viewModel.play(it, swipeStations) }
+                    },
+                    onNextStation = {
+                        swipeStations.stationAtOffset(station, 1)?.let { viewModel.play(it, swipeStations) }
+                    },
                     onToggle = { viewModel.togglePlayback() },
                     onToggleFavorite = { viewModel.toggleFavorite(station) },
                     onSetSleepTimer = { viewModel.setSleepTimer(it) },

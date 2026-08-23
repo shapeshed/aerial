@@ -114,6 +114,8 @@ fun MiniPlayerScreenshot() {
                 onHeightChanged = {},
                 onStop = {},
                 onTogglePlayback = {},
+                showNextStation = true,
+                onNextStation = {},
                 onExpand = {},
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
             )
