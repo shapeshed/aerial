@@ -193,6 +193,23 @@ class MainViewModelStateTest {
     }
 
     @Test
+    fun favoritesStateDoesNotPutNonFavoritesIntoTheSkipQueue() = runTest {
+        val favoriteAlpha = station(1, "Alpha")
+        val nonFavoriteBravo = station(2, "Bravo").copy(isFavorite = false)
+        val favoriteCharlie = station(3, "Charlie")
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(favoriteAlpha, nonFavoriteBravo, favoriteCharlie)))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+
+        assertEquals(
+            listOf(favoriteAlpha.id, favoriteCharlie.id),
+            viewModel.stations.first { it.size == 2 }.map(Station::id),
+        )
+    }
+
+    @Test
     fun changingFavoritesSortUpdatesTheActivePlaybackQueue() = runTest {
         val alpha = station(1, "Alpha", lastPlayedAt = 1_000)
         val bravo = station(2, "Bravo", lastPlayedAt = 3_000)
@@ -213,6 +230,112 @@ class MainViewModelStateTest {
         assertEquals(
             listOf(bravo.id, alpha.id),
             viewModel.playbackUiState.value.queue.map(Station::id),
+        )
+    }
+
+    @Test
+    fun switchingBackToAzKeepsNextNavigationInDisplayedOrder() = runTest {
+        val zulu = station(1, "Zulu", lastPlayedAt = 3_000)
+        val alpha = station(2, "Alpha", lastPlayedAt = 1_000)
+        val mike = station(3, "Mike", lastPlayedAt = 2_000)
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(zulu, alpha, mike)))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+
+        viewModel.handlePlaybackEvents(
+            mediaItem(alpha.name, alpha.id.toString()),
+            isPlaying = true,
+            queue = listOf(zulu, alpha, mike),
+        )
+        viewModel.setFavoritesSort(FavoritesSort.AZ)
+        runCurrent()
+
+        val orderedQueue = viewModel.playbackUiState.value.queue
+        assertEquals(listOf(alpha.id, mike.id, zulu.id), orderedQueue.map(Station::id))
+        assertEquals(mike.id, orderedQueue.stationAtOffset(alpha, 1)?.id)
+        assertEquals(zulu.id, orderedQueue.stationAtOffset(mike, 1)?.id)
+    }
+
+    @Test
+    fun lastPlayedSortKeepsTheStationPlayedImmediatelyBeforeSortingAtTheFront() = runTest {
+        val radio4 = station(1, "BBC Radio 4", lastPlayedAt = 2_000)
+        val radio1Dance = station(2, "BBC Radio 1 Dance", lastPlayedAt = 1_000)
+        val third = station(3, "Third Station", lastPlayedAt = 500)
+        val queue = listOf(radio1Dance, radio4, third)
+        val repository = mock<StationRepository>()
+        // This models the collection lag between PlayerService recording a play and
+        // Room's station Flow delivering the updated lastPlayedAt value.
+        val rows = MutableStateFlow(listOf(radio4, radio1Dance, third))
+        whenever(repository.getAll()).thenReturn(rows)
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+
+        viewModel.play(radio4, queue)
+        viewModel.play(radio1Dance, queue)
+        rows.value = listOf(radio4, radio1Dance.copy(lastPlayedAt = 5_000), third)
+        runCurrent()
+        viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
+        runCurrent()
+
+        assertEquals(
+            radio1Dance.id,
+            viewModel.playbackUiState.value.queue.first().id,
+        )
+    }
+
+    @Test
+    fun advancingARecentlyPlayedQueueDoesNotResortTheVisibleLastPlayedList() = runTest {
+        val worldwide = station(1, "Worldwide FM", lastPlayedAt = 4_000)
+        val radio4 = station(2, "BBC Radio 4", lastPlayedAt = 3_000)
+        val kool = station(3, "Kool FM", lastPlayedAt = 2_000)
+        val radio1Dance = station(4, "BBC Radio 1 Dance", lastPlayedAt = 1_000)
+        val stationRows = MutableStateFlow(listOf(worldwide, radio4, kool, radio1Dance))
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(stationRows)
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+        viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
+        runCurrent()
+        val initialOrder = viewModel.stations.first { it.size == 4 }.map(Station::id)
+
+        viewModel.play(worldwide, listOf(worldwide, radio4, kool, radio1Dance))
+        viewModel.play(radio4, listOf(worldwide, radio4, kool, radio1Dance))
+        stationRows.value = listOf(worldwide, radio4.copy(lastPlayedAt = 5_000), kool, radio1Dance)
+        runCurrent()
+
+        assertEquals(initialOrder, viewModel.stations.value.map(Station::id))
+    }
+
+    @Test
+    fun returningToFavoritesRefreshesLastPlayedOrderFromLatestRows() = runTest {
+        val worldwide = station(1, "Worldwide FM", lastPlayedAt = 4_000)
+        val radio4 = station(2, "BBC Radio 4", lastPlayedAt = 3_000)
+        val rows = MutableStateFlow(listOf(worldwide, radio4))
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(rows)
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+        viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
+        viewModel.play(worldwide, listOf(worldwide, radio4))
+        rows.value = listOf(worldwide, radio4.copy(lastPlayedAt = 5_000))
+        runCurrent()
+        assertEquals(
+            listOf(worldwide.id, radio4.id),
+            viewModel.stations.first { it.size == 2 }.map(Station::id),
+        )
+
+        viewModel.setSelectedHomeTab(0)
+        viewModel.setSelectedHomeTab(1)
+        runCurrent()
+
+        assertEquals(
+            listOf(radio4.id, worldwide.id),
+            viewModel.stations.first { it.size == 2 && it.first().id == radio4.id }.map(Station::id),
         )
     }
 
