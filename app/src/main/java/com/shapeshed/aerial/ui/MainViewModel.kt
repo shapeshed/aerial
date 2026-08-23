@@ -463,9 +463,7 @@ class MainViewModel(
 
     fun removeFromRegistry(registryStation: RegistryStation) {
         viewModelScope.launch {
-            val station = withContext(Dispatchers.IO) {
-                repository.findMatching(registryStation)
-            } ?: return@launch
+            val station = repository.findMatching(registryStation) ?: return@launch
             deleteStationRecord(station)
         }
     }
