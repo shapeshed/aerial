@@ -10,6 +10,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,10 +25,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -63,14 +71,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -118,7 +130,7 @@ fun NowPlayingScreen(
 ) {
     val context = LocalContext.current
     val shareStationLabel = stringResource(R.string.share_station)
-    val dismissThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
+    val dismissThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val dismissScope = rememberCoroutineScope()
     // Horizontal paging steps through swipeStations (the favourites in their selected sort
@@ -137,6 +149,32 @@ fun NowPlayingScreen(
     val trackArtist = currentTrackArtist?.takeIf { it.isNotBlank() && it != station.name }
     val activeArtworkModel = station.ownLogoModel()
     var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
+    val contentScrollState = rememberScrollState()
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (available.y > 0f && contentScrollState.value == 0) {
+                    dragOffsetY = (dragOffsetY + available.y).coerceAtLeast(0f)
+                    return androidx.compose.ui.geometry.Offset(0f, available.y)
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY >= dismissThresholdPx) {
+                    onDismiss()
+                    dismissScope.launch {
+                        delay(500)
+                        dragOffsetY = 0f
+                    }
+                    return available
+                }
+                if (dragOffsetY > 0f) dragOffsetY = 0f
+                return Velocity.Zero
+            }
+        }
+    }
     // Station identity and stream metadata are published in one PlaybackUiState snapshot, so
     // metadata can be rendered directly without composition-time reset bookkeeping.
     val showTrackBlock = !trackTitle.isNullOrBlank() && trackTitle != station.name
@@ -151,42 +189,31 @@ fun NowPlayingScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier
             .graphicsLayer { translationY = dragOffsetY }
-            .semantics { isTraversalGroup = true }
-            .pointerInput(dismissThresholdPx, onDismiss) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        val nextOffset = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                        if (nextOffset > 0f) {
-                            change.consume()
-                        }
-                        dragOffsetY = nextOffset
-                    },
-                    onDragEnd = {
-                        if (dragOffsetY >= dismissThresholdPx) {
-                            onDismiss()
-                            // Deferred, not immediate: resetting dragOffsetY synchronously here
-                            // would zero out this graphicsLayer's translationY on the same frame
-                            // the outer AnimatedVisibility's own exit slide starts from *its*
-                            // zero baseline, so the pane visibly snapped up before sliding back
-                            // down. Waiting until well after the exit animation has finished
-                            // avoids that flicker, while still guaranteeing the offset is clean
-                            // before a fast reopen — the scenario this reset exists for — could
-                            // plausibly reuse this composable's state mid-exit.
-                            dismissScope.launch {
-                                delay(500)
-                                dragOffsetY = 0f
-                            }
-                        } else {
-                            dragOffsetY = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        dragOffsetY = 0f
-                    },
-                )
-            },
+            .semantics { isTraversalGroup = true },
         topBar = {
             TopAppBar(
+                modifier = Modifier.pointerInput(dismissThresholdPx, onDismiss) {
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, dragAmount ->
+                            if (dragAmount > 0f) {
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            }
+                        },
+                        onDragEnd = {
+                            if (dragOffsetY >= dismissThresholdPx) {
+                                onDismiss()
+                                dismissScope.launch {
+                                    delay(500)
+                                    dragOffsetY = 0f
+                                }
+                            } else {
+                                dragOffsetY = 0f
+                            }
+                        },
+                        onDragCancel = { dragOffsetY = 0f },
+                    )
+                },
                 title = {},
                 navigationIcon = {
                     IconButton(
@@ -207,7 +234,46 @@ fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .pointerInput(dismissThresholdPx, onDismiss, contentScrollState) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var dragging = false
+                        var directionLocked = false
+                        var totalX = 0f
+                        var totalY = 0f
+                        while (true) {
+                            val change = awaitPointerEvent(PointerEventPass.Initial)
+                                .changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            val positionChange = change.positionChange()
+                            totalX += positionChange.x
+                            totalY += positionChange.y
+                            if (!directionLocked && (totalX * totalX + totalY * totalY) >= touchSlop * touchSlop) {
+                                if (abs(totalX) > abs(totalY) || totalY <= 0f) break
+                                directionLocked = true
+                            }
+                            val dragAmount = positionChange.y
+                            if (directionLocked && dragAmount > 0f && (dragging || contentScrollState.value == 0)) {
+                                dragging = true
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            } else if (directionLocked && dragging) {
+                                dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                change.consume()
+                            }
+                        }
+                        if (dragging && dragOffsetY >= dismissThresholdPx) {
+                            onDismiss()
+                            dismissScope.launch {
+                                delay(500)
+                                dragOffsetY = 0f
+                            }
+                        } else if (dragging) {
+                            dragOffsetY = 0f
+                        }
+                    }
+                },
         ) {
             // Cap the artwork to a share of the pane's height rather than letting it fill the
             // full width unconditionally — on a wide landscape/tablet window (the new nav rail
@@ -216,38 +282,31 @@ fun NowPlayingScreen(
             val artworkSize = (maxHeight * 0.42f).coerceAtMost(maxWidth)
 
             Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize(),
             ) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(artworkSize)
+                        .testTag("now_playing_artwork")
                         .semantics { traversalIndex = 1f },
                 ) {
                     if (swipeIndex != -1 && swipeStations.size > 1) {
-                        // Real pager over the frozen favourites order: the neighbour's artwork is a
-                        // prepared page that slides in with the finger; settling switches playback.
-                        // The rest of the pane stays static.
+                        // Keep the artwork pager outside the metadata scroller so station
+                        // navigation remains available without moving the visual anchor.
                         val virtualPageCount = Int.MAX_VALUE
                         val initialPage = remember(swipeStations, swipeIndex) {
                             val midpoint = virtualPageCount / 2
                             midpoint - circularPageIndex(midpoint, swipeStations.size) + swipeIndex
                         }
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
-                        // Set while the effect below is correcting the pager to match an external
-                        // station change, so that correction's own settle doesn't loop back into
-                        // onPlayStation below — a settle it causes reflects a decision already made
-                        // elsewhere, not a new one the user just swiped to.
                         var isSyncingToStation by remember { mutableStateOf(false) }
                         LaunchedEffect(pagerState.settledPage) {
                             if (isSyncingToStation) return@LaunchedEffect
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
                             if (!target.matches(station)) onPlayStation(target)
                         }
-                        // Keep the pager in step when the station changes some other way (e.g. the
-                        // media notification or a tap on the favourites grid behind the pane).
                         LaunchedEffect(swipeIndex) {
                             val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
                             if (currentIndex != swipeIndex && !pagerState.isScrollInProgress) {
@@ -275,9 +334,6 @@ fun NowPlayingScreen(
                                     onArtworkError = { mainArtworkFailed = true },
                                 )
                             } else {
-                                // Own logo, full-bleed — not the small circular avatar, and not
-                                // sharing mainArtworkFailed with the active page (a neighbour's
-                                // logo failing to load must not blank out the real artwork above).
                                 val ownLogoModel = pageStation.ownLogoModel()
                                 var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
                                 StationArtworkSurface(
@@ -305,23 +361,30 @@ fun NowPlayingScreen(
                         )
                     }
                 }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(dismissNestedScrollConnection)
+                        .verticalScroll(contentScrollState)
+                        .padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.headlineLarge,
-                    minLines = 2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     modifier = Modifier
-                        .width(artworkSize)
+                        .fillMaxWidth()
                         .semantics { traversalIndex = 2f },
                 )
                 Spacer(Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
-                        .width(artworkSize)
-                        .height(48.dp),
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                 ) {
                     if (showTrackBlock) {
                         Row(
@@ -337,20 +400,16 @@ fun NowPlayingScreen(
                                     text = trackArtist ?: trackTitle.orEmpty(),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                    modifier = Modifier.fillMaxWidth().safeMarquee(),
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                                 if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
                                     Text(
                                         text = trackTitle,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                        modifier = Modifier.fillMaxWidth().safeMarquee(),
+                                        modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
                             }
@@ -372,9 +431,14 @@ fun NowPlayingScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(24.dp))
+                }
+                Spacer(Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .navigationBarsPadding(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
