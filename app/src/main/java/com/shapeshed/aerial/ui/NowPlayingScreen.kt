@@ -402,19 +402,23 @@ fun NowPlayingScreen(
                                 horizontalAlignment = Alignment.Start,
                             ) {
                                 Text(
-                                    text = trackArtist ?: trackTitle.orEmpty(),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = trackTitle.orEmpty(),
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("now_playing_track_title"),
                                 )
-                                if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) {
+                                if (!trackArtist.isNullOrBlank() && trackArtist != trackTitle) {
                                     Text(
-                                        text = trackTitle,
+                                        text = trackArtist,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("now_playing_track_artist"),
                                     )
                                 }
                             }
