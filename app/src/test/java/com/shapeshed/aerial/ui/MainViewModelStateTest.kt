@@ -193,6 +193,30 @@ class MainViewModelStateTest {
     }
 
     @Test
+    fun changingFavoritesSortUpdatesTheActivePlaybackQueue() = runTest {
+        val alpha = station(1, "Alpha", lastPlayedAt = 1_000)
+        val bravo = station(2, "Bravo", lastPlayedAt = 3_000)
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(alpha, bravo)))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+
+        viewModel.handlePlaybackEvents(
+            mediaItem(alpha.name, alpha.id.toString()),
+            isPlaying = true,
+            queue = listOf(alpha, bravo),
+        )
+        viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
+        runCurrent()
+
+        assertEquals(
+            listOf(bravo.id, alpha.id),
+            viewModel.playbackUiState.value.queue.map(Station::id),
+        )
+    }
+
+    @Test
     fun recentlyPlayedFlowResolvesRegistryEntriesForHomepage() = runTest {
         val entry = PlayHistoryEntry("test", "mango", 5_000L)
         val registryStation = registry("Mango Radio")
