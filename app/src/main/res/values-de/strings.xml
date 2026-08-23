@@ -116,4 +116,6 @@
     <string name="no_favorites_desc">Füge Sender hinzu, die du liebst, um sie hier leicht wiederzufinden</string>
     <string name="car_moods">Stimmungen</string>
     <string name="recently_played">Zuletzt gespielt</string>
+    <string name="favorite_removed_message">%1$s aus Favoriten entfernt</string>
+    <string name="undo">Rückgängig</string>
 </resources>

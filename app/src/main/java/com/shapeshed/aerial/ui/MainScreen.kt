@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -75,6 +76,7 @@ import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -112,6 +114,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarScrollBehavior
@@ -374,6 +380,9 @@ fun MainScreen(
     var genreFilterQuery by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val favoriteRemovedMessage = stringResource(R.string.favorite_removed_message)
+    val undoLabel = stringResource(R.string.undo)
     val dismissCountrySheet = {
         scope.launch {
             countrySheetState.hide()
@@ -493,6 +502,7 @@ fun MainScreen(
                 selectedMoodId = null
                 viewModel.setSelectedHomeTab(destination)
             },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(searchScrollBehavior.nestedScrollConnection),
@@ -550,6 +560,19 @@ fun MainScreen(
                     onPlayFavorite = { viewModel.play(it, stations) },
                     onTogglePlayback = viewModel::togglePlayback,
                     onToggleFavorite = viewModel::toggleFavorite,
+                    onRemoveFavorite = { station ->
+                        viewModel.toggleFavorite(station)
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = favoriteRemovedMessage.format(station.name),
+                                actionLabel = undoLabel,
+                                duration = SnackbarDuration.Short,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.restoreFavorite(station)
+                            }
+                        }
+                    },
                     onHomeViewModeChange = viewModel::setHomeViewMode,
                     onSortSelected = viewModel::setFavoritesSort,
                     onStationLongPress = { contextStation = it },
@@ -708,6 +731,7 @@ private fun MainDestinationContent(
     onPlayFavorite: (Station) -> Unit,
     onTogglePlayback: () -> Unit,
     onToggleFavorite: (Station) -> Unit,
+    onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
@@ -766,6 +790,7 @@ private fun MainDestinationContent(
             onPlay = onPlayFavorite,
             onTogglePlayback = onTogglePlayback,
             onToggleFavorite = onToggleFavorite,
+            onRemoveFavorite = onRemoveFavorite,
             onHomeViewModeChange = onHomeViewModeChange,
             onSortSelected = onSortSelected,
             onStationLongPress = onStationLongPress,
@@ -1818,7 +1843,13 @@ private fun MoodStationRow(
 ) {
     val pauseLabel = stringResource(R.string.pause)
     ListItem(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onPlay),
+        colors = ListItemDefaults.colors(
+            containerColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .clickable(onClick = onPlay),
         leadingContent = {
             // Circle rather than a rounded square, matching the search and favourites rows.
             StationLogoCircle(
@@ -1828,7 +1859,7 @@ private fun MoodStationRow(
                 Icon(
                     imageVector = Icons.Rounded.Radio,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(26.dp),
                 )
             }
@@ -1842,7 +1873,7 @@ private fun MoodStationRow(
                 Text(
                     text = countryLabel,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1857,11 +1888,12 @@ private fun MoodStationRow(
                     when {
                         isBuffering -> CircularWavyProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            trackColor = (if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                .copy(alpha = 0.3f),
                         )
                         isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .size(width = 28.dp, height = 22.dp)
                                 .semantics { contentDescription = pauseLabel },
@@ -1877,7 +1909,9 @@ private fun MoodStationRow(
                     Icon(
                         imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = stringResource(if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites),
-                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isSaved) MaterialTheme.colorScheme.primary else {
+                            if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
@@ -1886,6 +1920,7 @@ private fun MoodStationRow(
         Text(
             text = station.name,
             style = MaterialTheme.typography.titleMedium,
+            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1916,6 +1951,7 @@ internal fun FavoritesTabContent(
     onPlay: (Station) -> Unit,
     onTogglePlayback: () -> Unit,
     onToggleFavorite: (Station) -> Unit,
+    onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
@@ -2019,7 +2055,9 @@ internal fun FavoritesTabContent(
                     onPlay = { onPlay(station) },
                     onTogglePlayback = onTogglePlayback,
                     onToggleFavorite = { onToggleFavorite(station) },
+                    onDismiss = { onRemoveFavorite(station) },
                     onLongClick = { onStationLongPress(station) },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
@@ -2126,6 +2164,7 @@ private fun HomeViewModeToggle(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 private fun StationListRow(
     station: Station,
     isActive: Boolean,
@@ -2134,6 +2173,7 @@ private fun StationListRow(
     onPlay: () -> Unit,
     onTogglePlayback: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onDismiss: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2144,72 +2184,124 @@ private fun StationListRow(
     val countryLabel = station.countryCode.takeIf { it.isNotBlank() }
         ?.let { countryName(it, appLocale) }
         ?: station.country
-    ListItem(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onPlay,
-                onLongClickLabel = stationOptionsLabel,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-            ),
-        leadingContent = {
-            StationAvatar(station = station, isActive = isActive, size = 50.dp)
+    val dismissState = rememberSwipeToDismissBoxState()
+    val swipeBackgroundColor by animateColorAsState(
+        targetValue = when (dismissState.targetValue) {
+            SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+            SwipeToDismissBoxValue.StartToEnd,
+            SwipeToDismissBoxValue.EndToStart,
+            -> MaterialTheme.colorScheme.errorContainer
         },
-        supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
-            {
+        label = "favorite swipe background",
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(swipeBackgroundColor),
+            ) {
+                when (dismissState.dismissDirection) {
+                    SwipeToDismissBoxValue.StartToEnd,
+                    SwipeToDismissBoxValue.EndToStart,
+                    -> Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = stringResource(R.string.remove_from_favorites),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier
+                            .align(
+                                if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                                    Alignment.CenterStart
+                                } else {
+                                    Alignment.CenterEnd
+                                },
+                            )
+                            .padding(12.dp),
+                    )
+                    SwipeToDismissBoxValue.Settled -> Unit
+                }
+            }
+        },
+        onDismiss = { direction ->
+            if (direction != SwipeToDismissBoxValue.Settled) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onDismiss()
+            }
+        },
+    ) {
+        Surface(
+            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium,
+            tonalElevation = if (isActive) 0.dp else 1.dp,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+        ) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                modifier = Modifier.combinedClickable(
+                    onClick = onPlay,
+                    onLongClickLabel = stationOptionsLabel,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                ),
+                leadingContent = {
+                    StationAvatar(station = station, isActive = isActive, size = 50.dp)
+                },
+                supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
+                    {
+                        Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        ) {
+                            when {
+                                isBuffering -> CircularWavyProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                )
+                                isActive && isPlaying -> EqualizerBars(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(width = 28.dp, height = 22.dp)
+                                        .semantics { contentDescription = pauseLabel },
+                                    barCount = 3,
+                                )
+                                else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                            }
+                        }
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        ) {
+                            Icon(
+                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.save_to_favorites),
+                                tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+            ) {
                 Text(
-                    text = label,
+                    text = station.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        },
-        trailingContent = {
-            // Same preview-play + favourite pattern as the mood and search rows: a dedicated
-            // button toggles playback in place (rather than only via the row tap), and the
-            // heart removes the row directly.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = if (isActive && isPlaying) onTogglePlayback else onPlay,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
-                    when {
-                        isBuffering -> CircularWavyProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                        )
-                        isActive && isPlaying -> EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(width = 28.dp, height = 22.dp)
-                                .semantics { contentDescription = pauseLabel },
-                            barCount = 3,
-                        )
-                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
-                    }
-                }
-                IconButton(
-                    onClick = onToggleFavorite,
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                ) {
-                    Icon(
-                        imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.save_to_favorites),
-                        tint = if (station.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
-    ) {
-        Text(
-            text = station.name,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        }
     }
 }
 
@@ -2250,7 +2342,9 @@ private fun StationTile(
         Surface(
             // Same plate treatment as the other artwork surfaces: an adaptive plate behind
             // rendered logos (visible only through transparency), tonal otherwise.
-            color = if (showLogo) stationLogoPlateColor(logoIsLight) else tileColor,
+            color = if (showLogo) stationLogoPlateColor(logoIsLight) else {
+                if (isActive) MaterialTheme.colorScheme.primaryContainer else tileColor
+            },
             // Medium card radius like the other cards: a fixed 28dp reads far rounder on
             // the small tiles of a 4-5 column grid, so keep the modest spec radius at
             // every grid width.
@@ -2296,11 +2390,15 @@ private fun StationTile(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)),
                         )
                     }
                 }
-                val indicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
+                val indicatorColor = if (isActive) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 when {
                     !showActivityIndicator -> Unit
                     isBuffering -> CircularWavyProgressIndicator(
@@ -2319,7 +2417,7 @@ private fun StationTile(
         Text(
             text = station.name,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,

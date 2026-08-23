@@ -18,6 +18,7 @@ internal fun MainAppContent(
     selectedDestination: Int,
     showHome: Boolean,
     onDestinationSelected: (Int) -> Unit,
+    snackbarHost: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -30,6 +31,7 @@ internal fun MainAppContent(
         Scaffold(
             modifier = Modifier.semantics { traversalIndex = 0f },
             contentWindowInsets = WindowInsets.navigationBars,
+            snackbarHost = snackbarHost,
         ) { padding ->
             Box(
                 modifier = Modifier

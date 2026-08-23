@@ -112,4 +112,6 @@
     <string name="no_favorites_desc">Добавьте любимые станции, чтобы легко находить их здесь</string>
     <string name="car_moods">Настроения</string>
     <string name="recently_played">Недавно прослушанные</string>
+    <string name="favorite_removed_message">%1$s удалена из избранного</string>
+    <string name="undo">Отменить</string>
 </resources>

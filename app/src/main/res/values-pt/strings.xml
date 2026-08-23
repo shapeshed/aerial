@@ -117,4 +117,6 @@
     <string name="no_favorites_desc">Adicione as estações que você gosta para encontrá-las facilmente aqui</string>
     <string name="car_moods">Humores</string>
     <string name="recently_played">Reproduzidos recentemente</string>
+    <string name="favorite_removed_message">%1$s removida dos favoritos</string>
+    <string name="undo">Desfazer</string>
 </resources>

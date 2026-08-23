@@ -675,6 +675,16 @@ class MainViewModel(
         }
     }
 
+    fun restoreFavorite(station: Station) {
+        viewModelScope.launch {
+            val id = repository.saveAsFavorite(station.copy(isFavorite = true))
+            if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+                _currentStationId.value = id
+                _ephemeralStation.value = null
+            }
+        }
+    }
+
     private val playerListener = object : Player.Listener {
         // Playback can start or change from outside this ViewModel — Android Auto, voice
         // search, a queue skip — so the phone's current-station state must follow the
