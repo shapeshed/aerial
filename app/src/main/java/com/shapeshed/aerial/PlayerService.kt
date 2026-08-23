@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
+import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
@@ -176,7 +177,9 @@ class PlayerService : MediaLibraryService() {
         mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, librarySessionCallback)
             .setSessionActivity(pendingIntent())
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
-            .setBitmapLoader(CoilBitmapLoader(this))
+            // Coil provides SVG support and the app's configured network client. Media3 still
+            // applies its own size limit; caching avoids repeating equivalent artwork requests.
+            .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
             .build()
         log("onCreate")
         serviceScope.launch {

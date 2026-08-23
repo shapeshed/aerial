@@ -9,7 +9,6 @@ import androidx.media3.common.util.UnstableApi
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
-import coil3.size.Size
 import com.google.common.util.concurrent.ListenableFuture
 import com.shapeshed.aerial.ui.toOpaqueBitmap
 import kotlinx.coroutines.Dispatchers
@@ -23,13 +22,17 @@ import kotlinx.coroutines.Dispatchers
 @UnstableApi
 class CoilBitmapLoader(private val context: Context) : BitmapLoader {
 
+    private companion object {
+        const val MAX_ARTWORK_SIZE_PX = 512
+    }
+
     override fun supportsMimeType(mimeType: String): Boolean = true
 
     override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> =
         SuspendToFutureAdapter.launchFuture(Dispatchers.Default, false) {
             val request = ImageRequest.Builder(context)
                 .data(data)
-                .size(512)
+                .size(MAX_ARTWORK_SIZE_PX)
                 .build()
             val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult
                 ?: error("Could not decode artwork bytes")
@@ -41,7 +44,9 @@ class CoilBitmapLoader(private val context: Context) : BitmapLoader {
             val imageLoader = SingletonImageLoader.get(context)
             val request = ImageRequest.Builder(context)
                 .data(uri)
-                .size(Size.ORIGINAL)
+                // Media3 applies its own SizeLimitedBitmapLoader around the session loader.
+                // Keep Coil bounded too, so a large remote image is not fully decoded first.
+                .size(MAX_ARTWORK_SIZE_PX)
                 .build()
             val result = imageLoader.execute(request) as? SuccessResult
                 ?: error("Could not load artwork from $uri")
