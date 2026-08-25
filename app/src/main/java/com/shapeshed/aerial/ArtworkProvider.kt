@@ -6,13 +6,14 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.webkit.MimeTypeMap
+import androidx.core.net.toUri
 import java.io.File
 import java.io.FileNotFoundException
 
 /**
- * Read-only provider serving station artwork — rasterized registry logos (SVG -> PNG, see
- * [com.shapeshed.aerial.ui.cachedRemoteArtworkUri]) and locally-cached favourite logos (see
- * [com.shapeshed.aerial.ui.localLogoArtworkUri]) — to external artwork consumers: Android Auto's
+ * Read-only provider serving station artwork — rasterized remote registry logos (see
+ * [com.shapeshed.aerial.ui.cachedRemoteArtworkUri]) and locally-cached favourite logos (including
+ * SVGs, see [com.shapeshed.aerial.ui.localLogoArtworkUri]) — to external artwork consumers: Android Auto's
  * browse lists, Bluetooth AVRCP, System UI. A stable content:// artworkUri lets those consumers
  * decode once and cache by URI, and — critically for AVRCP — lets Media3 skip decoding a Bitmap
  * for the item at all (embedded artworkData bytes force a decode-and-embed per queue item, which
@@ -67,6 +68,6 @@ class ArtworkProvider : ContentProvider() {
         const val LOCAL_LOGO_DIR = "logos"
 
         fun uriFor(context: android.content.Context, dir: String, fileName: String): Uri =
-            Uri.parse("content://${context.packageName}.artwork/$dir/$fileName")
+            "content://${context.packageName}.artwork/$dir/$fileName".toUri()
     }
 }

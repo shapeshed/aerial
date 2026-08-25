@@ -88,8 +88,14 @@
     <string name="sleep_timer">Uyku zamanlayıcısı</string>
     <string name="sleep_add_15">+15 dk.</string>
     <string name="sleep_set_new_duration">Yeni bir süre belirle</string>
-    <string name="sleep_preset_seconds">%1$d sn.</string>
-    <string name="sleep_preset_minutes">%1$d dk.</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d sn.</item>
+        <item quantity="other">%1$d sn.</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d dk.</item>
+        <item quantity="other">%1$d dk.</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d saat</item>
         <item quantity="other">%1$d saat</item>
@@ -104,8 +110,6 @@
     <string name="sort_last_played">Son oynatılan</string>
     <string name="sort_most_played">En çok oynatılan</string>
     <string name="for_you">Sizin için</string>
-    <string name="favorites_grid_columns">Favoriler\'in ızgara genişliği</string>
-    <string name="favorites_grid_columns_desc">Kartlar görünümünde gösterilecek sütun sayısı</string>
     <string name="no_favorites">Henüz favoriniz yok</string>
     <string name="no_favorites_desc">Burada kolayca bulabilmek için sevdiğiniz istasyonları ekleyin</string>
     <string name="car_moods">Ruh halleri</string>

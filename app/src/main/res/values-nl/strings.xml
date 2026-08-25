@@ -83,8 +83,14 @@
     <string name="sleep_timer">Slaaptimer</string>
     <string name="sleep_add_15">+15 min</string>
     <string name="sleep_set_new_duration">Nieuwe duur instellen</string>
-    <string name="sleep_preset_seconds">%1$d sec</string>
-    <string name="sleep_preset_minutes">%1$d min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d sec</item>
+        <item quantity="other">%1$d sec</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d uur</item>
         <item quantity="other">%1$d uur</item>
@@ -110,8 +116,6 @@
     <string name="sort_last_played">Laatst afgespeeld</string>
     <string name="sort_most_played">Meest afgespeeld</string>
     <string name="for_you">Voor jou</string>
-    <string name="favorites_grid_columns">Rasterbreedte van favorieten</string>
-    <string name="favorites_grid_columns_desc">Kolommen in de kaartweergave</string>
     <string name="no_favorites">Nog geen favorieten</string>
     <string name="no_favorites_desc">Voeg zenders toe die je leuk vindt om ze hier snel terug te vinden</string>
     <string name="car_moods">Stemmingen</string>

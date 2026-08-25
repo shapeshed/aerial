@@ -83,10 +83,19 @@
     <string name="sleep_timer">Temporizador</string>
     <string name="sleep_add_15">+15 min</string>
     <string name="sleep_set_new_duration">Establecer nueva duración</string>
-    <string name="sleep_preset_seconds">%1$d s</string>
-    <string name="sleep_preset_minutes">%1$d min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d s</item>
+        <item quantity="many">%1$d s</item>
+        <item quantity="other">%1$d s</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
         <item quantity="other">%1$d horas</item>
     </plurals>
     <string name="sleep_preset_hours_minutes">%1$d h %2$d min</string>
@@ -110,8 +119,6 @@
     <string name="sort_last_played">Reproducida recientemente</string>
     <string name="sort_most_played">Más reproducida</string>
     <string name="for_you">Para ti</string>
-    <string name="favorites_grid_columns">Ancho de la cuadrícula de favoritos</string>
-    <string name="favorites_grid_columns_desc">Columnas en la vista de tarjetas</string>
     <string name="no_favorites">Aún no tienes favoritos</string>
     <string name="no_favorites_desc">Añade las emisoras que te gustan para encontrarlas fácilmente aquí</string>
     <string name="car_moods">Estados de ánimo</string>

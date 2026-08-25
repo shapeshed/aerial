@@ -71,10 +71,13 @@ fun formatSleepRemaining(ms: Long): String {
 
 @Composable
 private fun presetLabel(ms: Long): String {
-    if (ms < MINUTE_MS) return stringResource(R.string.sleep_preset_seconds, (ms / 1000).toInt())
+    if (ms < MINUTE_MS) {
+        val seconds = (ms / 1000).toInt()
+        return pluralStringResource(R.plurals.sleep_preset_seconds, seconds, seconds)
+    }
     val min = (ms / MINUTE_MS).toInt()
     return when {
-        min < 60 -> stringResource(R.string.sleep_preset_minutes, min)
+        min < 60 -> pluralStringResource(R.plurals.sleep_preset_minutes, min, min)
         min % 60 == 0 -> pluralStringResource(R.plurals.sleep_preset_hours, min / 60, min / 60)
         else -> stringResource(R.string.sleep_preset_hours_minutes, min / 60, min % 60)
     }

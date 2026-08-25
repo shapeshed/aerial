@@ -83,10 +83,19 @@
     <string name="sleep_timer">Temporizador</string>
     <string name="sleep_add_15">+15 min</string>
     <string name="sleep_set_new_duration">Definir nova duração</string>
-    <string name="sleep_preset_seconds">%1$d s</string>
-    <string name="sleep_preset_minutes">%1$d min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d s</item>
+        <item quantity="many">%1$d s</item>
+        <item quantity="other">%1$d s</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
         <item quantity="other">%1$d horas</item>
     </plurals>
     <string name="sleep_preset_hours_minutes">%1$d h %2$d min</string>
@@ -111,8 +120,6 @@
     <string name="sort_last_played">Reproduzida recentemente</string>
     <string name="sort_most_played">Mais reproduzida</string>
     <string name="for_you">Para você</string>
-    <string name="favorites_grid_columns">Largura da grade de favoritos</string>
-    <string name="favorites_grid_columns_desc">Colunas na visualização de cartões</string>
     <string name="no_favorites">Ainda sem favoritos</string>
     <string name="no_favorites_desc">Adicione as estações que você gosta para encontrá-las facilmente aqui</string>
     <string name="car_moods">Humores</string>

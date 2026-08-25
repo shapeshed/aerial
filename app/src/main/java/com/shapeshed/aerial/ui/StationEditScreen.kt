@@ -45,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -54,7 +53,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -68,6 +66,10 @@ fun StationEditScreen(
     val name by viewModel.name.collectAsStateWithLifecycle()
     val streamUrl by viewModel.streamUrl.collectAsStateWithLifecycle()
     val logoPath by viewModel.logoPath.collectAsStateWithLifecycle()
+    val registryLogoUrl by viewModel.registryLogoUrl.collectAsStateWithLifecycle()
+    val logoModel: Any? = logoPath.takeIf { it.isNotEmpty() }?.let { path ->
+        if (path.startsWith("http")) path else File(path)
+    } ?: registryLogoUrl
     var showRemoveLogoConfirm by rememberSaveable { mutableStateOf(false) }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -131,13 +133,20 @@ fun StationEditScreen(
                         }
                         .clickable { imagePicker.launch(arrayOf("image/*")) },
                 ) {
-                    if (logoPath.isNotEmpty()) {
-                        AsyncImage(
-                            model = File(logoPath),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
+                    if (logoModel != null) {
+                        StationLogoCircle(
+                            logoModel = logoModel,
+                            size = 120.dp,
+                            fallbackBackground = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.fillMaxSize(),
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Radio,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(60.dp),
+                            )
+                        }
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.Radio,

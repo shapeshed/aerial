@@ -7,12 +7,24 @@ import org.junit.Test
 
 class AerialNavigatorTest {
     @Test
-    fun startsAtMainAndDoesNotPopTheRoot() {
+    fun startsAtHomeAndDoesNotPopTheRoot() {
         val navigator = AerialNavigator()
 
-        assertEquals(listOf<AerialRoute>(AerialRoute.Main), navigator.backStack)
+        assertEquals(listOf<AerialRoute>(AerialRoute.Home), navigator.backStack)
         assertFalse(navigator.goBack())
-        assertEquals(listOf<AerialRoute>(AerialRoute.Main), navigator.backStack)
+        assertEquals(listOf<AerialRoute>(AerialRoute.Home), navigator.backStack)
+    }
+
+    @Test
+    fun moodDetailIsPushedOntoTheAppBackStack() {
+        val navigator = AerialNavigator()
+
+        navigator.navigate(AerialRoute.Mood("focus"))
+
+        assertEquals(
+            listOf(AerialRoute.Home, AerialRoute.Mood("focus")),
+            navigator.backStack,
+        )
     }
 
     @Test
@@ -24,7 +36,7 @@ class AerialNavigatorTest {
         navigator.navigate(AerialRoute.EditStation(stationId = 42L))
 
         assertEquals(
-            listOf(AerialRoute.Main, AerialRoute.EditStation(stationId = 42L)),
+            listOf(AerialRoute.Home, AerialRoute.EditStation(stationId = 42L)),
             navigator.backStack,
         )
     }
@@ -36,7 +48,7 @@ class AerialNavigatorTest {
         assertTrue(navigator.navigate(AerialRoute.Settings))
         assertFalse(navigator.navigate(AerialRoute.Settings))
 
-        assertEquals(listOf(AerialRoute.Main, AerialRoute.Settings), navigator.backStack)
+        assertEquals(listOf(AerialRoute.Home, AerialRoute.Settings), navigator.backStack)
     }
 
     @Test
@@ -46,9 +58,19 @@ class AerialNavigatorTest {
         navigator.navigate(AerialRoute.EditStation(stationId = 7L))
 
         assertTrue(navigator.goBack())
-        assertEquals(listOf(AerialRoute.Main, AerialRoute.Settings), navigator.backStack)
+        assertEquals(listOf(AerialRoute.Home, AerialRoute.Settings), navigator.backStack)
         assertTrue(navigator.goBack())
-        assertEquals(listOf<AerialRoute>(AerialRoute.Main), navigator.backStack)
+        assertEquals(listOf<AerialRoute>(AerialRoute.Home), navigator.backStack)
         assertFalse(navigator.goBack())
+    }
+
+    @Test
+    fun topLevelNavigationReplacesTheCurrentFlow() {
+        val navigator = AerialNavigator()
+        navigator.navigate(AerialRoute.Mood("focus"))
+
+        assertTrue(navigator.navigateTopLevel(AerialRoute.Favorites))
+
+        assertEquals(listOf(AerialRoute.Favorites), navigator.backStack)
     }
 }

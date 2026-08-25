@@ -88,8 +88,14 @@
     <string name="sleep_timer">स्लीप टाइमर</string>
     <string name="sleep_add_15">+15 मिनट</string>
     <string name="sleep_set_new_duration">नई अवधि सेट करें</string>
-    <string name="sleep_preset_seconds">%1$d सेकंड</string>
-    <string name="sleep_preset_minutes">%1$d मिनट</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d सेकंड</item>
+        <item quantity="other">%1$d सेकंड</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d मिनट</item>
+        <item quantity="other">%1$d मिनट</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d घंटा</item>
         <item quantity="other">%1$d घंटे</item>
@@ -104,8 +110,6 @@
     <string name="sort_last_played">पिछली बार चलाया गया</string>
     <string name="sort_most_played">सबसे ज़्यादा सुने गए गाने</string>
     <string name="for_you">आपके लिए</string>
-    <string name="favorites_grid_columns">पसंदीदा ग्रिड की चौड़ाई</string>
-    <string name="favorites_grid_columns_desc">कार्ड व्यू में दिखाए गए कॉलम</string>
     <string name="no_favorites">अभी तक कोई पसंदीदा नहीं</string>
     <string name="no_favorites_desc">अपने पसंदीदा स्टेशन जोड़ें ताकि उन्हें यहाँ आसानी से ढूँढा जा सके</string>
     <string name="car_moods">मूडज़</string>

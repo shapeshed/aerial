@@ -68,6 +68,13 @@
     <string name="export_backup_desc">Save stations, settings, and local logos</string>
     <string name="import_backup">Import backup</string>
     <string name="import_backup_desc">Merge stations and restore settings from a backup</string>
+    <string name="backup_exported">Backup exported</string>
+    <string name="backup_export_failed">Couldn’t export backup</string>
+    <string name="backup_import_failed">Couldn’t import backup</string>
+    <plurals name="backup_imported">
+        <item quantity="one">Imported %1$d station and settings</item>
+        <item quantity="other">Imported %1$d stations and settings</item>
+    </plurals>
     <string name="version_format">Aerial %1$s</string>
     <string name="language">Language</string>
     <string name="language_system_default">System default</string>
@@ -83,6 +90,9 @@
     <string name="field_stream_url">Stream URL</string>
     <!-- Playback -->
     <string name="live_radio">Live Radio</string>
+    <string name="playback_connection_failed">Connection failed</string>
+    <string name="playback_format_unsupported">Stream format unsupported</string>
+    <string name="playback_failed">Playback failed</string>
     <string name="previous_station">Previous station</string>
     <string name="next_station">Next station</string>
     <!-- Curated genre/category tags. Display only — the English tag is the matching key. -->
@@ -100,8 +110,14 @@
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_add_15">+15 min</string>
     <string name="sleep_set_new_duration">Set a new duration</string>
-    <string name="sleep_preset_seconds">%1$d sec</string>
-    <string name="sleep_preset_minutes">%1$d min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d sec</item>
+        <item quantity="other">%1$d sec</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d hour</item>
         <item quantity="other">%1$d hours</item>
@@ -116,8 +132,6 @@
     <string name="sort_last_played">Last played</string>
     <string name="sort_most_played">Most played</string>
     <string name="for_you">For you</string>
-    <string name="favorites_grid_columns">Favorites grid width</string>
-    <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
     <string name="no_favorites">No favourites yet</string>
     <string name="no_favorites_desc">Add stations you love to easily find them here</string>
     <!-- Media browse tree (Android Auto, Google TV) -->

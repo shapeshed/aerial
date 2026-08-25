@@ -83,10 +83,19 @@
     <string name="sleep_timer">Minuteur de veille</string>
     <string name="sleep_add_15">+15 min</string>
     <string name="sleep_set_new_duration">Définir une nouvelle durée</string>
-    <string name="sleep_preset_seconds">%1$d s</string>
-    <string name="sleep_preset_minutes">%1$d min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d s</item>
+        <item quantity="many">%1$d s</item>
+        <item quantity="other">%1$d s</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="many">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d heure</item>
+        <item quantity="many">%1$d heures</item>
         <item quantity="other">%1$d heures</item>
     </plurals>
     <string name="sleep_preset_hours_minutes">%1$d h %2$d min</string>
@@ -110,8 +119,6 @@
     <string name="sort_last_played">Écoutée récemment</string>
     <string name="sort_most_played">La plus écoutée</string>
     <string name="for_you">Pour vous</string>
-    <string name="favorites_grid_columns">Largeur de la grille des favoris</string>
-    <string name="favorites_grid_columns_desc">Colonnes dans la vue en cartes</string>
     <string name="no_favorites">Aucun favori pour l\'instant</string>
     <string name="no_favorites_desc">Ajoutez vos stations préférées pour les retrouver facilement ici</string>
     <string name="car_moods">Humeurs</string>

@@ -8,9 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import android.os.Bundle
-import org.json.JSONArray
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -30,9 +28,6 @@ import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.stationNameFromMediaMetadata
-import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_DEFAULT
-import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_KEY
-import com.shapeshed.aerial.FAVORITES_GRID_COLUMNS_RANGE
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
@@ -51,12 +46,15 @@ import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.lastPlayedStationSnapshot
 import com.shapeshed.aerial.data.toLastPlayedJson
+import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.toEphemeralStation
-import com.shapeshed.aerial.toPlayableMediaItem
+import com.shapeshed.aerial.toSystemPlayableMediaItem
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,21 +69,28 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
-private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
-private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
-private const val MAX_RECENT_SEARCHES = 5
 private const val RECENTLY_PLAYED_LIMIT = 10
 
 /** Keeps a favourite usable when its app-private cached logo disappeared during reinstall. */
 internal fun recoverLogoPath(storedPath: String, remoteLogoUrl: String, fileExists: Boolean): String =
     when {
-        storedPath.startsWith("http") || fileExists -> storedPath
+        // A file that still exists may be artwork explicitly selected by the user. It is the
+        // authoritative value; the registry URL is only a recovery source for missing cached
+        // files (for example after restoring a backup or reinstalling the app).
+        fileExists -> storedPath
         remoteLogoUrl.isNotBlank() -> remoteLogoUrl
         else -> storedPath
     }
+
+/** Chooses artwork for a recently-played registry row when a saved logo file may be stale. */
+internal fun recentlyPlayedLogoPath(storedPath: String, remoteLogoUrl: String): String =
+    recoverLogoPath(
+        storedPath = storedPath,
+        remoteLogoUrl = remoteLogoUrl,
+        fileExists = storedPath.isNotBlank() && !storedPath.startsWith("http") && File(storedPath).isFile,
+    )
 
 /** Reorders an existing Media3 playlist without clearing or preparing the active item. */
 internal fun reorderPlayerPlaylist(player: Player, current: List<Station>, desired: List<Station>) {
@@ -112,6 +117,12 @@ class MainViewModel(
 ) : AndroidViewModel(application) {
 
     val isOnline = (application as AerialApp).networkMonitor.isOnline
+    private val searchStateHolder = SearchStateHolder(
+        scope = viewModelScope,
+        repository = repository,
+        registryRepository = registryRepository,
+        dataStore = dataStore,
+    )
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -152,6 +163,9 @@ class MainViewModel(
 
     private fun initialize() {
         viewModelScope.launch {
+            migrateImportedArtwork()
+        }
+        viewModelScope.launch {
             repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
                 .map { entries ->
                     entries.mapNotNull { entry ->
@@ -160,13 +174,11 @@ class MainViewModel(
                         // The registry's own copy may have no logo, or one the user has
                         // replaced locally (e.g. a custom-uploaded SVG) — prefer the user's
                         // saved station's artwork when this station is saved locally.
-                        val localLogoPath = repository.findMatching(registryStation)
-                            ?.logoPath?.takeIf { it.isNotBlank() }
-                        if (localLogoPath != null) {
-                            registryStation.copy(logoUrl = localLogoPath)
-                        } else {
-                            registryStation
-                        }
+                        val localLogoPath = repository.findMatching(registryStation)?.logoPath.orEmpty()
+                        val artworkPath = recentlyPlayedLogoPath(localLogoPath, registryStation.logoUrl)
+                        if (artworkPath != registryStation.logoUrl) {
+                            registryStation.copy(logoUrl = artworkPath)
+                        } else registryStation
                     }
                 }
                 .collect {
@@ -206,14 +218,34 @@ class MainViewModel(
         }
         viewModelScope.launch {
             val prefs = dataStore.data.first()
-            _selectedCountries.value = prefs[SEARCH_COUNTRIES_KEY]
-                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
-            _selectedTags.value = prefs[SEARCH_TAGS_KEY]
-                ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            searchStateHolder.restoreFilters(prefs)
             _selectedHomeTab.value = prefs[LAST_HOME_TAB_KEY] ?: 0
             _favoritesSort.value = prefs[FAVORITES_SORT_KEY]
                 ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
                 ?: FavoritesSort.AZ
+        }
+    }
+
+    /** Replace only missing imported artwork with its registry URL; preserve user-selected files. */
+    private suspend fun migrateImportedArtwork() {
+        repository.getAll().first().forEach { station ->
+            val registry = when {
+                station.provider.isNotBlank() && station.providerId.isNotBlank() ->
+                    registryRepository.getByProviderId(station.provider, station.providerId)
+                else -> registryRepository.getByStreamUrl(station.streamUrl)
+            }
+            val registryLogo = registry?.logoUrl.orEmpty()
+            val localPath = station.logoPath
+            val recoveredPath = recoverLogoPath(
+                storedPath = localPath,
+                remoteLogoUrl = registryLogo,
+                fileExists = localPath.isNotBlank() &&
+                    !localPath.startsWith("http") &&
+                    File(localPath).isFile,
+            )
+            if (recoveredPath != localPath) {
+                repository.update(station.copy(logoPath = recoveredPath))
+            }
         }
     }
 
@@ -223,13 +255,16 @@ class MainViewModel(
 
     private suspend fun recoverStationArtwork(station: Station): Station {
         val localPath = station.logoPath
-        if (localPath.startsWith("http") || localPath.isBlank() || File(localPath).isFile) return station
         val registry = when {
             station.provider.isNotBlank() && station.providerId.isNotBlank() ->
                 registryRepository.getByProviderId(station.provider, station.providerId)
             else -> registryRepository.getByStreamUrl(station.streamUrl)
         }
-        val recoveredPath = recoverLogoPath(localPath, registry?.logoUrl.orEmpty(), fileExists = false)
+        val recoveredPath = recoverLogoPath(
+            localPath,
+            registry?.logoUrl.orEmpty(),
+            fileExists = localPath.isNotBlank() && !localPath.startsWith("http") && File(localPath).isFile,
+        )
         return if (recoveredPath == localPath) station else station.copy(logoPath = recoveredPath)
     }
 
@@ -312,12 +347,36 @@ class MainViewModel(
                     previous.firstOrNull { it.id == id }?.let { removed ->
                         setCurrentStation(removed.copy(id = 0, isFavorite = false))
                     }
-                } else if (id != null) {
+            } else if (id != null) {
                     list.firstOrNull { it.id == id }?.let(::refreshCurrentStation)
                 }
+                refreshActiveFavoritesQueueForStationUpdate(list)
                 previous = list
             }
         }
+    }
+
+    /**
+     * A play updates [Station.lastPlayedAt] or [Station.playCount] asynchronously in Room. When
+     * a play-dependent Favorites sort is active, keep both the visible list and the next/previous
+     * queue aligned with that newer row order instead of letting the queue snapshot freeze it.
+     */
+    private fun refreshActiveFavoritesQueueForStationUpdate(stations: List<Station>) {
+        val sort = _favoritesSort.value
+        if (sort != FavoritesSort.LAST_PLAYED && sort != FavoritesSort.MOST_PLAYED) return
+        val activeQueue = _playbackUiState.value.queue
+        if (activeQueue.size < 2) return
+        val favorites = stations.filter(Station::isFavorite)
+        val isFavoritesQueue = favorites.size == activeQueue.size &&
+            favorites.all { favorite -> activeQueue.any { it.matches(favorite) } }
+        if (!isFavoritesQueue) return
+
+        val reorderedQueue = sortStations(favorites, sort)
+        if (reorderedQueue.map(Station::id) == activeQueue.map(Station::id)) return
+        _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
+        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
+        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
+        _playbackUiState.value.station?.let { persistLastPlayedStation(it, reorderedQueue) }
     }
 
     // Single derived "what's playing" summary. Recomputes whenever stream metadata or the
@@ -383,12 +442,6 @@ class MainViewModel(
         .map { prefs -> prefs[SHOW_HOME_KEY] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-    val favoritesGridColumns: StateFlow<Int> = dataStore.data
-        .map { prefs ->
-            (prefs[FAVORITES_GRID_COLUMNS_KEY] ?: FAVORITES_GRID_COLUMNS_DEFAULT)
-                .coerceIn(FAVORITES_GRID_COLUMNS_RANGE)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FAVORITES_GRID_COLUMNS_DEFAULT)
 
     fun setHomeViewMode(mode: HomeViewMode) {
         viewModelScope.launch {
@@ -398,95 +451,40 @@ class MainViewModel(
         }
     }
 
-    private val _registrySearchResults = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val registrySearchResults: StateFlow<List<RegistryStation>> = _registrySearchResults.asStateFlow()
-
-    private val _favoriteSearchResults = MutableStateFlow<List<Station>>(emptyList())
-    val favoriteSearchResults: StateFlow<List<Station>> = _favoriteSearchResults.asStateFlow()
-
-    private val _selectedCountries = MutableStateFlow<Set<String>>(emptySet())
-    val selectedCountries: StateFlow<Set<String>> = _selectedCountries.asStateFlow()
-
-    private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
-    val selectedTags: StateFlow<Set<String>> = _selectedTags.asStateFlow()
-
-
+    val registrySearchResults: StateFlow<List<RegistryStation>> = searchStateHolder.registryResults
+    val favoriteSearchResults: StateFlow<List<Station>> = searchStateHolder.favoriteResults
+    val selectedCountries: StateFlow<Set<String>> = searchStateHolder.selectedCountries
+    val selectedTags: StateFlow<Set<String>> = searchStateHolder.selectedTags
 
     private val _availableCountries = MutableStateFlow<List<String>>(emptyList())
     val availableCountries: StateFlow<List<String>> = _availableCountries.asStateFlow()
 
-    private var _lastSearchQuery = ""
-    private var searchJob: Job? = null
-
     fun searchRegistry(query: String) {
-        _lastSearchQuery = query
-        runSearch(query)
+        searchStateHolder.search(query)
     }
 
     fun toggleCountryFilter(country: String) {
-        _selectedCountries.value = _selectedCountries.value.let {
-            if (it.contains(country)) it - country else it + country
-        }
-        persistFilters()
-        runSearch(_lastSearchQuery)
+        searchStateHolder.toggleCountry(country)
     }
 
     fun setCountryFilter(country: String) {
-        _selectedCountries.value = setOf(country)
-        persistFilters()
-        runSearch(_lastSearchQuery)
+        searchStateHolder.setCountry(country)
     }
 
     fun toggleTagFilter(tag: String) {
-        _selectedTags.value = _selectedTags.value.let {
-            if (it.contains(tag)) it - tag else it + tag
-        }
-        persistFilters()
-        runSearch(_lastSearchQuery)
+        searchStateHolder.toggleTag(tag)
     }
 
     fun clearCountryFilter() {
-        _selectedCountries.value = emptySet()
-        persistFilters()
-        runSearch(_lastSearchQuery)
+        searchStateHolder.clearCountries()
     }
 
     fun clearTagFilter() {
-        _selectedTags.value = emptySet()
-        persistFilters()
-        runSearch(_lastSearchQuery)
-    }
-
-    private fun persistFilters() {
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                prefs[SEARCH_COUNTRIES_KEY] = _selectedCountries.value.joinToString(",")
-                prefs[SEARCH_TAGS_KEY] = _selectedTags.value.joinToString(",")
-            }
-        }
-    }
-
-    private fun runSearch(query: String) {
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch(Dispatchers.IO) {
-            _favoriteSearchResults.value = if (query.isBlank()) {
-                emptyList()
-            } else {
-                repository.searchFavorites(query)
-            }
-            _registrySearchResults.value = registryRepository.search(
-                query = query,
-                countryCodes = _selectedCountries.value,
-                tags = _selectedTags.value,
-            )
-        }
+        searchStateHolder.clearTags()
     }
 
     fun clearAllFilters() {
-        _selectedCountries.value = emptySet()
-        _selectedTags.value = emptySet()
-        persistFilters()
-        runSearch(_lastSearchQuery)
+        searchStateHolder.clearFilters()
     }
 
     fun playRandomFromMood(tags: List<String>) {
@@ -513,6 +511,11 @@ class MainViewModel(
                 } ?: registryStation.logoUrl
             } else {
                 ""
+            }
+            if (!localLogoPath.startsWith("http")) {
+                withContext(Dispatchers.IO) {
+                    ensureMediaArtworkForLogo(getApplication(), File(localLogoPath))
+                }
             }
             val stationId = repository.insertOrGetExisting(
                 Station(
@@ -542,16 +545,7 @@ class MainViewModel(
     private val _recentlyAddedStationId = MutableStateFlow<Long?>(null)
     val recentlyAddedStationId: StateFlow<Long?> = _recentlyAddedStationId.asStateFlow()
 
-    val recentSearches: StateFlow<List<String>> = dataStore.data
-        .map { prefs ->
-            prefs[RECENT_SEARCHES_KEY]?.let { json ->
-                try {
-                    val arr = JSONArray(json)
-                    (0 until arr.length()).map { arr.getString(it) }
-                } catch (_: Exception) { emptyList() }
-            } ?: emptyList()
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val recentSearches: StateFlow<List<String>> = searchStateHolder.recentSearches
 
     private val playbackScreenUiState = combine(
         playbackUiState,
@@ -576,11 +570,10 @@ class MainViewModel(
     private val homePreferencesUiState = combine(
         homeViewMode,
         favoritesSort,
-        favoritesGridColumns,
         showStreamBitrate,
         showHome,
-    ) { viewMode, sort, gridColumns, showBitrate, showHome ->
-        HomePreferencesUiState(viewMode, sort, gridColumns, showBitrate, showHome)
+    ) { viewMode, sort, showBitrate, showHome ->
+        HomePreferencesUiState(viewMode, sort, showBitrate, showHome)
     }
 
     private val homeUiState = combine(
@@ -620,35 +613,12 @@ class MainViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
     fun saveRecentSearch(query: String) {
-        val trimmed = query.trim()
-        if (trimmed.isBlank()) return
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                val current = prefs.recentSearches()
-                current.remove(trimmed)
-                current.add(0, trimmed)
-                prefs[RECENT_SEARCHES_KEY] = JSONArray(current.take(MAX_RECENT_SEARCHES)).toString()
-            }
-        }
+        searchStateHolder.saveRecentSearch(query)
     }
 
     fun removeRecentSearch(query: String) {
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                val current = prefs.recentSearches()
-                current.remove(query)
-                prefs[RECENT_SEARCHES_KEY] = JSONArray(current).toString()
-            }
-        }
+        searchStateHolder.removeRecentSearch(query)
     }
-
-    private fun Preferences.recentSearches(): MutableList<String> =
-        get(RECENT_SEARCHES_KEY)?.let { json ->
-            try {
-                val arr = JSONArray(json)
-                (0 until arr.length()).map { arr.getString(it) }.toMutableList()
-            } catch (_: Exception) { mutableListOf() }
-        } ?: mutableListOf()
 
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -665,9 +635,13 @@ class MainViewModel(
                 val station = _allStations.value.firstOrNull { it.id == id }
                 if (station != null) {
                     syncPlaybackState(controller, station)
-                    controller?.mediaMetadata?.artist?.toString()?.trim()
-                        ?.takeIf { it.isNotEmpty() && it != liveRadio() }
-                        ?.let { title -> handlePlaybackMetadata(title = title, artist = null) }
+                    controller?.mediaMetadata?.let { metadata ->
+                        handlePlaybackMetadata(
+                            mediaItem = controller?.currentMediaItem,
+                            title = metadata.title?.toString(),
+                            artist = metadata.artist?.toString(),
+                        )
+                    }
                 } else if (_currentStationId.value == null) {
                     syncPlaybackState(controller)
                 }
@@ -751,7 +725,9 @@ class MainViewModel(
                 isPlaying = false,
                 isBuffering = false,
             )
-            _playbackUiState.value = _playbackUiState.value.copy(error = error.userMessage())
+            _playbackUiState.value = _playbackUiState.value.copy(
+                error = getApplication<Application>().getString(playbackErrorMessageRes(error.errorCode)),
+            )
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -796,12 +772,20 @@ class MainViewModel(
     }
 
     private fun applyPlaybackMetadata(title: String?, artist: String?) {
-        val normalizedTitle = title?.trim()?.takeIf { it.isNotEmpty() && it != liveRadio() }
-        val normalizedArtist = artist?.trim()?.takeIf { it.isNotEmpty() && it != liveRadio() }
+        val parsed = parseTrackMetadata(title, artist)
+        val normalizedTitle = parsed.title?.takeIf { it != liveRadio() && !isStationName(it) }
+        val normalizedArtist = parsed.artist?.takeIf { it != liveRadio() && !isStationName(it) }
         _playbackUiState.value = _playbackUiState.value.copy(
             trackTitle = normalizedTitle ?: normalizedArtist,
             trackArtist = normalizedArtist,
         )
+    }
+
+    private fun isStationName(value: String): Boolean {
+        val playback = _playbackUiState.value
+        return playback.station?.name?.equals(value, ignoreCase = true) == true ||
+            playback.queue.any { it.name.equals(value, ignoreCase = true) } ||
+            _allStations.value.any { it.name.equals(value, ignoreCase = true) }
     }
 
     private fun syncPlaybackState(player: Player?, resolvedStation: Station? = null) {
@@ -951,22 +935,44 @@ class MainViewModel(
     // next/previous work: Media3's default session callback already handles those by seeking
     // within the player's timeline, it just needs a timeline with neighbours to seek to.
     fun play(station: Station, queue: List<Station> = emptyList()) {
-        _activeFavoritesOrder.value = favoritesOrder(queue)
-        setCurrentStation(station)
+        // Use the recovered station instance for every playback surface. This preserves a
+        // user-edited logo while supplying the registry fallback for imported rows whose old
+        // local artwork path no longer exists (including the mini-player).
+        val recoveredStations = _allStations.value
+        val playbackStation = recoveredStations.firstOrNull { it.matches(station) } ?: station
+        val playbackQueue = queue.map { queued ->
+            recoveredStations.firstOrNull { it.matches(queued) } ?: queued
+        }
+        _activeFavoritesOrder.value = favoritesOrder(playbackQueue)
+        setCurrentStation(playbackStation)
         _playbackUiState.value = _playbackUiState.value.copy(
-            queue = queue.takeIf { resolveQueueStart(it, station) != null } ?: listOf(station),
+            queue = playbackQueue.takeIf { resolveQueueStart(it, playbackStation) != null }
+                ?: listOf(playbackStation),
         )
-        persistLastPlayedStation(station, queue)
-        val startIndex = resolveQueueStart(queue, station)
-        controller?.apply {
-            if (startIndex != null) {
-                val mediaItems = queue.map { it.toPlayableMediaItem(getApplication()) }
-                setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-            } else {
-                setMediaItem(station.toPlayableMediaItem(getApplication()))
+        persistLastPlayedStation(playbackStation, playbackQueue)
+        val startIndex = resolveQueueStart(playbackQueue, playbackStation)
+        controller?.let { mediaController ->
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    if (startIndex != null) {
+                        val mediaItems = coroutineScope {
+                            playbackQueue.map { station ->
+                                async { station.toSystemPlayableMediaItem(getApplication()) }
+                            }.awaitAll()
+                        }
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaController.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                        }
+                    } else {
+                        val mediaItem = playbackStation.toSystemPlayableMediaItem(getApplication())
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaController.setMediaItem(mediaItem)
+                        }
+                    }
+                }
+                mediaController.prepare()
+                mediaController.play()
             }
-            prepare()
-            play()
         }
     }
 
@@ -1094,19 +1100,37 @@ class MainViewModel(
         // include a queue, so only those fall back to rebuilding from the database and sort.
         val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]
             ?.let(::lastPlayedStationSnapshot)
-        val queue = snapshot?.queue?.takeIf { it.size > 1 }
+        val storedQueue = snapshot?.queue?.takeIf { it.size > 1 }
             ?: sortStations(repository.getAll().first(), _favoritesSort.value)
-        val startIndex = resolveQueueStart(queue, station)
+        // Backups can contain paths to the old app-private logo directory. Resolve every
+        // restored entry through the registry before constructing Media3 items; otherwise the
+        // missing local path produces the fallback app icon in system controls.
+        val queue = storedQueue.map { recoverStationArtwork(it) }
+        val restoredStation = recoverStationArtwork(station)
+        val startIndex = resolveQueueStart(queue, restoredStation)
 
-        controller?.apply {
-            if (startIndex != null) {
-                val mediaItems = queue.map { it.toPlayableMediaItem(getApplication()) }
-                setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-            } else {
-                setMediaItem(station.toPlayableMediaItem(getApplication()))
+        controller?.let { mediaController ->
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    if (startIndex != null) {
+                        val mediaItems = coroutineScope {
+                            queue.map { stationEntry ->
+                                async { stationEntry.toSystemPlayableMediaItem(getApplication()) }
+                            }.awaitAll()
+                        }
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaController.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                        }
+                    } else {
+                        val mediaItem = restoredStation.toSystemPlayableMediaItem(getApplication())
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaController.setMediaItem(mediaItem)
+                        }
+                    }
+                }
+                mediaController.prepare()
+                mediaController.pause()
             }
-            prepare()
-            pause()
         }
     }
 
@@ -1115,100 +1139,6 @@ class MainViewModel(
         // This matters on a real Android main looper, where launch can run immediately.
         initialize()
     }
-}
-
-/** Coherent player snapshot consumed by Compose as one lifecycle-aware state value. */
-data class PlaybackUiState(
-    val station: Station? = null,
-    val isPlaying: Boolean = false,
-    val isBuffering: Boolean = false,
-    val queue: List<Station> = emptyList(),
-    val trackTitle: String? = null,
-    val trackArtist: String? = null,
-    val bitrateKbps: Int? = null,
-    val error: String? = null,
-)
-
-data class PlaybackScreenUiState(
-    val playback: PlaybackUiState = PlaybackUiState(),
-    val display: NowPlayingDisplay = NowPlayingDisplay("", ""),
-    val sleepTimer: SleepTimerState? = null,
-    val showNowPlaying: Boolean = false,
-    val recentlyAddedStationId: Long? = null,
-)
-
-data class HomeDiscoveryUiState(
-    val featuredStations: List<RegistryStation> = emptyList(),
-    val forYouStations: List<RegistryStation> = emptyList(),
-    val recentlyPlayedStations: List<RegistryStation> = emptyList(),
-    val defaultStations: List<RegistryStation> = emptyList(),
-    val curatedMoodStations: Map<String, List<RegistryStation>> = emptyMap(),
-)
-
-data class HomePreferencesUiState(
-    val viewMode: HomeViewMode = HomeViewMode.Cards,
-    val favoritesSort: FavoritesSort = FavoritesSort.AZ,
-    val gridColumns: Int = FAVORITES_GRID_COLUMNS_DEFAULT,
-    val showStreamBitrate: Boolean = false,
-    val showHome: Boolean = true,
-)
-
-data class HomeUiState(
-    val stations: List<Station> = emptyList(),
-    val discovery: HomeDiscoveryUiState = HomeDiscoveryUiState(),
-    val preferences: HomePreferencesUiState = HomePreferencesUiState(),
-    val selectedTab: Int = 0,
-    val isOnline: Boolean = true,
-)
-
-data class SearchResultsUiState(
-    val registryStations: List<RegistryStation> = emptyList(),
-    val favoriteStations: List<Station> = emptyList(),
-    val recentQueries: List<String> = emptyList(),
-)
-
-data class SearchFiltersUiState(
-    val allTags: List<String> = emptyList(),
-    val selectedCountries: Set<String> = emptySet(),
-    val selectedTags: Set<String> = emptySet(),
-    val availableCountries: List<String> = emptyList(),
-)
-
-data class SearchUiState(
-    val results: SearchResultsUiState = SearchResultsUiState(),
-    val filters: SearchFiltersUiState = SearchFiltersUiState(),
-)
-
-data class MainUiState(
-    val playback: PlaybackScreenUiState = PlaybackScreenUiState(),
-    val home: HomeUiState = HomeUiState(),
-    val search: SearchUiState = SearchUiState(),
-)
-
-/** Station name plus a second-line ICY/ID3 summary for the mini player and notifications. */
-data class NowPlayingDisplay(val title: String, val subtitle: String)
-
-/**
- * Derives a stable two-line display from stream metadata. The station always owns the first
- * line; ICY/ID3 artist and title are combined into the second line. Pure and side-effect free
- * so it can be unit tested and reused; the ViewModel drives it from event-fed flows and injects
- * the localized [liveRadio] label.
- */
-fun computeNowPlayingDisplay(
-    stationName: String,
-    icyTitle: String?,
-    icyArtist: String? = null,
-    liveRadio: String = "Live Radio",
-): NowPlayingDisplay {
-    val title = icyTitle?.trim()?.takeIf { it.isNotEmpty() && it != stationName }
-    val artist = icyArtist?.trim()?.takeIf { it.isNotEmpty() && it != stationName }
-    val icyInfo = when {
-        artist != null && title != null -> "$artist — $title"
-        title != null -> title
-        artist != null -> artist
-        else -> liveRadio
-    }
-    return NowPlayingDisplay(stationName, icyInfo)
 }
 
 private fun Station.toEphemeral(): Station = copy(id = 0)
@@ -1220,19 +1150,18 @@ private fun deleteLogoFiles(logoPath: String) {
     java.io.File(file.parentFile, "${file.nameWithoutExtension}_media.png").delete()
 }
 
-private fun PlaybackException.userMessage(): String {
-    return when (errorCode) {
+internal fun playbackErrorMessageRes(errorCode: Int): Int =
+    when (errorCode) {
         PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
         PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
         PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
         PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
         PlaybackException.ERROR_CODE_TIMEOUT,
-        -> "Connection failed"
+        -> R.string.playback_connection_failed
         PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
         PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
         PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
         PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
-        -> "Stream format unsupported"
-        else -> "Playback failed"
+        -> R.string.playback_format_unsupported
+        else -> R.string.playback_failed
     }
-}

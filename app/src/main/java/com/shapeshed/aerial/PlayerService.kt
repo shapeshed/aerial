@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.datastore.preferences.core.edit
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -41,7 +42,6 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.SettableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
@@ -62,8 +62,9 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.parseIcyTitle
+import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.data.toLastPlayedJson
+import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +79,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @OptIn(UnstableApi::class)
 class PlayerService : MediaLibraryService() {
@@ -107,6 +109,17 @@ class PlayerService : MediaLibraryService() {
         Log.d(TAG, message)
     }
 
+    private suspend fun recoverArtwork(station: Station): Station {
+        val path = station.logoPath
+        val registry = when {
+            station.provider.isNotBlank() && station.providerId.isNotBlank() ->
+                registryRepository.getByProviderId(station.provider, station.providerId)
+            else -> registryRepository.getByStreamUrl(station.streamUrl)
+        }
+        return registry?.logoUrl?.takeIf { it.isNotBlank() }?.let { station.copy(logoPath = it) }
+            ?: station
+    }
+
     override fun onCreate() {
         super.onCreate()
         setMediaNotificationProvider(
@@ -133,7 +146,7 @@ class PlayerService : MediaLibraryService() {
         val playlistResolvingFactory = ResolvingDataSource.Factory(httpDataSourceFactory) { dataSpec ->
             val original = dataSpec.uri.toString()
             val resolved = resolveStreamUrl(original) { httpGetText(it) }
-            if (resolved == original) dataSpec else dataSpec.withUri(Uri.parse(resolved))
+            if (resolved == original) dataSpec else dataSpec.withUri(resolved.toUri())
         }
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(playlistResolvingFactory)
@@ -259,13 +272,13 @@ class PlayerService : MediaLibraryService() {
                     item.mediaMetadata.extras?.getString("stationName"),
                     item.mediaMetadata.title,
                 )
-                val (icyArtist, icyTrackTitle) = parseIcyTitle(title)
+                val parsedTrack = parseTrackMetadata(title)
                 replaceCurrentMediaItem(
                     item,
                     index = player.currentMediaItemIndex,
                     stationName = stationName,
-                    artist = icyArtist,
-                    title = icyTrackTitle,
+                    artist = parsedTrack.artist,
+                    title = parsedTrack.title ?: title,
                     artworkData = item.mediaMetadata.artworkData,
                     artworkUri = item.mediaMetadata.artworkUri,
                 )
@@ -299,20 +312,22 @@ class PlayerService : MediaLibraryService() {
     }
 
     private val librarySessionCallback = object : MediaLibrarySession.Callback {
-        override fun onConnect(
+        override fun onConnectAsync(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
-        ): MediaSession.ConnectionResult {
-            return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
-                .setAvailableSessionCommands(
-                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                        .buildUpon()
-                        .add(favoriteCommand)
-                        .add(sleepTimerSetCommand)
-                        .add(sleepTimerCancelCommand)
-                        .build()
-                )
-                .build()
+        ): ListenableFuture<MediaSession.ConnectionResult> {
+            return Futures.immediateFuture(
+                MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                    .setAvailableSessionCommands(
+                        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                            .buildUpon()
+                            .add(favoriteCommand)
+                            .add(sleepTimerSetCommand)
+                            .add(sleepTimerCancelCommand)
+                            .build()
+                    )
+                    .build(),
+            )
         }
 
         override fun onCustomCommand(
@@ -489,13 +504,13 @@ class PlayerService : MediaLibraryService() {
             val startIndex = resolveQueueStart(queue, resumed)
             if (startIndex != null) {
                 MediaSession.MediaItemsWithStartPosition(
-                    queue.map { it.toPlayableMediaItem(this@PlayerService) },
+                    queue.map { recoverArtwork(it).toSystemPlayableMediaItem(this@PlayerService) },
                     startIndex,
                     C.TIME_UNSET,
                 )
             } else {
                 MediaSession.MediaItemsWithStartPosition(
-                    listOf(resumed.toPlayableMediaItem(this@PlayerService)),
+                    listOf(recoverArtwork(resumed).toSystemPlayableMediaItem(this@PlayerService)),
                     0,
                     C.TIME_UNSET,
                 )
@@ -504,13 +519,7 @@ class PlayerService : MediaLibraryService() {
     }
 
     private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> {
-        val future = SettableFuture.create<T>()
-        serviceScope.launch {
-            runCatching { block() }
-                .onSuccess { future.set(it) }
-                .onFailure { future.setException(it) }
-        }
-        return future
+        return serviceScope.asServiceFuture(block)
     }
 
     private fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
@@ -562,7 +571,9 @@ class PlayerService : MediaLibraryService() {
         return CommandButton.Builder(
             if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED
         )
-            .setDisplayName(if (isFavorite) "Remove from favorites" else "Add to favorites")
+            .setDisplayName(
+                getString(if (isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
+            )
             .setEnabled(station != null)
             .setSessionCommand(favoriteCommand)
             .build()

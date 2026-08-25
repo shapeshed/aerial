@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.RegistryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,9 +17,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class StationEditViewModel(
+class StationEditViewModel internal constructor(
     private val repository: StationRepository,
+    private val registryRepository: RegistryRepository,
     private val stationId: Long?,
+    private val logoImporter: suspend (Context, Uri) -> File? = ::importStationLogo,
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -28,6 +32,8 @@ class StationEditViewModel(
 
     private val _logoPath = MutableStateFlow("")
     val logoPath: StateFlow<String> = _logoPath.asStateFlow()
+    private val _registryLogoUrl = MutableStateFlow<String?>(null)
+    val registryLogoUrl: StateFlow<String?> = _registryLogoUrl.asStateFlow()
 
     val isEditing: Boolean = stationId != null
 
@@ -47,6 +53,13 @@ class StationEditViewModel(
                         path.isNotEmpty() && File(path).exists() -> path
                         else -> ""
                     }
+                    if (_logoPath.value.isEmpty()) {
+                        _registryLogoUrl.value = when {
+                            station.provider.isNotBlank() && station.providerId.isNotBlank() ->
+                                registryRepository.getByProviderId(station.provider, station.providerId)?.logoUrl
+                            else -> registryRepository.getByStreamUrl(station.streamUrl)?.logoUrl
+                        }?.takeIf { it.isNotBlank() }
+                    }
                 }
             }
         }
@@ -55,14 +68,19 @@ class StationEditViewModel(
     fun onNameChange(value: String) { _name.value = value }
     fun onStreamUrlChange(value: String) { _streamUrl.value = value }
 
-    fun onLogoPicked(context: Context, uri: Uri) {
-        logoCopyJob = viewModelScope.launch(Dispatchers.IO) {
+    fun onLogoPicked(context: Context, uri: Uri): Job {
+        val job = viewModelScope.launch {
             try {
-                val dir = File(context.filesDir, "logos").also { it.mkdirs() }
-                val dest = copyLogoFromUri(context, uri, dir)
-                if (dest != null) withContext(Dispatchers.Main) { _logoPath.value = dest.absolutePath }
-            } catch (_: Exception) {}
+                val destination = withContext(Dispatchers.IO) { logoImporter(context, uri) }
+                if (destination != null) _logoPath.value = destination.absolutePath
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // Invalid or inaccessible user-selected files leave the previous logo intact.
+            }
         }
+        logoCopyJob = job
+        return job
     }
 
     fun removeLogo() {
@@ -88,4 +106,9 @@ class StationEditViewModel(
             withContext(Dispatchers.Main) { onDone() }
         }
     }
+}
+
+private suspend fun importStationLogo(context: Context, uri: Uri): File? {
+    val directory = File(context.filesDir, "logos").also { it.mkdirs() }
+    return copyLogoFromUri(context, uri, directory)
 }

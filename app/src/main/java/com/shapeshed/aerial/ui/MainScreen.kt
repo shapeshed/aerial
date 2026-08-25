@@ -1,18 +1,13 @@
 package com.shapeshed.aerial.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
@@ -34,7 +29,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -90,15 +84,13 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AppBarWithSearch
@@ -121,7 +113,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SearchBarScrollBehavior
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -131,9 +122,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberContainedSearchBarState
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -148,7 +141,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -162,27 +154,37 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import coil3.compose.AsyncImage
+import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import androidx.compose.ui.res.stringResource
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.navigation.AerialNavigator
+import com.shapeshed.aerial.navigation.AerialRoute
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 
 // Localized country name from the stored ISO code via ICU, in the app's current locale.
 // Cached per (code, language) so Locale.Builder isn't called on every row recomposition.
@@ -306,15 +308,15 @@ internal val SHEET_ENABLED_VALUES = setOf(SheetValue.Hidden, SheetValue.Expanded
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    onAddStation: () -> Unit,
-    onEditStation: (Long) -> Unit,
-    onSettings: () -> Unit,
+    settingsContent: @Composable (onDismiss: () -> Unit) -> Unit,
+    stationEditContent: @Composable (stationId: Long?, onDismiss: () -> Unit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val uiState by viewModel.mainUiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.connect(context) }
     val playbackUiState = uiState.playback.playback
     val stations = uiState.home.stations
     val currentStation = playbackUiState.station
@@ -325,8 +327,13 @@ fun MainScreen(
     val isBuffering = playbackUiState.isBuffering
     val currentTrackTitle = playbackUiState.trackTitle
     val currentTrackArtist = playbackUiState.trackArtist
+    val miniPlayerDisplay = computeTrackDisplay(
+        stationName = currentStation?.name.orEmpty(),
+        trackTitle = currentTrackTitle,
+        trackArtist = currentTrackArtist,
+        liveRadio = stringResource(R.string.live_radio),
+    )
     val currentBitrateKbps = playbackUiState.bitrateKbps
-    val nowPlayingDisplay = uiState.playback.display
     val sleepTimer = uiState.playback.sleepTimer
     val playbackError = playbackUiState.error
     val recentlyAddedStationId = uiState.playback.recentlyAddedStationId
@@ -348,7 +355,6 @@ fun MainScreen(
     val curatedMoodStations = uiState.home.discovery.curatedMoodStations
     val homeViewMode = uiState.home.preferences.viewMode
     val favoritesSort = uiState.home.preferences.favoritesSort
-    val favoritesGridColumns = uiState.home.preferences.gridColumns
     val showStreamBitrate = uiState.home.preferences.showStreamBitrate
     val showHome = uiState.home.preferences.showHome
     val appLocale = LocalConfiguration.current.locales[0]
@@ -357,18 +363,15 @@ fun MainScreen(
     val textFieldState = rememberTextFieldState()
     val searchBarState = rememberContainedSearchBarState()
     val searchDestination = if (showHome) uiState.home.selectedTab else TAB_FAVORITES
-    val searchScrollBehaviorState = remember { mutableStateOf<SearchBarScrollBehavior?>(null) }
-    key(searchDestination) {
-        searchScrollBehaviorState.value = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
+    val searchScrollBehavior = key(searchDestination) {
+        SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     }
-    val searchScrollBehavior = requireNotNull(searchScrollBehaviorState.value)
     val isSearchExpanded by remember { derivedStateOf { searchBarState.currentValue == SearchBarValue.Expanded } }
     val searchQueryText by remember { derivedStateOf { textFieldState.text.toString() } }
     var showCountrySheet by remember { mutableStateOf(false) }
     var showGenreSheet by remember { mutableStateOf(false) }
     var contextStation by remember { mutableStateOf<Station?>(null) }
     var stationToDelete by remember { mutableStateOf<Station?>(null) }
-    var selectedMoodId by rememberSaveable { mutableStateOf<String?>(null) }
     val countrySheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
         enabledValues = SHEET_ENABLED_VALUES,
@@ -411,26 +414,37 @@ fun MainScreen(
     val savedStreamUrls = remember(stations) { stations.map { it.streamUrl }.toSet() }
     val savedRegistryKeys = remember(stations) { stations.mapNotNull { it.savedKey() }.toSet() }
 
-    val selectedTab = uiState.home.selectedTab
-    val effectiveSelectedTab = if (showHome) selectedTab else TAB_FAVORITES
+    val backStack = rememberNavBackStack(
+        if (showHome && uiState.home.selectedTab == TAB_HOME) AerialRoute.Home else AerialRoute.Favorites,
+    )
+    val navigator = remember(backStack) { AerialNavigator(backStack) }
+    val currentRoute = backStack.lastOrNull() ?: AerialRoute.Favorites
+    val rootRoute = backStack.firstOrNull() ?: AerialRoute.Favorites
+    val effectiveSelectedTab = if (showHome && rootRoute == AerialRoute.Home) TAB_HOME else TAB_FAVORITES
+    LaunchedEffect(showHome, uiState.home.selectedTab, currentRoute) {
+        val desiredRoute = if (showHome && uiState.home.selectedTab == TAB_HOME) {
+            AerialRoute.Home
+        } else {
+            AerialRoute.Favorites
+        }
+        if ((currentRoute == AerialRoute.Home || currentRoute == AerialRoute.Favorites) &&
+            currentRoute != desiredRoute
+        ) {
+            navigator.navigateTopLevel(desiredRoute)
+        }
+    }
     // Hoisted so each tab keeps its scroll position across tab switches.
     val homeListState = rememberLazyGridState()
     val favoritesGridState = rememberLazyGridState()
-    val favoritesListState = rememberLazyListState()
 
     var miniPlayerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
-    val selectedMood = selectedMoodId?.let { id -> CURATED_MOODS.firstOrNull { it.id == id } }
-    val selectedMoodStations = selectedMoodId?.let { curatedMoodStations[it] }.orEmpty()
-
     BackHandler(enabled = showNowPlaying) { viewModel.setShowNowPlaying(false) }
-    BackHandler(enabled = selectedMood != null && !showNowPlaying) { selectedMoodId = null }
     BackHandler(enabled = isSearchExpanded && !showCountrySheet && !showGenreSheet) {
         textFieldState.edit { replace(0, length, "") }
         scope.launch { searchBarState.animateToCollapsed() }
     }
-    LaunchedEffect(Unit) { viewModel.connect(context) }
     LaunchedEffect(searchQueryText) {
         viewModel.searchRegistry(searchQueryText)
     }
@@ -489,28 +503,61 @@ fun MainScreen(
         )
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .semantics { isTraversalGroup = true },
-    ) {
-        MainAppContent(
-            selectedDestination = effectiveSelectedTab,
-            showHome = showHome,
-            onDestinationSelected = { destination ->
-                // A destination change is a fresh top-level surface. Restore the app bar
-                // before the new content is drawn so a search bar scrolled off Home does not
-                // remain hidden on Favorites (or when returning to Home).
-                selectedMoodId = null
-                viewModel.setSelectedHomeTab(destination)
+    val renderDestination: @Composable (Int, CuratedMood?) -> Unit = { destination, mood ->
+        MainDestinationContent(
+            uiState = uiState,
+            selectedMood = mood,
+            selectedMoodStations = mood?.let { curatedMoodStations[it.id] }.orEmpty(),
+            savedStreamUrls = savedStreamUrls,
+            savedRegistryKeys = savedRegistryKeys,
+            bottomPadding = stationContentBottomPadding,
+            selectedTab = destination,
+            appLocale = appLocale,
+            homeListState = homeListState,
+            favoritesGridState = favoritesGridState,
+            onScrollToTop = {
+                searchScrollBehavior.scrollState.scrollOffset = 0f
+                searchScrollBehavior.scrollState.contentOffset = 0f
             },
+            onMoodSelected = { navigator.navigate(AerialRoute.Mood(it.id)) },
+            onSetForYouCountry = viewModel::setForYouCountry,
+            onOpenCountrySearch = ::openCountrySearch,
+            onOpenRegistrySearch = ::openRegistrySearch,
+            onPlayRegistryStation = viewModel::playFromRegistry,
+            onPlayRegistryQueue = viewModel::playFromRegistry,
+            onAddRegistryStation = viewModel::addFromRegistry,
+            onRemoveRegistryStation = viewModel::removeFromRegistry,
+            onPlayFavorite = { viewModel.play(it, stations) },
+            onRemoveFavorite = { station ->
+                viewModel.toggleFavorite(station)
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = favoriteRemovedMessage.format(station.name),
+                        actionLabel = undoLabel,
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreFavorite(station)
+                    }
+                }
+            },
+            onHomeViewModeChange = viewModel::setHomeViewMode,
+            onSortSelected = viewModel::setFavoritesSort,
+            onStationLongPress = { contextStation = it },
+        )
+    }
+
+    val moodScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val isMainRoute = currentRoute == AerialRoute.Home ||
+        currentRoute == AerialRoute.Favorites ||
+        currentRoute is AerialRoute.Mood
+    val isSearchRoute = currentRoute == AerialRoute.Home || currentRoute == AerialRoute.Favorites
+
+    val renderMainRoute: @Composable (Int, CuratedMood?) -> Unit = { destination, mood ->
+        MainAppContent(
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(searchScrollBehavior.nestedScrollConnection),
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                if (selectedMood == null) {
+            topBar = {
+                if (mood == null) {
                     AppBarWithSearch(
                         state = searchBarState,
                         inputField = searchInputField,
@@ -527,81 +574,114 @@ fun MainScreen(
                         actions = {
                             if (!isSearchExpanded) {
                                 IconButton(
-                                    onClick = onSettings,
-                                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                                    onClick = { navigator.navigate(AerialRoute.Settings) },
+                                    shapes = IconButtonShapes(
+                                        IconButtonDefaults.smallRoundShape,
+                                        IconButtonDefaults.smallPressedShape,
+                                    ),
                                 ) {
-                                    Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings))
+                                    Icon(
+                                        Icons.Rounded.Settings,
+                                        contentDescription = stringResource(R.string.settings),
+                                    )
                                 }
                             }
                         },
                         scrollBehavior = searchScrollBehavior,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                }
-
-                MainDestinationContent(
-                    uiState = uiState,
-                    selectedMood = selectedMood,
-                    selectedMoodStations = selectedMoodStations,
-                    savedStreamUrls = savedStreamUrls,
-                    savedRegistryKeys = savedRegistryKeys,
-                    bottomPadding = stationContentBottomPadding,
-                    selectedTab = effectiveSelectedTab,
-                    appLocale = appLocale,
-                    homeListState = homeListState,
-                    favoritesGridState = favoritesGridState,
-                    favoritesListState = favoritesListState,
-                    onMoodBack = { selectedMoodId = null },
-                    onMoodSelected = { selectedMoodId = it.id },
-                    onSetForYouCountry = viewModel::setForYouCountry,
-                    onOpenCountrySearch = ::openCountrySearch,
-                    onOpenRegistrySearch = ::openRegistrySearch,
-                    onPlayRegistryStation = viewModel::playFromRegistry,
-                    onPlayRegistryQueue = viewModel::playFromRegistry,
-                    onAddRegistryStation = viewModel::addFromRegistry,
-                    onRemoveRegistryStation = viewModel::removeFromRegistry,
-                    onPlayFavorite = { viewModel.play(it, stations) },
-                    onRemoveFavorite = { station ->
-                        viewModel.toggleFavorite(station)
-                        scope.launch {
-                            val result = snackbarHostState.showSnackbar(
-                                message = favoriteRemovedMessage.format(station.name),
-                                actionLabel = undoLabel,
-                                duration = SnackbarDuration.Short,
-                            )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                viewModel.restoreFavorite(station)
+                } else {
+                    LargeFlexibleTopAppBar(
+                        title = { Text(stringResource(mood.titleRes)) },
+                        subtitle = { Text(stringResource(mood.detailDescriptionRes)) },
+                        navigationIcon = {
+                            IconButton(onClick = { navigator.goBack() }) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.action_back),
+                                )
                             }
-                        }
-                    },
-                    onHomeViewModeChange = viewModel::setHomeViewMode,
-                    onSortSelected = viewModel::setFavoritesSort,
-                    onStationLongPress = { contextStation = it },
-                )
-            }
-
-        MiniPlayer(
-            station = currentStation,
-            stationName = currentStation?.name.orEmpty(),
-            icyInfo = playbackError
-                ?: if (isBuffering) stringResource(R.string.buffering) else nowPlayingDisplay.subtitle,
-            isPlaying = isPlaying,
-            isBuffering = isBuffering,
-            onHeightChanged = { miniPlayerHeightPx = it },
-            onStop = viewModel::stopAndClear,
-            onTogglePlayback = viewModel::togglePlayback,
-            showNextStation = hasStationNavigation,
-            onNextStation = { nextPlaybackStation?.let { viewModel.play(it, playbackQueue) } },
-            onExpand = { viewModel.setShowNowPlaying(true) },
+                        },
+                        scrollBehavior = moodScrollBehavior,
+                    )
+                }
+            },
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .semantics { traversalIndex = 1f }
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
-        )
+                .fillMaxSize()
+                .nestedScroll(
+                    if (mood == null) searchScrollBehavior.nestedScrollConnection
+                    else moodScrollBehavior.nestedScrollConnection,
+                ),
+        ) {
+            renderDestination(destination, mood)
+
+            MiniPlayer(
+                station = currentStation,
+                stationName = miniPlayerDisplay.title,
+                icyInfo = playbackError
+                    ?: if (isBuffering) stringResource(R.string.buffering) else miniPlayerDisplay.artist,
+                isPlaying = isPlaying,
+                isBuffering = isBuffering,
+                onHeightChanged = { miniPlayerHeightPx = it },
+                onStop = viewModel::stopAndClear,
+                onTogglePlayback = viewModel::togglePlayback,
+                showNextStation = hasStationNavigation,
+                onNextStation = { nextPlaybackStation?.let { viewModel.play(it, playbackQueue) } },
+                onExpand = { viewModel.setShowNowPlaying(true) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .semantics { traversalIndex = 1f }
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+            )
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { isTraversalGroup = true },
+    ) {
+        AdaptiveNavigationShell(
+            selectedDestination = effectiveSelectedTab,
+            showNavigation = showHome && isSearchRoute,
+            onDestinationSelected = { destination ->
+                viewModel.setSelectedHomeTab(destination)
+                val route = if (destination == TAB_HOME && showHome) {
+                    AerialRoute.Home
+                } else {
+                    AerialRoute.Favorites
+                }
+                navigator.navigateTopLevel(route)
+            },
+        ) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = { navigator.goBack() },
+                modifier = Modifier.fillMaxSize(),
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                entryProvider = entryProvider {
+                    entry<AerialRoute.Home> { renderMainRoute(TAB_HOME, null) }
+                    entry<AerialRoute.Favorites> { renderMainRoute(TAB_FAVORITES, null) }
+                    entry<AerialRoute.Mood> { route ->
+                        renderMainRoute(
+                            TAB_HOME,
+                            CURATED_MOODS.firstOrNull { it.id == route.moodId },
+                        )
+                    }
+                    entry<AerialRoute.Settings> { settingsContent { navigator.goBack() } }
+                    entry<AerialRoute.AddStation> { stationEditContent(null) { navigator.goBack() } }
+                    entry<AerialRoute.EditStation> { route ->
+                        stationEditContent(route.stationId) { navigator.goBack() }
+                    }
+                },
+            )
         }
 
         AnimatedVisibility(
-            visible = showNowPlaying,
+            visible = showNowPlaying && isMainRoute,
             enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
             exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
             modifier = Modifier.fillMaxSize(),
@@ -643,7 +723,7 @@ fun MainScreen(
             }
         }
 
-        MainSearchOverlay(
+        if (isSearchRoute) MainSearchOverlay(
             searchBarState = searchBarState,
             inputField = searchInputField,
             textFieldState = textFieldState,
@@ -663,10 +743,10 @@ fun MainScreen(
             onAddRegistry = viewModel::addFromRegistry,
             onRemoveRegistry = viewModel::removeFromRegistry,
             onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
-            onAddManually = onAddStation,
+            onAddManually = { navigator.navigate(AerialRoute.AddStation) },
         )
 
-        MainModalHost(
+        if (isSearchRoute) MainModalHost(
             showCountrySheet = showCountrySheet,
             showGenreSheet = showGenreSheet,
             countrySheetState = countrySheetState,
@@ -692,7 +772,7 @@ fun MainScreen(
             onDismissContext = { contextStation = null },
             onEditStation = {
                 contextStation = null
-                onEditStation(it.id)
+                navigator.navigate(AerialRoute.EditStation(it.id))
             },
             onRequestDelete = {
                 stationToDelete = it
@@ -720,8 +800,7 @@ private fun MainDestinationContent(
     appLocale: java.util.Locale,
     homeListState: LazyGridState,
     favoritesGridState: LazyGridState,
-    favoritesListState: LazyListState,
-    onMoodBack: () -> Unit,
+    onScrollToTop: () -> Unit,
     onMoodSelected: (CuratedMood) -> Unit,
     onSetForYouCountry: (String) -> Unit,
     onOpenCountrySearch: (String) -> Unit,
@@ -742,7 +821,6 @@ private fun MainDestinationContent(
         NoNetworkState()
     } else if (selectedMood != null) {
         MoodDetailScreen(
-            mood = selectedMood,
             stations = selectedMoodStations,
             currentStation = playback.station,
             isPlaying = playback.isPlaying,
@@ -750,7 +828,6 @@ private fun MainDestinationContent(
             savedStreamUrls = savedStreamUrls,
             savedRegistryKeys = savedRegistryKeys,
             bottomPadding = bottomPadding,
-            onBack = onMoodBack,
             onPlay = { selectedMoodStations.firstOrNull()?.let { onPlayRegistryQueue(it, selectedMoodStations) } },
             onSave = { selectedMoodStations.forEach(onAddRegistryStation) },
             onAddStation = onAddRegistryStation,
@@ -783,9 +860,8 @@ private fun MainDestinationContent(
             isBuffering = playback.isBuffering,
             homeViewMode = home.preferences.viewMode,
             favoritesSort = home.preferences.favoritesSort,
-            gridColumns = home.preferences.gridColumns,
             gridState = favoritesGridState,
-            listState = favoritesListState,
+            onScrollToTop = onScrollToTop,
             bottomPadding = bottomPadding,
             onPlay = onPlayFavorite,
             onRemoveFavorite = onRemoveFavorite,
@@ -1035,7 +1111,10 @@ private fun DefaultSearchResults(
     header: @Composable () -> Unit,
 ) {
     if (stations.isEmpty()) return
-    LazyVerticalGrid(state = state, columns = GridCells.Adaptive(360.dp)) {
+    // Search results are a list, not a browsing grid. Keeping one column preserves
+    // scan order and prevents tablet layouts from presenting unrelated stations
+    // as side-by-side cards.
+    LazyVerticalGrid(state = state, columns = GridCells.Fixed(1)) {
         item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
         gridItems(
             items = stations,
@@ -1076,7 +1155,7 @@ private fun RecentSearches(
     header: @Composable () -> Unit,
 ) {
     if (searches.isEmpty()) return
-    LazyVerticalGrid(state = state, columns = GridCells.Adaptive(360.dp)) {
+    LazyVerticalGrid(state = state, columns = GridCells.Fixed(1)) {
         item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
         gridItems(items = searches, key = { it }) { query ->
             ListItem(
@@ -1179,7 +1258,7 @@ private fun RegistrySearchResults(
     } else {
         LazyVerticalGrid(
             state = state,
-            columns = GridCells.Adaptive(360.dp),
+            columns = GridCells.Fixed(1),
             contentPadding = PaddingValues(bottom = bottomPadding),
         ) {
             item("search-filter-header", span = { GridItemSpan(maxLineSpan) }) { header() }
@@ -1503,6 +1582,15 @@ internal fun HomeEmptyState(
 
 
 
+internal fun shouldFocusRecentlyPlayedItem(previousKeys: List<String>, currentKeys: List<String>): Boolean =
+    previousKeys.isNotEmpty() && currentKeys.firstOrNull() != previousKeys.firstOrNull()
+
+internal fun shouldFocusFavoritesItem(previousKeys: List<String>, currentKeys: List<String>): Boolean =
+    previousKeys.isNotEmpty() && currentKeys.firstOrNull() != previousKeys.firstOrNull()
+
+internal fun shouldScrollFavoritesToTop(leadingItemChanged: Boolean, isScrollInProgress: Boolean): Boolean =
+    leadingItemChanged && !isScrollInProgress
+
 @Composable
 internal fun HomeTabContent(
     forYouStations: List<com.shapeshed.aerial.data.RegistryStation>,
@@ -1515,7 +1603,17 @@ internal fun HomeTabContent(
     onRecentlyPlayedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onFeaturedStationTap: (com.shapeshed.aerial.data.RegistryStation) -> Unit,
     onForYouViewAll: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val horizontalContentPadding =
+        if (currentWindowAdaptiveInfoV2().windowSizeClass.isWidthAtLeastBreakpoint(
+                WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+            )
+        ) {
+            24.dp
+        } else {
+            16.dp
+        }
     // Recently Played can arrive after the grid's first composition. Re-anchor only when the
     // user has not moved the Home list at all; never interrupt an in-progress or mid-list scroll.
     val hasRecentlyPlayed = recentlyPlayedStations.isNotEmpty()
@@ -1533,28 +1631,39 @@ internal fun HomeTabContent(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(160.dp),
         state = listState,
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        contentPadding = PaddingValues(
+            start = horizontalContentPadding,
+            end = horizontalContentPadding,
+            bottom = bottomPadding + 16.dp,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier,
     ) {
         if (recentlyPlayedStations.isNotEmpty()) {
             item("recently-played-header", span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     text = stringResource(R.string.recently_played),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                    modifier = Modifier.padding(top = 16.dp),
                 )
             }
             item("recently-played-row", span = { GridItemSpan(maxLineSpan) }) {
                 val rowState = rememberLazyListState()
-                // Keyed items keep the viewport anchored when a just-played station is inserted
-                // at (or moved to) the front, leaving it hidden off-screen left — snap back to
-                // the start so the newest play is always visible.
-                val frontKey = recentlyPlayedStations.firstOrNull()?.let { "${it.provider}-${it.providerId}" }
-                LaunchedEffect(frontKey) { rowState.scrollToItem(0) }
+                var previousRecentKeys by remember { mutableStateOf(emptyList<String>()) }
+                val recentKeys = remember(recentlyPlayedStations) {
+                    recentlyPlayedStations.map { "${it.provider}:${it.providerId}" }
+                }
+                LaunchedEffect(recentKeys) {
+                    if (shouldFocusRecentlyPlayedItem(previousRecentKeys, recentKeys)) {
+                        rowState.animateScrollToItem(0)
+                    }
+                    previousRecentKeys = recentKeys
+                }
                 LazyRow(
                     state = rowState,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(
                         items = recentlyPlayedStations,
@@ -1575,14 +1684,14 @@ internal fun HomeTabContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+                        .padding(top = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         // The localized country name is the header; plain "For you" when
                         // the selection isn't country-specific.
                         text = forYouCountry ?: stringResource(R.string.for_you),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
                     )
@@ -1600,8 +1709,7 @@ internal fun HomeTabContent(
             }
             item("for-you-row", span = { GridItemSpan(maxLineSpan) }) {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(
                         items = forYouStations,
@@ -1620,9 +1728,9 @@ internal fun HomeTabContent(
         item("moods-header", span = { GridItemSpan(maxLineSpan) }) {
             Text(
                 text = stringResource(R.string.listen_by_mood),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = 16.dp),
             )
         }
         gridItems(
@@ -1633,7 +1741,6 @@ internal fun HomeTabContent(
             MoodCard(
                 mood = mood,
                 onClick = { onMoodTap(mood) },
-                modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
             )
         }
     }
@@ -1652,7 +1759,9 @@ private fun MoodCard(
     val supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(contentColor = titleColor),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
         modifier = modifier.height(132.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1673,7 +1782,7 @@ private fun MoodCard(
                 verticalArrangement = Arrangement.Bottom,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(14.dp),
+                    .padding(12.dp),
             ) {
                 Text(
                     text = stringResource(mood.titleRes),
@@ -1696,7 +1805,6 @@ private fun MoodCard(
 
 @Composable
 private fun MoodDetailScreen(
-    mood: CuratedMood,
     stations: List<RegistryStation>,
     currentStation: Station?,
     isPlaying: Boolean,
@@ -1704,7 +1812,6 @@ private fun MoodDetailScreen(
     savedStreamUrls: Set<String>,
     savedRegistryKeys: Set<RegistryStationKey>,
     bottomPadding: Dp,
-    onBack: () -> Unit,
     onPlay: () -> Unit,
     onSave: () -> Unit,
     onAddStation: (RegistryStation) -> Unit,
@@ -1715,61 +1822,6 @@ private fun MoodDetailScreen(
         contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item("mood-hero") {
-            // Same neutral tonal surface as the favourites station tiles and the grid tiles
-            // above, rather than an accent colour.
-            val background = MaterialTheme.colorScheme.surfaceContainerHigh
-            val titleColor = MaterialTheme.colorScheme.onSurface
-            val supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)
-                    // The oversized icon is deliberately offset past this box's own edge to
-                    // bleed off the corner; without clipping, that overflow paints straight
-                    // into the content below instead of stopping at the header.
-                    .clipToBounds()
-                    .background(background),
-            ) {
-                Icon(
-                    imageVector = mood.icon,
-                    contentDescription = null,
-                    tint = supportingColor.copy(alpha = 0.4f),
-                    modifier = Modifier
-                        .size(220.dp)
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 48.dp, y = 48.dp),
-                )
-                IconButton(
-                    onClick = onBack,
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = titleColor),
-                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                    modifier = Modifier
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(start = 12.dp, top = 8.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = 24.dp, vertical = 28.dp),
-                ) {
-                    Text(
-                        text = stringResource(mood.titleRes),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = titleColor,
-                    )
-                    Text(
-                        text = stringResource(mood.detailDescriptionRes),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = supportingColor,
-                        modifier = Modifier.fillMaxWidth(0.72f),
-                    )
-                }
-            }
-        }
         item("mood-actions") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1937,9 +1989,8 @@ internal fun FavoritesTabContent(
     isBuffering: Boolean,
     homeViewMode: HomeViewMode,
     favoritesSort: FavoritesSort,
-    gridColumns: Int,
     gridState: LazyGridState,
-    listState: LazyListState,
+    onScrollToTop: () -> Unit,
     bottomPadding: androidx.compose.ui.unit.Dp,
     onPlay: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
@@ -1960,8 +2011,24 @@ internal fun FavoritesTabContent(
     }
 
     val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val activeTileColor = MaterialTheme.colorScheme.primaryContainer
     var showSortSheet by remember { mutableStateOf(false) }
+    var previousStationKeys by remember { mutableStateOf(emptyList<String>()) }
+    val stationKeys = stations.map { it.id.toString() }
+
+    // Play-dependent sorts can move the newly played station while the user is browsing
+    // Favorites. Re-anchor the active layout like Home's recently-played shelf, but never
+    // interrupt a deliberate mid-list scroll.
+    LaunchedEffect(stationKeys, homeViewMode, favoritesSort) {
+        val shouldFocus = favoritesSort in setOf(FavoritesSort.LAST_PLAYED, FavoritesSort.MOST_PLAYED) &&
+            shouldScrollFavoritesToTop(
+                leadingItemChanged = shouldFocusFavoritesItem(previousStationKeys, stationKeys),
+                isScrollInProgress = gridState.isScrollInProgress,
+            )
+        previousStationKeys = stationKeys
+        if (!shouldFocus) return@LaunchedEffect
+        onScrollToTop()
+        gridState.animateScrollToItem(0)
+    }
 
     if (showSortSheet) {
         FavoritesSortSheet(
@@ -1974,58 +2041,60 @@ internal fun FavoritesTabContent(
         )
     }
 
-    if (homeViewMode == HomeViewMode.Cards) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(favoriteCardMinimumWidthDp(gridColumns).dp),
-            state = gridState,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
-        ) {
-            item("favorites-header", span = { GridItemSpan(maxLineSpan) }) {
-                FavoritesHeader(favoritesSort, homeViewMode, { showSortSheet = true }, onHomeViewModeChange)
-            }
-            gridItems(
-                items = stations,
-                key = { station -> "favorite-card-${station.id}" },
-                contentType = { "favorite-card" },
-            ) { station ->
-                val isActive = currentStation?.id == station.id
-                StationTile(
-                    station = station,
-                    tileColor = if (isActive) activeTileColor else tileColor,
-                    isActive = isActive,
-                    isPlaying = isPlaying && isActive,
-                    isBuffering = isBuffering && isActive,
-                    onClick = { onPlay(station) },
-                    onLongClick = { onStationLongPress(station) },
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-            }
+    LazyVerticalGrid(
+        columns = if (homeViewMode == HomeViewMode.Cards) {
+            GridCells.Adaptive(minSize = 160.dp)
+        } else {
+            GridCells.Fixed(1)
+        },
+        state = gridState,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+        modifier = Modifier.testTag("favorites-content"),
+    ) {
+        item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
+            FavoritesHeader(
+                favoritesSort = favoritesSort,
+                homeViewMode = homeViewMode,
+                onSortClick = { showSortSheet = true },
+                onHomeViewModeChange = onHomeViewModeChange,
+                horizontalPadding = 0.dp,
+            )
         }
-    } else {
-        LazyColumn(
-            state = listState,
-            contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
-        ) {
-            item("favorites-header") {
-                FavoritesHeader(favoritesSort, homeViewMode, { showSortSheet = true }, onHomeViewModeChange)
-            }
-            items(
-                items = stations,
-                key = { station -> "favorite-list-${station.id}" },
-                contentType = { "favorite-list-row" },
-            ) { station ->
-                val isActive = currentStation?.id == station.id
-                StationListRow(
-                    station = station,
-                    isActive = isActive,
-                    isPlaying = isPlaying && isActive,
-                    isBuffering = isBuffering && isActive,
-                    onPlay = { onPlay(station) },
-                    onDismiss = { onRemoveFavorite(station) },
-                    onLongClick = { onStationLongPress(station) },
-                    modifier = Modifier.animateItem(),
-                )
+        gridItems(
+            items = stations,
+            key = { station -> "favorite-${station.id}" },
+            contentType = { "favorite-station" },
+        ) { station ->
+            val isActive = currentStation?.id == station.id
+            Box(modifier = Modifier.animateItem()) {
+                when (homeViewMode) {
+                    HomeViewMode.Cards -> StationTile(
+                        station = station,
+                        // The card carries the active state; keep the artwork plate on the
+                        // normal tile tone so its circular boundary remains visible.
+                        tileColor = tileColor,
+                        isActive = isActive,
+                        isPlaying = isPlaying && isActive,
+                        isBuffering = isBuffering && isActive,
+                        onClick = { onPlay(station) },
+                        onLongClick = { onStationLongPress(station) },
+                        modifier = Modifier
+                            .testTag("favorite-card-${station.id}")
+                            .padding(bottom = 12.dp),
+                    )
+                    HomeViewMode.List -> StationListRow(
+                        station = station,
+                        isActive = isActive,
+                        isPlaying = isPlaying && isActive,
+                        isBuffering = isBuffering && isActive,
+                        onPlay = { onPlay(station) },
+                        onDismiss = { onRemoveFavorite(station) },
+                        onLongClick = { onStationLongPress(station) },
+                        horizontalPadding = 0.dp,
+                        modifier = Modifier.testTag("favorite-list-${station.id}"),
+                    )
+                }
             }
         }
     }
@@ -2037,12 +2106,15 @@ private fun FavoritesHeader(
     homeViewMode: HomeViewMode,
     onSortClick: () -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
+    modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
+            .testTag("favorites-controls")
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
     ) {
         TextButton(onClick = onSortClick) {
             Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -2053,9 +2125,6 @@ private fun FavoritesHeader(
         HomeViewModeToggle(selected = homeViewMode, onSelected = onHomeViewModeChange)
     }
 }
-
-internal fun favoriteCardMinimumWidthDp(compactColumns: Int): Int =
-    400 / compactColumns.coerceIn(2, 8)
 
 // Single-select sort picker in a modal bottom sheet — the Material 3 pattern used by
 // Google apps (list of radio rows under a small title).
@@ -2164,6 +2233,7 @@ private fun StationListRow(
     onDismiss: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp,
 ) {
     val pauseLabel = stringResource(R.string.pause)
     val stationOptionsLabel = stringResource(R.string.station_options)
@@ -2221,12 +2291,12 @@ private fun StationListRow(
         },
     ) {
         Surface(
-            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
+            else MaterialTheme.colorScheme.surfaceContainer,
             shape = MaterialTheme.shapes.medium,
-            tonalElevation = if (isActive) 0.dp else 1.dp,
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 2.dp),
+                .padding(horizontal = horizontalPadding, vertical = 2.dp),
         ) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
@@ -2303,44 +2373,52 @@ private fun StationTile(
 ) {
     val haptic = LocalHapticFeedback.current
     val stationOptionsLabel = stringResource(R.string.station_options)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier,
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
+        else MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = stationOptionsLabel,
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            ),
     ) {
+        Column {
         val logoModel = logoModelFor(station.logoPath)
         var logoFailed by remember(logoModel) { mutableStateOf(false) }
         var logoIsLight by remember(logoModel) { mutableStateOf(false) }
-        var logoHasMargin by remember(logoModel) { mutableStateOf(false) }
+        var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
+        var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
         var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
         LaunchedEffect(logoModel, loadedLogo) {
             val image = loadedLogo ?: return@LaunchedEffect
             val appearance = sharedLogoAppearanceAnalyzer.analyze(logoModel.toString(), image)
             logoIsLight = appearance.isLight
-            logoHasMargin = appearance.hasTransparentMargin
+            logoPrefersLightPlate = appearance.prefersLightPlate
+            logoHasTransparentMargin = appearance.hasTransparentMargin
         }
         val showLogo = logoModel != null && !logoFailed
 
         Surface(
             // Same plate treatment as the other artwork surfaces: an adaptive plate behind
             // rendered logos (visible only through transparency), tonal otherwise.
-            color = if (showLogo) stationLogoPlateColor(logoIsLight) else {
-                if (isActive) MaterialTheme.colorScheme.primaryContainer else tileColor
-            },
-            // Medium card radius like the other cards: a fixed 28dp reads far rounder on
-            // the small tiles of a 4-5 column grid, so keep the modest spec radius at
-            // every grid width.
-            shape = MaterialTheme.shapes.medium,
+            // Keep the outer circular surface tonal; transparent artwork gets its adaptive
+            // plate only on the inset image circle below.
+            // Use the base surface inside an active card so the circular artwork border
+            // remains visible against the active card container.
+            color = if (isActive) MaterialTheme.colorScheme.surfaceContainer else tileColor,
+            // Keep the artwork plate circular so transparent regions reveal the tile surface
+            // around the logo instead of creating a white square behind it.
+            shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClickLabel = stationOptionsLabel,
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongClick()
-                    },
-                ),
+                .padding(12.dp)
+                .aspectRatio(1f),
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 if (!showLogo) {
@@ -2358,53 +2436,54 @@ private fun StationTile(
                         contentScale = ContentScale.Fit,
                         onError = { logoFailed = true },
                         onSuccess = { state -> loadedLogo = state.result.image },
-                        // Breathing room per the MD3 spacing scale so a logo doesn't read
-                        // cramped against the card's rounded corners — but only when the logo
-                        // actually has a transparent margin of its own: a full-bleed square
-                        // "brand tile" logo has no margin to reveal, so insetting it would
-                        // just add an unwanted plate-colored border around complete artwork.
-                        // A fraction, not a fixed dp, so it scales with the tile size across
-                        // the user's chosen grid column count instead of ballooning at 8 columns.
-                        modifier = Modifier.fillMaxSize(if (logoHasMargin) GRID_LOGO_INSET_FRACTION else 1f),
+                        // Use the same proportional inset for every logo so SVGs with different
+                        // intrinsic margins share one consistent circular border treatment.
+                        modifier = Modifier
+                            .fillMaxSize(GRID_LOGO_INSET_FRACTION)
+                            .clip(CircleShape)
+                            .background(
+                                if (logoHasTransparentMargin) {
+                                    artworkPlateColor(logoIsLight, logoPrefersLightPlate, hasTransparentMargin = true)
+                                } else {
+                                    Color.Transparent
+                                },
+                                CircleShape,
+                            ),
                     )
-                    if (isActive) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)),
-                        )
-                    }
                 }
-                val indicatorColor = if (isActive) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (showActivityIndicator && isActive && (isPlaying || isBuffering)) {
+                Spacer(Modifier.width(8.dp))
+                if (isBuffering) {
+                    CircularWavyProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                    )
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                when {
-                    !showActivityIndicator -> Unit
-                    isBuffering -> CircularWavyProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = indicatorColor,
-                        trackColor = indicatorColor.copy(alpha = 0.3f),
-                    )
-                    isActive && isPlaying -> EqualizerBars(
-                        color = indicatorColor,
-                        modifier = Modifier.size(width = 36.dp, height = 28.dp),
+                    EqualizerBars(
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(width = 28.dp, height = 22.dp),
                         barCount = 3,
                     )
                 }
             }
         }
-        Text(
-            text = station.name,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
-        )
     }
+}
 }
 
 @Composable
@@ -2524,10 +2603,12 @@ private fun ForYouStationCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Filled card per the M3 card spec — surfaceContainerHighest container on the medium
-    // corner radius, no outline or elevation — the spec's type for tappable content tiles.
+    // Match the flat tonal containment used by the favourites station tiles.
     Card(
         onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
         modifier = modifier.width(140.dp).height(116.dp),
     ) {
         Column(
@@ -2536,7 +2617,7 @@ private fun ForYouStationCard(
         ) {
             StationLogoCircle(
                 logoModel = logoModelFor(station.logoUrl),
-                size = 60.dp,
+                size = 64.dp,
             ) {
                 Text(
                     text = station.name.avatarInitial(),
@@ -2546,33 +2627,13 @@ private fun ForYouStationCard(
             }
             Text(
                 text = station.name,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
-}
-
-// Plate behind station artwork, shown through transparent regions of third-party logos.
-// Device-palette tokens, not a fixed color, so it follows the system/dynamic theme: the
-// default (dark-on-transparent logos, the common case) is the theme-following container tone;
-// a light-on-transparent logo (e.g. white marks meant for a dark backdrop) would go invisible
-// on that same tone, so it gets the theme-inverse pairing instead, which is always guaranteed
-// to contrast (#121, #122).
-//
-// inverseSurface inverts relative to the *current theme*, not relative to the logo: in dark
-// theme inverseSurface is a light tone, so naively picking it whenever the logo is light
-// produces light-on-light in dark theme (the theme-following default, surfaceContainerHighest,
-// is already dark there and already contrasts fine with a light logo). The default only needs
-// overriding when the logo's own polarity matches the theme's natural one — light logo in
-// light theme, or dark logo in dark theme — which is what the XOR below checks for.
-@Composable
-fun stationLogoPlateColor(isLogoLight: Boolean): androidx.compose.ui.graphics.Color {
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val needsInverse = isDarkTheme != isLogoLight
-    return if (needsInverse) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surfaceContainerHighest
 }
 
 // Circular station logo on a plate. The plate shows through transparent regions of third-party
@@ -2585,15 +2646,24 @@ fun StationLogoCircle(
     size: Dp,
     modifier: Modifier = Modifier,
     fallbackBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    opaqueArtworkBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
     fallback: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
+    val imageLoader = remember(context) { SingletonImageLoader.get(context) }
     var logoFailed by remember(logoModel) { mutableStateOf(false) }
     var logoIsLight by remember(logoModel) { mutableStateOf(false) }
+    var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
+    var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
     var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
     LaunchedEffect(logoModel, loadedLogo) {
         val image = loadedLogo ?: return@LaunchedEffect
         logoIsLight = sharedLogoAppearanceAnalyzer
             .analyze(logoModel.toString(), image)
+            .also {
+                logoPrefersLightPlate = it.prefersLightPlate
+                logoHasTransparentMargin = it.hasTransparentMargin
+            }
             .isLight
     }
     val showLogo = logoModel != null && !logoFailed
@@ -2602,16 +2672,35 @@ fun StationLogoCircle(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(if (showLogo) stationLogoPlateColor(logoIsLight) else fallbackBackground),
+            .background(
+                // The outer circle is the row's tonal surface; adaptive artwork color is
+                // applied only to the inset image circle below so the border remains visible.
+                fallbackBackground,
+            ),
     ) {
         if (showLogo) {
             AsyncImage(
                 model = logoModel,
+                imageLoader = imageLoader,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 onError = { logoFailed = true },
                 onSuccess = { state -> loadedLogo = state.result.image },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize(GRID_LOGO_INSET_FRACTION)
+                    .clip(CircleShape)
+                    .background(
+                        if (logoHasTransparentMargin) {
+                            artworkPlateColor(
+                                logoIsLight,
+                                logoPrefersLightPlate,
+                                hasTransparentMargin = true,
+                            )
+                        } else {
+                            opaqueArtworkBackground
+                        },
+                        CircleShape,
+                    ),
             )
         } else {
             fallback()
@@ -2625,23 +2714,22 @@ fun StationAvatar(
     isActive: Boolean,
     size: Dp,
     modifier: Modifier = Modifier,
+    surfaceColor: androidx.compose.ui.graphics.Color? = null,
+    artworkSurfaceColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
-    val context = LocalContext.current
     val logoModel = logoModelFor(station.logoPath)
-    val imageRequest = logoModel?.let {
-        remember(context, it) { ImageRequest.Builder(context).data(it).build() }
-    }
     StationLogoCircle(
-        logoModel = imageRequest,
+        logoModel = logoModel,
         size = size,
         modifier = modifier,
-        fallbackBackground = if (isActive) MaterialTheme.colorScheme.primaryContainer
+        opaqueArtworkBackground = artworkSurfaceColor,
+        fallbackBackground = surfaceColor ?: if (isActive) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Icon(
             imageVector = Icons.Rounded.Radio,
             contentDescription = null,
-            tint = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+            tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer
             else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(size * 0.55f),
         )

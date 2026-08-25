@@ -70,9 +70,9 @@ internal fun FilterPickerSheetContent(
     selectedItems: Set<String>,
     displayName: (String) -> String,
     onToggle: (String) -> Unit,
-    onSelectionComplete: () -> Unit = {},
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
+    onSelectionComplete: () -> Unit = {},
 ) {
     val filteredItems by produceState<List<FilterPickerItem>?>(null, items, selectedItems, query, displayName) {
         value = withContext(Dispatchers.Default) {

@@ -4,6 +4,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NowPlayingDisplayTest {
+    @Test
+    fun miniPlayerUsesTrackTitleThenArtist() {
+        assertEquals(
+            TrackDisplay("2. AGO", "Tiffany Foxx"),
+            computeTrackDisplay("Worldwide FM", "2. AGO", "Tiffany Foxx"),
+        )
+    }
+
+    @Test
+    fun miniPlayerFallsBackToStationAndLiveRadioWithoutIcy() {
+        assertEquals(
+            TrackDisplay("Worldwide FM", "Live Radio"),
+            computeTrackDisplay("Worldwide FM", null, null),
+        )
+    }
 
     @Test
     fun noMetadataShowsStationNameAndLiveRadio() {

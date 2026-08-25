@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -17,6 +18,7 @@
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:localeConfig="@xml/locales_config"
+        tools:targetApi="tiramisu"
         android:theme="@style/Theme.Aerial">
 
         <!-- Declares Aerial as a media app for Android Auto / Android Automotive OS. -->
@@ -33,7 +35,8 @@
         <provider
             android:name=".ArtworkProvider"
             android:authorities="${applicationId}.artwork"
-            android:exported="true" />
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
 
         <!-- Persists the per-app locale on pre-Android-13 via AppCompat. -->
         <service
@@ -60,7 +63,8 @@
         <service
             android:name=".PlayerService"
             android:foregroundServiceType="mediaPlayback"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedService">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>

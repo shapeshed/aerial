@@ -6,6 +6,7 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.size.Size
 import java.io.File
+import java.util.concurrent.CancellationException
 
 /** Downloads and persists artwork through the app's configured image-loading pipeline. */
 interface ArtworkLoader {
@@ -29,6 +30,8 @@ class CoilArtworkLoader(private val context: Context) : ArtworkLoader {
                 return null
             }
             destination.absolutePath
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             null
         }

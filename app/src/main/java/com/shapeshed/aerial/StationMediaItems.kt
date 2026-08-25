@@ -87,6 +87,18 @@ fun Station.toPlayableMediaItem(context: Context, artworkUriOverride: Uri? = nul
         .setMediaMetadata(stationMediaMetadata(context, this, artworkUriOverride))
         .build()
 
+/** Builds a Media3 item with artwork normalized for system media consumers. */
+suspend fun Station.toSystemPlayableMediaItem(context: Context): MediaItem {
+    val artworkUriOverride = when {
+        // Media3 system consumers need a decodable content URI. The source remains the registry
+        // URL, while Coil renders SVGs and exposes the resulting artwork through the provider.
+        logoPath.startsWith("http") -> cachedRemoteArtworkUri(context, logoPath)
+        logoPath.isNotBlank() -> localLogoArtworkUri(context, File(logoPath))
+        else -> null
+    }
+    return toPlayableMediaItem(context, artworkUriOverride)
+}
+
 /** [toPlayableMediaItem] for the media browse tree: suspends to proxy a remote logo Android
  * Auto can't fetch or decode itself (SVG or cleartext http) through [ArtworkProvider] — see
  * [cachedRemoteArtworkUri]. Phone playback keeps the plain variant; its surfaces load artwork

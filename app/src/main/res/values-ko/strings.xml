@@ -83,10 +83,13 @@
     <string name="sleep_timer">취침 타이머</string>
     <string name="sleep_add_15">+15분</string>
     <string name="sleep_set_new_duration">새 시간 설정</string>
-    <string name="sleep_preset_seconds">%1$d초</string>
-    <string name="sleep_preset_minutes">%1$d분</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="other">%1$d초</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="other">%1$d분</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
-        <item quantity="one">%1$d시간</item>
         <item quantity="other">%1$d시간</item>
     </plurals>
     <string name="sleep_preset_hours_minutes">%1$d시간 %2$d분</string>
@@ -110,8 +113,6 @@
     <string name="sort_last_played">최근 재생순</string>
     <string name="sort_most_played">재생 횟수순</string>
     <string name="for_you">맞춤 추천</string>
-    <string name="favorites_grid_columns">즐겨찾기 그리드 너비</string>
-    <string name="favorites_grid_columns_desc">카드 보기의 열 수</string>
     <string name="no_favorites">즐겨찾기가 없습니다</string>
     <string name="no_favorites_desc">좋아하는 방송국을 추가하면 여기서 쉽게 찾을 수 있어요</string>
     <string name="car_moods">기분</string>

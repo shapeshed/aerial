@@ -59,29 +59,61 @@ class TagFilterFlowTest {
         composeRule.onNodeWithText("Jazz Station").assertIsDisplayed()
         composeRule.onNodeWithText("Pop Station").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Tags").performClick()
-        composeRule.onNodeWithText("Rock").performClick()
-        composeRule.onAllNodesWithText("Search tags").assertCountEquals(0)
+        openPicker()
+        selectTag("Rock")
         composeRule.onNodeWithText("Rock Station").assertIsDisplayed()
         composeRule.onAllNodesWithText("Jazz Station").assertCountEquals(0)
 
-        composeRule.onNodeWithText("Tags").performClick()
-        composeRule.onNodeWithText("Jazz").performClick()
-        composeRule.onAllNodesWithText("Search tags").assertCountEquals(0)
+        openPicker()
+        selectTag("Jazz")
         composeRule.onNodeWithText("Rock Station").assertIsDisplayed()
         composeRule.onNodeWithText("Jazz Station").assertIsDisplayed()
         composeRule.onAllNodesWithText("Pop Station").assertCountEquals(0)
 
-        composeRule.onNodeWithText("Tags").performClick()
-        composeRule.onNodeWithText("Jazz").performClick()
-        composeRule.onNodeWithText("Tags").performClick()
-        composeRule.onNodeWithText("Rock").performClick()
-        composeRule.onAllNodesWithText("Search tags").assertCountEquals(0)
+        openPicker()
+        selectTag("Jazz")
+        openPicker()
+        selectTag("Rock")
         composeRule.onNodeWithText("Rock Station").assertIsDisplayed()
         composeRule.onNodeWithText("Jazz Station").assertIsDisplayed()
         composeRule.onNodeWithText("Pop Station").assertIsDisplayed()
 
         composeRule.runOnIdle { assertEquals(emptySet<String>(), viewModel.selectedTags.value) }
+    }
+
+    private fun openPicker() {
+        composeRule.onNodeWithText("Tags").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithText("Search tags").assertIsDisplayed()
+                true
+            } catch (_: AssertionError) {
+                false
+            } catch (_: IllegalStateException) {
+                false
+            }
+        }
+    }
+
+    private fun selectTag(tag: String) {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithText(tag).assertIsDisplayed()
+                true
+            } catch (_: AssertionError) {
+                false
+            } catch (_: IllegalStateException) {
+                false
+            }
+        }
+        composeRule.onNodeWithText(tag).performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onAllNodesWithText("Search tags").fetchSemanticsNodes().isEmpty()
+            } catch (_: IllegalStateException) {
+                false
+            }
+        }
     }
 
     @Composable
