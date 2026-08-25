@@ -114,4 +114,19 @@
     <string name="no_favorites_desc">अपने पसंदीदा स्टेशन जोड़ें ताकि उन्हें यहाँ आसानी से ढूँढा जा सके</string>
     <string name="car_moods">मूडज़</string>
     <string name="recently_played">हाल ही में चलाए गए</string>
+    <string name="favorite_removed_message">%1$s को पसंदीदा से हटा दिया गया</string>
+    <string name="undo">पहले जैसा करें</string>
+    <string name="backup_exported">बैकअप एक्सपोर्ट हो गया</string>
+    <string name="backup_export_failed">बैकअप एक्सपोर्ट नहीं हो सका</string>
+    <string name="backup_import_failed">बैकअप इम्पोर्ट नहीं हो सका</string>
+    <plurals name="backup_imported">
+        <item quantity="one">%1$d स्टेशन और सेटिंग इम्पोर्ट की गईं</item>
+        <item quantity="other">%1$d स्टेशन और सेटिंग इम्पोर्ट की गईं</item>
+    </plurals>
+    <string name="next_station">अगला स्टेशन</string>
+    <string name="playback_connection_failed">कनेक्शन विफल</string>
+    <string name="playback_failed">प्लेबैक विफल</string>
+    <string name="playback_format_unsupported">स्ट्रीम फ़ॉर्मैट समर्थित नहीं है</string>
+    <string name="previous_station">पिछला स्टेशन</string>
+    <string name="station_options">स्टेशन विकल्प</string>
 </resources>

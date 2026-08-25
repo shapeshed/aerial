@@ -116,4 +116,17 @@
     <string name="recently_played">Son oynatılanlar</string>
     <string name="favorite_removed_message">%1$s favorilerden kaldırıldı</string>
     <string name="undo">Geri al</string>
+    <string name="backup_exported">Yedek dışa aktarıldı</string>
+    <string name="backup_export_failed">Yedek dışa aktarılamadı</string>
+    <string name="backup_import_failed">Yedek içe aktarılamadı</string>
+    <plurals name="backup_imported">
+        <item quantity="one">%1$d istasyon ve ayar içe aktarıldı</item>
+        <item quantity="other">%1$d istasyon ve ayar içe aktarıldı</item>
+    </plurals>
+    <string name="next_station">Sonraki istasyon</string>
+    <string name="playback_connection_failed">Bağlantı başarısız</string>
+    <string name="playback_failed">Oynatma başarısız</string>
+    <string name="playback_format_unsupported">Akış biçimi desteklenmiyor</string>
+    <string name="previous_station">Önceki istasyon</string>
+    <string name="station_options">İstasyon seçenekleri</string>
 </resources>

@@ -125,4 +125,17 @@
     <string name="recently_played">Reproducidos recientemente</string>
     <string name="favorite_removed_message">%1$s eliminado de favoritos</string>
     <string name="undo">Deshacer</string>
+    <string name="backup_exported">Copia de seguridad exportada</string>
+    <string name="backup_export_failed">No se pudo exportar la copia de seguridad</string>
+    <string name="backup_import_failed">No se pudo importar la copia de seguridad</string>
+    <plurals name="backup_imported">
+        <item quantity="one">Se importó %1$d emisora y la configuración</item>
+        <item quantity="other">Se importaron %1$d emisoras y la configuración</item>
+    </plurals>
+    <string name="next_station">Siguiente emisora</string>
+    <string name="playback_connection_failed">Error de conexión</string>
+    <string name="playback_failed">Error de reproducción</string>
+    <string name="playback_format_unsupported">Formato de emisión no compatible</string>
+    <string name="previous_station">Emisora anterior</string>
+    <string name="station_options">Opciones de la emisora</string>
 </resources>

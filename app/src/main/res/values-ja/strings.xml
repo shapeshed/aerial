@@ -119,4 +119,16 @@
     <string name="recently_played">最近再生</string>
     <string name="favorite_removed_message">%1$sをお気に入りから削除しました</string>
     <string name="undo">元に戻す</string>
+    <string name="backup_exported">バックアップをエクスポートしました</string>
+    <string name="backup_export_failed">バックアップをエクスポートできませんでした</string>
+    <string name="backup_import_failed">バックアップをインポートできませんでした</string>
+    <plurals name="backup_imported">
+        <item quantity="other">%1$d局と設定をインポートしました</item>
+    </plurals>
+    <string name="next_station">次の放送局</string>
+    <string name="playback_connection_failed">接続に失敗しました</string>
+    <string name="playback_failed">再生に失敗しました</string>
+    <string name="playback_format_unsupported">ストリーム形式に対応していません</string>
+    <string name="previous_station">前の放送局</string>
+    <string name="station_options">放送局のオプション</string>
 </resources>
