@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
-    <string name="app_name">Aerial</string>
+    <string name="app_name" translatable="false">Aerial</string>
     <!-- Common actions -->
     <string name="action_back">Back</string>
     <string name="action_remove">Remove</string>
@@ -59,7 +59,7 @@
     <string name="add_to_favorites">Add to favorites</string>
     <string name="share_station">Share station</string>
     <string name="copy_track_info">Copy track info</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
+    <string name="stream_bitrate_format" translatable="false">%1$d kbps</string>
     <!-- Settings -->
     <string name="show_stream_bitrate">Show stream bitrate</string>
     <string name="show_stream_bitrate_desc">Display the current stream quality on the player</string>
@@ -75,7 +75,7 @@
         <item quantity="one">Imported %1$d station and settings</item>
         <item quantity="other">Imported %1$d stations and settings</item>
     </plurals>
-    <string name="version_format">Aerial %1$s</string>
+    <string name="version_format" translatable="false">Aerial %1$s</string>
     <string name="language">Language</string>
     <string name="language_system_default">System default</string>
     <!-- Station edit -->
