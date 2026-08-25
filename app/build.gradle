@@ -249,6 +249,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
     androidTestImplementation composeBom
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
-    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha15'
+    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha16'
     screenshotTestImplementation 'androidx.compose.ui:ui-tooling'
 }
