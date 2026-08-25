@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <!-- Common actions -->
     <string name="action_back">Indietro</string>
     <string name="action_remove">Rimuovi</string>
@@ -57,7 +56,6 @@
     <string name="add_to_favorites">Aggiungi ai preferiti</string>
     <string name="share_station">Condividi stazione</string>
     <string name="copy_track_info">Copia info brano</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
     <!-- Settings -->
     <string name="show_stream_bitrate">Mostra bitrate dello stream</string>
     <string name="show_stream_bitrate_desc">Mostra la qualità attuale dello stream nel player</string>
@@ -66,7 +64,6 @@
     <string name="export_backup_desc">Salva stazioni, impostazioni e loghi locali</string>
     <string name="import_backup">Importa backup</string>
     <string name="import_backup_desc">Unisce le stazioni e ripristina le impostazioni da un backup</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">Lingua</string>
     <string name="language_system_default">Predefinita di sistema</string>
     <!-- Station edit -->

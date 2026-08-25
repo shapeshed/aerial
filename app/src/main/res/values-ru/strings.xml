@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <string name="action_back">Назад</string>
     <string name="action_remove">Удалить</string>
     <string name="action_cancel">Отмена</string>
@@ -62,8 +61,6 @@
     <string name="mood_workout_desc">Энергичная музыка, чтобы не останавливаться</string>
     <string name="close_player">Закрыть плеер</string>
     <string name="copy_track_info">Копировать информацию о треке</string>
-    <string name="stream_bitrate_format">%1$d кбит/с</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">Язык</string>
     <string name="language_system_default">Системный язык</string>
     <string name="edit_station">Редактировать станцию</string>

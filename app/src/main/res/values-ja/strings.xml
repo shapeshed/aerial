@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <!-- Common actions -->
     <string name="action_back">戻る</string>
     <string name="action_remove">削除</string>
@@ -57,7 +56,6 @@
     <string name="add_to_favorites">お気に入りに追加</string>
     <string name="share_station">放送局を共有</string>
     <string name="copy_track_info">曲情報をコピー</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
     <!-- Settings -->
     <string name="show_stream_bitrate">ストリームのビットレートを表示</string>
     <string name="show_stream_bitrate_desc">プレーヤーに現在のストリーム品質を表示</string>
@@ -66,7 +64,6 @@
     <string name="export_backup_desc">放送局、設定、ローカルのロゴを保存</string>
     <string name="import_backup">バックアップを読み込む</string>
     <string name="import_backup_desc">放送局を統合し、バックアップから設定を復元</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">言語</string>
     <string name="language_system_default">システムのデフォルト</string>
     <!-- Station edit -->

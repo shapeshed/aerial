@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <string name="action_back">ਵਾਪਿਸ</string>
     <string name="action_remove">ਹਟਾਓ</string>
     <string name="action_cancel">ਰੱਦ ਕਰੋ</string>
@@ -54,7 +53,6 @@
     <string name="add_to_favorites">ਮਨਪਸੰਦ ਵਿੱਚ ਜੋੜੋ</string>
     <string name="share_station">ਸਟੇਸ਼ਨ ਸਾਂਝਾ ਕਰੋ</string>
     <string name="copy_track_info">ਟਰੈਕ ਜਾਣਕਾਰੀ ਕਾਪੀ ਕਰੋ</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
     <string name="show_stream_bitrate">ਸਟ੍ਰੀਮ ਬਿੱਟਰੇਟ ਵਿਖਾਓ</string>
     <string name="show_stream_bitrate_desc">ਪਲੇਅਰ \'ਤੇ ਮੌਜੂਦਾ ਸਟ੍ਰੀਮ ਗੁਣਵੱਤਾ ਪ੍ਰਦਰਸ਼ਿਤ ਕਰੋ</string>
     <string name="section_data">ਡੇਟਾ</string>
@@ -62,7 +60,6 @@
     <string name="export_backup_desc">ਸਟੇਸ਼ਨ, ਸੈਟਿੰਗਾਂ ਅਤੇ ਸਥਾਨਕ ਲੋਗੋ ਸੁਰੱਖਿਅਤ ਕਰੋ</string>
     <string name="import_backup">ਬੈਕਅੱਪ ਇੰਪੋਰਟ ਕਰੋ</string>
     <string name="import_backup_desc">ਸਟੇਸ਼ਨਾਂ ਨੂੰ ਮਿਲਾਓ ਅਤੇ ਬੈਕਅੱਪ ਤੋਂ ਸੈਟਿੰਗਾਂ ਨੂੰ ਰੀਸਟੋਰ ਕਰੋ</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">ਭਾਸ਼ਾ</string>
     <string name="language_system_default">ਸਿਸਟਮ ਡਿਫ਼ਾਲਟ</string>
     <string name="edit_station">ਸਟੇਸ਼ਨ ਸੰਪਾਦਿਤ ਕਰੋ</string>

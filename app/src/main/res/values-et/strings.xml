@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <string name="action_back">Tagasi</string>
     <string name="action_remove">Eemalda</string>
     <string name="action_cancel">Tühista</string>
@@ -62,8 +61,6 @@
     <string name="mood_workout_desc">Energiat jätkub lõpuni</string>
     <string name="close_player">Sulge mängija</string>
     <string name="copy_track_info">Kopeeri loo teave</string>
-    <string name="stream_bitrate_format">%1$d kbit/s</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">Keel</string>
     <string name="language_system_default">Süsteemi vaikeseade</string>
     <string name="edit_station">Muuda jaama</string>

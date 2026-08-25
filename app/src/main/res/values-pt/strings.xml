@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Aerial</string>
     <!-- Common actions -->
     <string name="action_back">Voltar</string>
     <string name="action_remove">Remover</string>
@@ -57,7 +56,6 @@
     <string name="add_to_favorites">Adicionar aos favoritos</string>
     <string name="share_station">Compartilhar estação</string>
     <string name="copy_track_info">Copiar info da faixa</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
     <!-- Settings -->
     <string name="show_stream_bitrate">Mostrar bitrate do stream</string>
     <string name="show_stream_bitrate_desc">Exibe a qualidade atual do stream no player</string>
@@ -66,7 +64,6 @@
     <string name="export_backup_desc">Salva estações, configurações e logotipos locais</string>
     <string name="import_backup">Importar backup</string>
     <string name="import_backup_desc">Mescla estações e restaura configurações de um backup</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">Idioma</string>
     <string name="language_system_default">Padrão do sistema</string>
     <!-- Station edit -->
