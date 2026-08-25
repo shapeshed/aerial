@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerial</string>
     <!-- Common actions -->
     <string name="action_back">Terug</string>
     <string name="action_remove">Verwijderen</string>
@@ -57,7 +56,6 @@
     <string name="add_to_favorites">Aan favorieten toevoegen</string>
     <string name="share_station">Zender delen</string>
     <string name="copy_track_info">Nummerinfo kopiëren</string>
-    <string name="stream_bitrate_format">%1$d kbps</string>
     <!-- Settings -->
     <string name="show_stream_bitrate">Stream-bitrate tonen</string>
     <string name="show_stream_bitrate_desc">Toont de huidige streamkwaliteit in de speler</string>
@@ -66,7 +64,6 @@
     <string name="export_backup_desc">Slaat zenders, instellingen en lokale logo\'s op</string>
     <string name="import_backup">Back-up importeren</string>
     <string name="import_backup_desc">Voegt zenders samen en herstelt instellingen uit een back-up</string>
-    <string name="version_format">Aerial %1$s</string>
     <string name="language">Taal</string>
     <string name="language_system_default">Systeemstandaard</string>
     <!-- Station edit -->
