@@ -125,4 +125,17 @@
     <string name="recently_played">Écouté récemment</string>
     <string name="favorite_removed_message">%1$s retirée des favoris</string>
     <string name="undo">Annuler</string>
+    <string name="backup_exported">Sauvegarde exportée</string>
+    <string name="backup_export_failed">Impossible d’exporter la sauvegarde</string>
+    <string name="backup_import_failed">Impossible d’importer la sauvegarde</string>
+    <plurals name="backup_imported">
+        <item quantity="one">%1$d station et les réglages importés</item>
+        <item quantity="other">%1$d stations et les réglages importés</item>
+    </plurals>
+    <string name="next_station">Station suivante</string>
+    <string name="playback_connection_failed">Échec de la connexion</string>
+    <string name="playback_failed">Échec de la lecture</string>
+    <string name="playback_format_unsupported">Format du flux non compatible</string>
+    <string name="previous_station">Station précédente</string>
+    <string name="station_options">Options de la station</string>
 </resources>

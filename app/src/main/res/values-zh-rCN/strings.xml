@@ -119,4 +119,16 @@
     <string name="recently_played">最近播放</string>
     <string name="favorite_removed_message">已从收藏中移除 %1$s</string>
     <string name="undo">撤销</string>
+    <string name="backup_exported">备份已导出</string>
+    <string name="backup_export_failed">无法导出备份</string>
+    <string name="backup_import_failed">无法导入备份</string>
+    <plurals name="backup_imported">
+        <item quantity="other">已导入 %1$d 个电台和设置</item>
+    </plurals>
+    <string name="next_station">下一个电台</string>
+    <string name="playback_connection_failed">连接失败</string>
+    <string name="playback_failed">播放失败</string>
+    <string name="playback_format_unsupported">不支持的流格式</string>
+    <string name="previous_station">上一个电台</string>
+    <string name="station_options">电台选项</string>
 </resources>

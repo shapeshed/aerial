@@ -122,4 +122,17 @@
     <string name="recently_played">Laatst afgespeeld</string>
     <string name="favorite_removed_message">%1$s verwijderd uit favorieten</string>
     <string name="undo">Ongedaan maken</string>
+    <string name="backup_exported">Back-up geëxporteerd</string>
+    <string name="backup_export_failed">Back-up exporteren mislukt</string>
+    <string name="backup_import_failed">Back-up importeren mislukt</string>
+    <plurals name="backup_imported">
+        <item quantity="one">%1$d zender en instellingen geïmporteerd</item>
+        <item quantity="other">%1$d zenders en instellingen geïmporteerd</item>
+    </plurals>
+    <string name="next_station">Volgende zender</string>
+    <string name="playback_connection_failed">Verbinding mislukt</string>
+    <string name="playback_failed">Afspelen mislukt</string>
+    <string name="playback_format_unsupported">Streamformaat wordt niet ondersteund</string>
+    <string name="previous_station">Vorige zender</string>
+    <string name="station_options">Zenderopties</string>
 </resources>

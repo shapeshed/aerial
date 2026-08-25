@@ -116,4 +116,17 @@
     <string name="recently_played">Hiljuti esitatud</string>
     <string name="favorite_removed_message">%1$s eemaldati lemmikutest</string>
     <string name="undo">Võta tagasi</string>
+    <string name="backup_exported">Varukoopia eksporditud</string>
+    <string name="backup_export_failed">Varukoopia eksportimine ebaõnnestus</string>
+    <string name="backup_import_failed">Varukoopia importimine ebaõnnestus</string>
+    <plurals name="backup_imported">
+        <item quantity="one">Imporditi %1$d jaam ja seaded</item>
+        <item quantity="other">Imporditi %1$d jaama ja seaded</item>
+    </plurals>
+    <string name="next_station">Järgmine jaam</string>
+    <string name="playback_connection_failed">Ühendus ebaõnnestus</string>
+    <string name="playback_failed">Taasesitus ebaõnnestus</string>
+    <string name="playback_format_unsupported">Voo vormingut ei toetata</string>
+    <string name="previous_station">Eelmine jaam</string>
+    <string name="station_options">Jaama valikud</string>
 </resources>
