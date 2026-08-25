@@ -5,11 +5,10 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -17,17 +16,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -35,7 +35,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Favorite
@@ -43,6 +42,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
@@ -53,8 +53,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -70,24 +69,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
@@ -110,7 +107,11 @@ private fun Station.ownLogoModel(): Any? = when {
     else -> null
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalLayoutApi::class,
+)
 @Composable
 fun NowPlayingScreen(
     station: Station,
@@ -144,16 +145,9 @@ fun NowPlayingScreen(
     }
     val hasStationNavigation = swipeIndex >= 0 && swipeStations.size > 1
     var showSleepTimer by remember { mutableStateOf(false) }
-    val artworkShape = RoundedCornerShape(
-        topStart = 28.dp,
-        topEnd = 28.dp,
-        bottomStart = 6.dp,
-        bottomEnd = 28.dp,
-    )
     val trackTitle = currentTrackTitle
     val trackArtist = currentTrackArtist?.takeIf { it.isNotBlank() && it != station.name }
     val activeArtworkModel = station.ownLogoModel()
-    var mainArtworkFailed by remember(activeArtworkModel) { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
@@ -186,12 +180,18 @@ fun NowPlayingScreen(
     val bitrateLabel = currentBitrateKbps
         ?.takeIf { showStreamBitrate && it > 0 }
         ?.let { stringResource(R.string.stream_bitrate_format, it) }
+    val playbackActionDescription = stringResource(
+        when {
+            isBuffering -> R.string.buffering
+            isPlaying -> R.string.pause
+            else -> R.string.play
+        },
+    )
     // When the timer clears (it expired, or was cancelled), close the picker too. Keyed on the
     // active->inactive transition so a picker opened with no timer running stays open.
     LaunchedEffect(sleepTimer == null) { if (sleepTimer == null) showSleepTimer = false }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier
             .graphicsLayer { translationY = dragOffsetY }
             .semantics { isTraversalGroup = true },
@@ -223,7 +223,6 @@ fun NowPlayingScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                         modifier = Modifier.semantics { traversalIndex = 0f },
                     ) {
                         Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.close_player))
@@ -239,7 +238,8 @@ fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp)
+                .consumeWindowInsets(padding)
+                .padding(horizontal = 16.dp)
                 .pointerInput(dismissThresholdPx, onDismiss, contentScrollState) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -284,18 +284,32 @@ fun NowPlayingScreen(
             // full width unconditionally — on a wide landscape/tablet window (the new nav rail
             // layout) that let the square artwork blow up to the pane's full width and dominate
             // the screen.
-            val artworkSize = (maxHeight * 0.42f).coerceAtMost(maxWidth)
+            // Short panes reserve more room for scalable text and fixed controls. On a normal
+            // portrait pane the hero grows to nearly the available width, matching the visual
+            // hierarchy of established audio players without compromising 200% text layouts.
+            val artworkFraction = when {
+                maxHeight < 520.dp -> 0.28f
+                maxHeight < 700.dp -> 0.38f
+                else -> 0.52f
+            }
+            val artworkSize = (maxHeight * artworkFraction).coerceAtMost(maxWidth)
+            val contentWidth = maxWidth
+            // Match the metadata's maximum edges to the hero on regular-height panes. When the
+            // hero is deliberately reduced on a short pane, keep the readable content width so
+            // large text does not get forced into the artwork's much narrower measure.
+            val trackSurfaceMaxWidth = if (maxHeight >= 700.dp) artworkSize else contentWidth
 
             Column(
                 modifier = Modifier
                     .fillMaxSize(),
             ) {
+                Spacer(Modifier.height(24.dp))
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(artworkSize)
-                        .testTag("now_playing_artwork")
-                        .semantics { traversalIndex = 1f },
+                        .semantics { traversalIndex = 1f }
+                        .testTag("now_playing_artwork"),
                 ) {
                     if (swipeIndex != -1 && swipeStations.size > 1) {
                         // Keep the artwork pager outside the metadata scroller so station
@@ -331,123 +345,53 @@ fun NowPlayingScreen(
                             pageSpacing = 24.dp,
                         ) { page ->
                             val pageStation = swipeStations[circularPageIndex(page, swipeStations.size)]
-                            if (pageStation.matches(station)) {
-                                StationArtworkSurface(
-                                    station = pageStation,
-                                    shape = artworkShape,
-                                    artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
-                                    onArtworkError = { mainArtworkFailed = true },
-                                )
-                            } else {
-                                val ownLogoModel = pageStation.ownLogoModel()
-                                var ownLogoFailed by remember(ownLogoModel) { mutableStateOf(false) }
-                                StationArtworkSurface(
-                                    station = pageStation,
-                                    shape = artworkShape,
-                                    artworkModel = ownLogoModel.takeIf { !ownLogoFailed },
-                                    onArtworkError = { ownLogoFailed = true },
-                                )
-                            }
+                            StationArtworkSurface(
+                                artworkModel = if (pageStation.matches(station)) {
+                                    activeArtworkModel
+                                } else {
+                                    pageStation.ownLogoModel()
+                                },
+                            )
                         }
                     } else {
-                        StationArtworkSurface(
-                            station = station,
-                            shape = artworkShape,
-                            artworkModel = activeArtworkModel.takeIf { !mainArtworkFailed },
-                            onArtworkError = { mainArtworkFailed = true },
-                        )
-                    }
-                    if (bitrateLabel != null) {
-                        StreamBitratePill(
-                            text = bitrateLabel,
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 12.dp, bottom = 12.dp),
-                        )
+                        StationArtworkSurface(artworkModel = activeArtworkModel)
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .nestedScroll(dismissNestedScrollConnection)
-                        .verticalScroll(contentScrollState)
-                        .padding(top = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(top = 20.dp, bottom = 12.dp)
                         .semantics { traversalIndex = 2f },
-                )
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (showTrackBlock) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.Start,
-                            ) {
-                                Text(
-                                    text = trackTitle.orEmpty(),
-                                    style = MaterialTheme.typography.titleMediumEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("now_playing_track_title"),
-                                )
-                                if (!trackArtist.isNullOrBlank() && trackArtist != trackTitle) {
-                                    Text(
-                                        text = trackArtist,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("now_playing_track_artist"),
-                                    )
-                                }
-                            }
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            IconButton(
-                                modifier = Modifier.offset(x = 12.dp),
-                                onClick = {
-                                    val copyText = buildString {
-                                        if (!trackArtist.isNullOrBlank()) append(trackArtist)
-                                        if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
-                                        if (!trackTitle.isNullOrBlank()) append(trackTitle)
-                                    }
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
-                                },
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-                            ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
-                            }
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.headlineSmallEmphasized,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (showStreamBitrate) {
+                        AnimatedContent(
+                            targetState = bitrateLabel,
+                            contentKey = { it != null },
+                            transitionSpec = {
+                                (fadeIn() togetherWith fadeOut())
+                                    .using(SizeTransform(clip = false))
+                            },
+                            label = "streamBitrate",
+                        ) { label ->
+                            if (label != null) StreamBitratePill(text = label)
                         }
                     }
                 }
-                    Spacer(Modifier.height(24.dp))
-                }
-                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .navigationBarsPadding(),
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -456,9 +400,8 @@ fun NowPlayingScreen(
                     ) {
                         FilledTonalIconButton(
                             onClick = onToggleFavorite,
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(48.dp)
                                 .semantics { traversalIndex = 4f },
                         ) {
                             Icon(
@@ -474,7 +417,6 @@ fun NowPlayingScreen(
                         if (hasStationNavigation) {
                             FilledTonalIconButton(
                                 onClick = onPreviousStation,
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                                 modifier = Modifier
                                     .size(56.dp)
                                     .semantics { traversalIndex = 5f },
@@ -492,38 +434,26 @@ fun NowPlayingScreen(
                     ) {
                         FilledIconButton(
                             onClick = onToggle,
-                            enabled = !isBuffering,
                             modifier = Modifier
-                                .size(88.dp)
-                                .semantics { traversalIndex = 6f },
-                            shapes = IconButtonShapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                            ),
-                        ) {
-                            val motionScheme = MaterialTheme.motionScheme
-                            AnimatedContent(
-                                targetState = isBuffering to isPlaying,
-                                transitionSpec = {
-                                    (fadeIn(motionScheme.defaultEffectsSpec()) +
-                                        scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
-                                        .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                                .size(72.dp)
+                                .semantics {
+                                    traversalIndex = 6f
+                                    contentDescription = playbackActionDescription
                                 },
-                                label = "playPause",
-                            ) { (buffering, playing) ->
-                                if (buffering) {
-                                    CircularWavyProgressIndicator(
-                                        modifier = Modifier.size(42.dp),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                        contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                                        modifier = Modifier.size(44.dp),
-                                    )
-                                }
+                        ) {
+                            if (isBuffering) {
+                                val indicatorColor = LocalContentColor.current
+                                CircularWavyProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = indicatorColor,
+                                    trackColor = indicatorColor.copy(alpha = 0.3f),
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                )
                             }
                         }
                     }
@@ -534,7 +464,6 @@ fun NowPlayingScreen(
                         if (hasStationNavigation) {
                             FilledTonalIconButton(
                                 onClick = onNextStation,
-                                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                                 modifier = Modifier
                                     .size(56.dp)
                                     .semantics { traversalIndex = 7f },
@@ -561,15 +490,80 @@ fun NowPlayingScreen(
                                     Intent.createChooser(sendIntent, shareStationLabel),
                                 )
                             },
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(48.dp)
                                 .semantics { traversalIndex = 8f },
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
                                 contentDescription = stringResource(R.string.share_station),
                             )
+                        }
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(dismissNestedScrollConnection)
+                        .verticalScroll(contentScrollState)
+                        .padding(top = 12.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    if (showTrackBlock) {
+                        Surface(
+                            modifier = Modifier
+                                .widthIn(max = trackSurfaceMaxWidth)
+                                .semantics { traversalIndex = 9f }
+                                .testTag("now_playing_track_surface"),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .heightIn(min = 64.dp)
+                                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                IconButton(
+                                    onClick = {
+                                        val copyText = buildString {
+                                            if (!trackArtist.isNullOrBlank()) append(trackArtist)
+                                            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
+                                            if (!trackTitle.isNullOrBlank()) append(trackTitle)
+                                        }
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
+                                    },
+                                    modifier = Modifier.semantics { traversalIndex = 10f },
+                                ) {
+                                    Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
+                                }
+                                Column(
+                                    modifier = Modifier
+                                        .widthIn(max = (trackSurfaceMaxWidth - 56.dp).coerceAtLeast(0.dp))
+                                        .padding(end = 12.dp),
+                                    horizontalAlignment = Alignment.Start,
+                                ) {
+                                    Text(
+                                        text = trackTitle.orEmpty(),
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier.testTag("now_playing_track_title"),
+                                    )
+                                    if (!trackArtist.isNullOrBlank() && trackArtist != trackTitle) {
+                                        Text(
+                                            text = trackArtist,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Start,
+                                            modifier = Modifier.testTag("now_playing_track_artist"),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -590,67 +584,26 @@ fun NowPlayingScreen(
 
 @Composable
 private fun StationArtworkSurface(
-    station: Station,
-    shape: RoundedCornerShape,
     artworkModel: Any?,
-    onArtworkError: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var artworkIsLight by remember(artworkModel) { mutableStateOf(false) }
-    var loadedArtwork by remember(artworkModel) { mutableStateOf<coil3.Image?>(null) }
-    LaunchedEffect(artworkModel, loadedArtwork) {
-        val image = loadedArtwork ?: return@LaunchedEffect
-        artworkIsLight = sharedLogoAppearanceAnalyzer
-            .analyze(artworkModel.toString(), image)
-            .isLight
-    }
-    Surface(
-        shape = shape,
-        // Adaptive plate behind rendered artwork so transparent station logos (and
-        // letterboxed images) sit on a consistent, contrasting background; the tonal
-        // container shows only for the avatar fallback.
-        color = if (artworkModel != null) {
-            stationLogoPlateColor(artworkIsLight)
-        } else {
-            MaterialTheme.colorScheme.primaryContainer
-        },
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
+    BoxWithConstraints(
+        contentAlignment = Alignment.Center,
+        modifier = modifier.fillMaxSize(),
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            if (artworkModel != null) {
-                val context = LocalContext.current
-                // Crossfade when the station changes so the artwork transition stays calm.
-                val request = remember(context, artworkModel) {
-                    ImageRequest.Builder(context)
-                        .data(artworkModel)
-                        .crossfade(300)
-                        .build()
-                }
-                AsyncImage(
-                    model = request,
-                    contentDescription = null,
-                    // Fit (not Crop) so non-square artwork isn't cropped; the
-                    // surface colour fills the letterbox space.
-                    contentScale = ContentScale.Fit,
-                    onError = { onArtworkError() },
-                    onSuccess = { state -> loadedArtwork = state.result.image },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                // Sized relative to the surface rather than a fixed dp value: every station
-                // in the swipe pager besides the one actually playing falls back to this
-                // avatar (only the active station has live "now playing" artwork), so a
-                // fixed size reads as jarringly smaller than the full-bleed artwork on the
-                // active page.
-                StationAvatar(
-                    station = station,
-                    isActive = true,
-                    size = maxWidth * 0.56f,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
+        // Reuse the same circular outer plate and inset adaptive logo treatment as Favorites.
+        StationLogoCircle(
+            logoModel = artworkModel,
+            size = maxWidth,
+            fallbackBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
+            opaqueArtworkBackground = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Radio,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(maxWidth * 0.28f),
+            )
         }
     }
 }
@@ -663,7 +616,7 @@ private fun StreamBitratePill(
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier,
+        modifier = modifier.testTag("now_playing_bitrate"),
     ) {
         Text(
             text = text,

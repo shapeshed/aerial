@@ -1,7 +1,6 @@
 package com.shapeshed.aerial.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.rounded.Favorite
@@ -12,8 +11,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldValue
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
+import androidx.compose.material3.adaptive.navigationsuite.rememberNavigationSuiteScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.shapeshed.aerial.R
@@ -27,15 +29,18 @@ internal fun navigationSuiteType(widthDp: Int): NavigationSuiteType =
 @Composable
 internal fun AdaptiveNavigationShell(
     selectedDestination: Int,
-    showHome: Boolean,
+    showNavigation: Boolean,
     onDestinationSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     navigationSuiteType: NavigationSuiteType? = null,
     content: @Composable () -> Unit,
 ) {
-    if (!showHome) {
-        Box(modifier = modifier.fillMaxSize()) { content() }
-        return
+    val scaffoldState = rememberNavigationSuiteScaffoldState(
+        if (showNavigation) NavigationSuiteScaffoldValue.Visible
+        else NavigationSuiteScaffoldValue.Hidden,
+    )
+    LaunchedEffect(showNavigation) {
+        if (showNavigation) scaffoldState.show() else scaffoldState.hide()
     }
 
     val navigationItems: @Composable () -> Unit = {
@@ -65,6 +70,7 @@ internal fun AdaptiveNavigationShell(
     if (navigationSuiteType == null) {
         NavigationSuiteScaffold(
             navigationItems = navigationItems,
+            state = scaffoldState,
             containerColor = MaterialTheme.colorScheme.surface,
             modifier = modifier.fillMaxSize(),
             content = content,
@@ -73,6 +79,7 @@ internal fun AdaptiveNavigationShell(
         NavigationSuiteScaffold(
             navigationItems = navigationItems,
             navigationSuiteType = navigationSuiteType,
+            state = scaffoldState,
             containerColor = MaterialTheme.colorScheme.surface,
             modifier = modifier.fillMaxSize(),
             content = content,

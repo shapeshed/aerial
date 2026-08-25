@@ -83,10 +83,13 @@
     <string name="sleep_timer">スリープタイマー</string>
     <string name="sleep_add_15">+15分</string>
     <string name="sleep_set_new_duration">新しい時間を設定</string>
-    <string name="sleep_preset_seconds">%1$d秒</string>
-    <string name="sleep_preset_minutes">%1$d分</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="other">%1$d秒</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="other">%1$d分</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
-        <item quantity="one">%1$d時間</item>
         <item quantity="other">%1$d時間</item>
     </plurals>
     <string name="sleep_preset_hours_minutes">%1$d時間%2$d分</string>
@@ -110,8 +113,6 @@
     <string name="sort_last_played">最近再生した順</string>
     <string name="sort_most_played">再生回数順</string>
     <string name="for_you">あなたへのおすすめ</string>
-    <string name="favorites_grid_columns">お気に入りのグリッド幅</string>
-    <string name="favorites_grid_columns_desc">カード表示の列数</string>
     <string name="no_favorites">お気に入りはまだありません</string>
     <string name="no_favorites_desc">お気に入りの放送局を追加すると、ここからすぐに見つけられます</string>
     <string name="car_moods">気分</string>

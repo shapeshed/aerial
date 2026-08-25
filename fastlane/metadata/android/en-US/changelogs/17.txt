@@ -1,0 +1,5 @@
+- Add Hindi and Punjabi translations.
+- Add next/previous station controls and improve playback metadata.
+- Improve accessibility, adaptive layouts, artwork, and Material 3 styling.
+- Migrate navigation and test infrastructure to Navigation 3.
+- Update Android Auto session handling and transparent logo rendering.

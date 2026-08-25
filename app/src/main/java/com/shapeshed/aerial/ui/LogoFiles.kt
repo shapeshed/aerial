@@ -10,6 +10,7 @@ import com.shapeshed.aerial.ArtworkProvider
 import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.get
 import coil3.BitmapImage
 import coil3.Image
 import coil3.ImageLoader
@@ -22,6 +23,7 @@ import java.net.URL
 import java.util.Locale
 import java.util.LinkedHashMap
 import java.util.UUID
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,6 +34,7 @@ private const val ARTWORK_FETCH_TIMEOUT_MS = 3_000L
 data class LogoAppearance(
     val isLight: Boolean,
     val hasTransparentMargin: Boolean,
+    val prefersLightPlate: Boolean = false,
 )
 
 class LogoAppearanceCache(private val maxEntries: Int = 128) {
@@ -58,6 +61,7 @@ class LogoAppearanceAnalyzer(
             LogoAppearance(
                 isLight = image.isPredominantlyLight(),
                 hasTransparentMargin = image.hasTransparentMargin(),
+                prefersLightPlate = image.prefersLightPlate(),
             )
         }
     }
@@ -89,31 +93,29 @@ fun logoFileForUrl(url: String, directory: File, contentType: String?): File {
     return File(directory, "${UUID.randomUUID()}.$extension")
 }
 
-@Volatile private var svgLoader: ImageLoader? = null
+@Volatile private var localSvgLoader: ImageLoader? = null
 
-private fun svgLoader(context: Context): ImageLoader =
-    svgLoader ?: ImageLoader.Builder(context.applicationContext)
+private fun localSvgImageLoader(context: Context): ImageLoader =
+    localSvgLoader ?: ImageLoader.Builder(context.applicationContext)
         .components { add(SvgDecoder.Factory()) }
         .build()
-        .also { svgLoader = it }
+        .also { localSvgLoader = it }
 
+/** Creates the bitmap companion required by system media consumers for a local SVG. */
 suspend fun ensureMediaArtworkForLogo(context: Context, file: File): File {
     if (file.extension.lowercase(Locale.US) != "svg") return file
 
-    val pngFile = mediaArtworkFile(file)
+    val pngFile = mediaArtworkFileForSystem(file)
     if (pngFile.exists()) return pngFile
 
     return try {
-        val request = ImageRequest.Builder(context)
-            .data(file)
-            .size(512)
-            .build()
-        val result = svgLoader(context).execute(request) as? SuccessResult ?: return file
+        val request = ImageRequest.Builder(context).data(file).size(512).build()
+        val result = localSvgImageLoader(context).execute(request) as? SuccessResult ?: return file
         val bitmap = result.image.toOpaqueBitmap(context)
-        pngFile.outputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
+        pngFile.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
         pngFile
+    } catch (error: CancellationException) {
+        throw error
     } catch (_: Exception) {
         file
     }
@@ -141,7 +143,9 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
 
     val cacheDir = File(context.cacheDir, ArtworkProvider.REGISTRY_ARTWORK_DIR)
     val pngFile = File(cacheDir, "${logoUrl.hashCode().toUInt()}.png")
-    if (pngFile.exists()) return ArtworkProvider.uriFor(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, pngFile.name)
+    if (pngFile.exists()) {
+        return ArtworkProvider.uriFor(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, pngFile.name)
+    }
 
     return try {
         val request = ImageRequest.Builder(context)
@@ -169,6 +173,8 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
             if (!pngFile.exists()) return null
         }
         ArtworkProvider.uriFor(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, pngFile.name)
+    } catch (error: CancellationException) {
+        throw error
     } catch (_: Exception) {
         null
     }
@@ -176,18 +182,21 @@ suspend fun cachedRemoteArtworkUri(context: Context, logoUrl: String): Uri? {
 
 /**
  * A stable content:// URI for a favourited station's locally-cached logo file (already on disk
- * under filesDir/logos — see [ArtworkLoader]), for the same reason
- * [cachedRemoteArtworkUri] proxies remote logos: Media3's legacy queue bridge only decodes and
- * embeds a Bitmap in a queue item when its MediaMetadata carries embedded artworkData bytes — an
- * artworkUri-only item is skipped entirely. Handing the phone/Bluetooth playback queue a URI
- * instead of bytes means Bluetooth's AVRCP queue-diffing never receives a Bitmap to crash on
- * (#123). SVGs resolve to their pre-rasterized PNG sibling.
+ * under filesDir/logos — see [ArtworkLoader]). Media3's Coil bitmap loader can decode the
+ * original SVG directly, so custom artwork does not need a second rasterized file beside it.
+ * Keeping artwork as a URI also avoids embedding a Bitmap in every queue item, which is what
+ * overloads Bluetooth AVRCP queue-diffing (#123).
  */
 fun localLogoArtworkUri(context: Context, file: File): Uri? {
-    val artworkFile = mediaArtworkFile(file)
+    val artworkFile = mediaArtworkFileForSystem(file)
     if (!artworkFile.exists()) return null
     return ArtworkProvider.uriFor(context, ArtworkProvider.LOCAL_LOGO_DIR, artworkFile.name)
 }
+
+internal fun mediaArtworkFileForSystem(file: File): File =
+    if (file.extension.lowercase(Locale.US) == "svg") {
+        File(file.parentFile, "${file.nameWithoutExtension}_media.png")
+    } else file
 
 fun appIconBitmap(context: Context): ByteArray? {
     return try {
@@ -199,14 +208,6 @@ fun appIconBitmap(context: Context): ByteArray? {
         output.toByteArray()
     } catch (_: Exception) {
         null
-    }
-}
-
-private fun mediaArtworkFile(file: File): File {
-    return if (file.extension.lowercase(Locale.US) == "svg") {
-        File(file.parentFile, "${file.nameWithoutExtension}_media.png")
-    } else {
-        file
     }
 }
 
@@ -304,8 +305,34 @@ private fun Bitmap.isPredominantlyLightBitmap(): Boolean {
     return opaquePixelCount > 0 && (luminanceSum / opaquePixelCount) > MID_LUMINANCE
 }
 
+/** Strongly saturated, darker artwork benefits from a light plate in dark theme. */
+private fun Image.prefersLightPlate(): Boolean = toTransparentBitmap().prefersLightPlate()
+
+private fun Bitmap.prefersLightPlate(): Boolean {
+    val pixels = IntArray(width * height)
+    getPixels(pixels, 0, width, 0, 0, width, height)
+    var vibrantCount = 0
+    var opaqueCount = 0
+    val hsv = FloatArray(3)
+    for (pixel in pixels) {
+        if (android.graphics.Color.alpha(pixel) < MIN_OPAQUE_ALPHA) continue
+        opaqueCount++
+        android.graphics.Color.colorToHSV(pixel, hsv)
+        val luminance = 0.299 * android.graphics.Color.red(pixel) +
+            0.587 * android.graphics.Color.green(pixel) +
+            0.114 * android.graphics.Color.blue(pixel)
+        if (hsv[1] >= MIN_VIBRANT_SATURATION && luminance < MAX_VIBRANT_LUMINANCE) {
+            vibrantCount++
+        }
+    }
+    return opaqueCount > 0 && vibrantCount.toFloat() / opaqueCount >= MIN_VIBRANT_FRACTION
+}
+
 private const val MIN_OPAQUE_ALPHA = 32
 private const val MID_LUMINANCE = 127.5
+private const val MIN_VIBRANT_SATURATION = 0.45f
+private const val MAX_VIBRANT_LUMINANCE = 180.0
+private const val MIN_VIBRANT_FRACTION = 0.20f
 
 /**
  * Whether this image has any transparent margin of its own to justify an inset+plate
@@ -320,10 +347,10 @@ fun Image.hasTransparentMargin(): Boolean {
     val bottom = bitmap.height - 1
     if (right < 0 || bottom < 0) return false
     return listOf(
-        bitmap.getPixel(0, 0),
-        bitmap.getPixel(right, 0),
-        bitmap.getPixel(0, bottom),
-        bitmap.getPixel(right, bottom),
+        bitmap[0, 0],
+        bitmap[right, 0],
+        bitmap[0, bottom],
+        bitmap[right, bottom],
     ).any { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
 }
 

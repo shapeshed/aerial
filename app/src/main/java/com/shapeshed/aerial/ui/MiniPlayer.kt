@@ -134,7 +134,13 @@ internal fun MiniPlayer(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         leadingContent = {
-                            StationAvatar(station = visibleStation, isActive = true, size = 52.dp)
+                            StationAvatar(
+                                station = visibleStation,
+                                isActive = true,
+                                size = 52.dp,
+                                surfaceColor = MaterialTheme.colorScheme.primaryContainer,
+                                artworkSurfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            )
                         },
                         trailingContent = {
                             Row(

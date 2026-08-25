@@ -88,8 +88,18 @@
     <string name="sleep_timer">Таймер сна</string>
     <string name="sleep_add_15">+15 мин</string>
     <string name="sleep_set_new_duration">Установить новую длительность</string>
-    <string name="sleep_preset_seconds">%1$d с</string>
-    <string name="sleep_preset_minutes">%1$d мин</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d с</item>
+        <item quantity="few">%1$d с</item>
+        <item quantity="many">%1$d с</item>
+        <item quantity="other">%1$d с</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d мин</item>
+        <item quantity="few">%1$d мин</item>
+        <item quantity="many">%1$d мин</item>
+        <item quantity="other">%1$d мин</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d час</item>
         <item quantity="few">%1$d часа</item>
@@ -106,8 +116,6 @@
     <string name="sort_last_played">Последнее воспроизведение</string>
     <string name="sort_most_played">По количеству прослушиваний</string>
     <string name="for_you">Для вас</string>
-    <string name="favorites_grid_columns">Ширина сетки избранного</string>
-    <string name="favorites_grid_columns_desc">Столбцы в режиме карточек</string>
     <string name="no_favorites">Пока нет избранного</string>
     <string name="no_favorites_desc">Добавьте любимые станции, чтобы легко находить их здесь</string>
     <string name="car_moods">Настроения</string>

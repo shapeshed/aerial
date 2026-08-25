@@ -18,8 +18,6 @@
     <string name="sort_last_played">Last played</string>
     <string name="sort_most_played">Most played</string>
     <string name="for_you">For you</string>
-    <string name="favorites_grid_columns">Favourites grid width</string>
-    <string name="favorites_grid_columns_desc">Columns shown in the cards view</string>
     <string name="favorite_removed_message">%1$s removed from favourites</string>
     <string name="undo">Undo</string>
 </resources>

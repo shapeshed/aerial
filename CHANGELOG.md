@@ -4,44 +4,38 @@ All notable changes to Aerial will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers should follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once public releases begin.
 
-## [Unreleased]
+## [0.7.0] - 2026-08-25
 
 ### Added
 
-- Hindi and Punjabi translations are now available in the app, contributed by
-  `whistlingwoods` via Weblate. (#177, #178)
-- Now Playing and the mini player can navigate to the next or previous station
-  in the active playback queue. (#173, #185)
+- Hindi and Punjabi translations, contributed by `whistlingwoods` via Weblate. (#177, #178)
+- Next/previous station controls in Now Playing and the mini player. (#173, #185)
 
 ### Fixed
 
-- Sleep timer hour labels now use locale-aware plural forms. (#166, #176)
-- Playback metadata now follows station transitions without retaining the
-  previous station's track information. (#175, #183)
-- Now Playing controls remain accessible at large font sizes. (#172, #184)
-- Tag and country pickers now close and reopen smoothly, keep selected tags at
-  the top, and restore the search bar when switching destinations. (#171, #188)
-- The active Favourites playback queue now follows the selected sort order when
-  the sort is changed during playback. (#190)
-- Last Played Favourites navigation now keeps the visible order stable while
-  skipping and refreshes from the latest play history when returning to the
-  screen. (#190)
-- The Home Recently Played row now appears at the top on first launch without
-  interrupting an in-progress scroll.
-- Now Playing now presents the song title above the artist with the same
-  hierarchy used by Android's media controls. (#190)
-- Favourite rows now use Material 3 swipe-to-dismiss with an Undo action and
-  animated list-item settling. (#165)
+- Locale-aware sleep timer plurals. (#166, #176)
+- Playback metadata now resets correctly between stations. (#175, #183)
+- Accessible Now Playing controls at large font sizes. (#172, #184)
+- Tag and country pickers now follow system behaviour. (#171, #188)
+- Favourite playback queues now follow the selected sort order. (#190)
+- Last Played ordering stays stable while skipping. (#190)
+- Now Playing uses the same title/artist hierarchy as media controls. (#190)
+- Material 3 swipe-to-dismiss with Undo for favourite rows. (#165)
 
 ### Changed
 
-- Partial translations now fall back to the default locale without failing the lint gate.
-- Compose navigation and test infrastructure now use the Navigation 3 APIs and
-  isolated on-device test application. (#180)
-- Remote artwork loading now uses Coil for fetching, caching, decoding, and
-  bounded sampling, including Media3 artwork surfaces. (#169)
-- Material Expressive themes now use the library's default typography and
-  color scheme fallbacks, while retaining dynamic color on supported devices.
+- Partial translations now fall back to the default locale.
+- Navigation 3 and isolated on-device test infrastructure. (#180)
+- Coil now handles remote artwork and Media3 artwork surfaces. (#169)
+- Android Auto uses Media3's asynchronous session callback.
+- Material 3 defaults and adaptive layouts are used throughout the app.
+- Larger adaptive Now Playing artwork and width-aware metadata.
+- Consistent adaptive backgrounds and borders for transparent station logos.
+- Keyed grid/list reflow animation.
+
+### Removed
+
+- Grid count setting, now handled by the Compose adaptive API.
 
 ## [0.6.1] - 2026-08-12
 

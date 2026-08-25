@@ -1,65 +1,63 @@
 package com.shapeshed.aerial.ui
 
-import androidx.activity.ComponentActivity
-import androidx.compose.material3.AppBarWithSearch
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.rememberContainedSearchBarState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Settings
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import androidx.compose.ui.test.assertAny
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.SearchBarDefaults.InputField
-import androidx.compose.runtime.Composable
-import com.shapeshed.aerial.ui.theme.AerialTheme
+import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.MainActivity
+import com.shapeshed.aerial.R
+import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+/** Integration coverage for Aerial's Material search surface and configuration handling. */
 class SearchHeaderTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
+    val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun setUp() {
+        val app = ApplicationProvider.getApplicationContext<AerialApp>()
+        runBlocking { app.settingsDataStore.updateData { it.toMutablePreferences().apply { clear() } } }
+    }
 
     @Test
-    fun headerExposesSearchFieldAndSettingsAction() {
-        composeRule.setContent {
-            AerialTheme(dynamicColor = false) {
-                SearchHeaderForTest()
-            }
+    fun rotatingMainScreenToLandscapeKeepsSearchCollapsed() {
+        composeRule.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         }
 
-        composeRule.onNodeWithText("Search stations").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Settings").assertIsDisplayed()
-    }
-}
+        composeRule.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        }
 
-@Composable
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-private fun SearchHeaderForTest() {
-    val state = rememberContainedSearchBarState()
-    val textState = rememberTextFieldState()
-    AppBarWithSearch(
-        state = state,
-        inputField = {
-            InputField(
-                textFieldState = textState,
-                searchBarState = state,
-                onSearch = {},
-                placeholder = { androidx.compose.material3.Text("Search stations") },
-            )
-        },
-        actions = {
-            androidx.compose.material3.IconButton(onClick = {}) {
-                androidx.compose.material3.Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = "Settings",
-                )
-            }
-        },
-        colors = SearchBarDefaults.appBarWithSearchColors(),
-        scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior(),
-    )
+        composeRule.onNodeWithContentDescription(actionBack()).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription(settings()).assertIsDisplayed()
+        composeRule.onNodeWithText(searchHint()).assertIsDisplayed()
+    }
+
+    @Test
+    fun tappingSearchOpensNativeSurfaceAndFocusesInput() {
+        composeRule.onNodeWithText(searchHint()).performClick()
+
+        composeRule.onAllNodesWithContentDescription(actionBack()).assertAny(hasClickAction())
+        composeRule.onAllNodesWithText(searchHint()).assertAny(isFocused())
+    }
+
+    private fun searchHint() = composeRule.activity.getString(R.string.search_hint)
+    private fun actionBack() = composeRule.activity.getString(R.string.action_back)
+    private fun settings() = composeRule.activity.getString(R.string.settings)
 }

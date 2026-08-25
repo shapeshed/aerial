@@ -17,7 +17,7 @@ class LogoPathRecoveryTest {
     }
 
     @Test
-    fun existingEditedLocalLogoRemainsTheSourceOfTruth() {
+    fun existingUserSelectedLogoTakesPriorityOverRegistryArtwork() {
         val editedLogo = "/data/user/0/com.shapeshed.aerial/files/logos/my-edited-logo.png"
 
         assertEquals(
@@ -26,6 +26,17 @@ class LogoPathRecoveryTest {
                 storedPath = editedLogo,
                 remoteLogoUrl = "https://cdn.example.test/original.svg",
                 fileExists = true,
+            ),
+        )
+    }
+
+    @Test
+    fun recentlyPlayedIgnoresMissingCachedLogoAndUsesRegistryArtwork() {
+        assertEquals(
+            "https://cdn.example.test/bbc-radio-1.svg",
+            recentlyPlayedLogoPath(
+                storedPath = "/data/user/0/com.shapeshed.aerial/files/logos/bbc-radio-1.svg",
+                remoteLogoUrl = "https://cdn.example.test/bbc-radio-1.svg",
             ),
         )
     }

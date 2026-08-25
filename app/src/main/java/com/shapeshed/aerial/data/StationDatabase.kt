@@ -25,22 +25,25 @@ abstract class StationDatabase : RoomDatabase() {
                     // Explicit migrations cover versions 6–9 → 10.
                     // Any user still on v5 or below will have their data wiped by the fallback.
                     // Future version bumps MUST add an explicit Migration before relying on this fallback.
-                    .addMigrations(
-                        MIGRATION_6_10,
-                        MIGRATION_7_10,
-                        MIGRATION_8_10,
-                        MIGRATION_9_10,
-                        MIGRATION_10_11,
-                        MIGRATION_11_12,
-                        MIGRATION_12_13,
-                        MIGRATION_13_14,
-                        MIGRATION_14_15,
-                        MIGRATION_15_16,
-                    )
+                    .addMigrations(*supportedMigrations)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { instance = it }
             }
+
+        internal val supportedMigrations: Array<Migration>
+            get() = arrayOf(
+                MIGRATION_6_10,
+                MIGRATION_7_10,
+                MIGRATION_8_10,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
+                MIGRATION_11_12,
+                MIGRATION_12_13,
+                MIGRATION_13_14,
+                MIGRATION_14_15,
+                MIGRATION_15_16,
+            )
 
         private val MIGRATION_6_10 = object : Migration(6, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {

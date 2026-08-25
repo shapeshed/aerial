@@ -83,8 +83,14 @@
     <string name="sleep_timer">Sleep-Timer</string>
     <string name="sleep_add_15">+15 Min</string>
     <string name="sleep_set_new_duration">Neue Dauer festlegen</string>
-    <string name="sleep_preset_seconds">%1$d Sek</string>
-    <string name="sleep_preset_minutes">%1$d Min</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d Sek</item>
+        <item quantity="other">%1$d Sek</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d Min</item>
+        <item quantity="other">%1$d Min</item>
+    </plurals>
     <plurals name="sleep_preset_hours">
         <item quantity="one">%1$d Stunde</item>
         <item quantity="other">%1$d Stunden</item>
@@ -110,8 +116,6 @@
     <string name="sort_last_played">Zuletzt gespielt</string>
     <string name="sort_most_played">Am häufigsten gespielt</string>
     <string name="for_you">Für dich</string>
-    <string name="favorites_grid_columns">Rasterbreite der Favoriten</string>
-    <string name="favorites_grid_columns_desc">Spalten in der Kartenansicht</string>
     <string name="no_favorites">Noch keine Favoriten</string>
     <string name="no_favorites_desc">Füge Sender hinzu, die du liebst, um sie hier leicht wiederzufinden</string>
     <string name="car_moods">Stimmungen</string>

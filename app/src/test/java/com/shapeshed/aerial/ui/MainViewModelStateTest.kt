@@ -9,6 +9,7 @@ import android.os.Bundle
 import java.io.File
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -34,6 +36,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.atLeastOnce
+import org.mockito.Mockito.never
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.mock
@@ -53,6 +56,22 @@ class MainViewModelStateTest {
         val clear = ViewModel::class.java.getDeclaredMethod("clear\$lifecycle_viewmodel")
         viewModels.forEach { clear.invoke(it) }
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun playbackFailuresMapToLocalizedMessageResources() {
+        assertEquals(
+            R.string.playback_connection_failed,
+            playbackErrorMessageRes(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED),
+        )
+        assertEquals(
+            R.string.playback_format_unsupported,
+            playbackErrorMessageRes(PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED),
+        )
+        assertEquals(
+            R.string.playback_failed,
+            playbackErrorMessageRes(PlaybackException.ERROR_CODE_UNSPECIFIED),
+        )
     }
 
     @Test
@@ -114,6 +133,29 @@ class MainViewModelStateTest {
     }
 
     @Test
+    fun individualFilterClearActionsPropagateAndReissueSearch() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(registryRepository.search(any(), any(), any())).thenReturn(emptyList())
+        val viewModel = viewModel(repository, registryRepository)
+
+        viewModel.searchRegistry("mango")
+        viewModel.setCountryFilter("GB")
+        viewModel.toggleTagFilter("news")
+        runCurrent()
+
+        viewModel.clearCountryFilter()
+        viewModel.clearTagFilter()
+        runCurrent()
+
+        assertEquals(emptySet<String>(), viewModel.selectedCountries.value)
+        assertEquals(emptySet<String>(), viewModel.selectedTags.value)
+        verify(registryRepository, atLeastOnce()).search("mango", emptySet(), emptySet())
+    }
+
+    @Test
     fun metadataBeforeStationTransitionRemainsVisibleForNowPlaying() = runTest {
         val repository = mock<StationRepository>()
         val registryRepository = mock<RegistryRepository>()
@@ -122,6 +164,7 @@ class MainViewModelStateTest {
         whenever(repository.getAll()).thenReturn(flowOf(listOf(left, right)))
         whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
         val viewModel = viewModel(repository, registryRepository)
+        backgroundScope.launch { viewModel.nowPlayingDisplay.collect {} }
         runCurrent()
 
         viewModel.handlePlaybackEvents(mediaItem(left.name, left.id.toString()), isPlaying = true)
@@ -132,10 +175,43 @@ class MainViewModelStateTest {
             artist = "Artist",
         )
         viewModel.handlePlaybackEvents(mediaItem(right.name, right.id.toString()), isPlaying = true)
+        runCurrent()
 
         assertEquals("Song station", viewModel.playbackUiState.value.station?.name)
         assertEquals("Song delivered by stream", viewModel.playbackUiState.value.trackTitle)
         assertEquals("Artist", viewModel.playbackUiState.value.trackArtist)
+        assertEquals(
+            "Artist — Song delivered by stream",
+            viewModel.nowPlayingDisplay.value.subtitle,
+        )
+    }
+
+    @Test
+    fun previousStationLabelDeliveredAfterTransitionIsNotTrackMetadata() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        val left = station(1, "Station with metadata")
+        val right = station(2, "Station without metadata")
+        val queue = listOf(left, right)
+        whenever(repository.getAll()).thenReturn(flowOf(queue))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, registryRepository)
+        runCurrent()
+
+        viewModel.handlePlaybackEvents(mediaItem(left.name, left.id.toString()), isPlaying = true, queue = queue)
+        viewModel.handlePlaybackMetadata(title = "Song title", artist = "Artist")
+        viewModel.handlePlaybackEvents(mediaItem(right.name, right.id.toString()), isPlaying = true, queue = queue)
+
+        // Media3 may dispatch the previous item's static title after currentMediaItem has already
+        // advanced. A station label must never become a transient ICY track for the new station.
+        viewModel.handlePlaybackMetadata(
+            mediaItem = mediaItem(right.name, right.id.toString()),
+            title = left.name,
+            artist = null,
+        )
+
+        assertEquals(null, viewModel.playbackUiState.value.trackTitle)
+        assertEquals(null, viewModel.playbackUiState.value.trackArtist)
     }
 
     @Test
@@ -207,6 +283,38 @@ class MainViewModelStateTest {
             listOf(favoriteAlpha.id, favoriteCharlie.id),
             viewModel.stations.first { it.size == 2 }.map(Station::id),
         )
+    }
+
+    @Test
+    fun customSvgPropagatesToFavoritesListingState() = runTest {
+        val customSvg = File.createTempFile("aerial-custom-logo", ".svg")
+        try {
+            val saved = station(4, "BBC Radio 4").copy(
+                logoPath = customSvg.absolutePath,
+                provider = "test",
+                providerId = "bbc-radio-4",
+            )
+            val registryStation = registry("BBC Radio 4").copy(
+                providerId = saved.providerId,
+                logoUrl = "https://registry.example.test/bbc-radio-4.svg",
+            )
+            val repository = mock<StationRepository>()
+            val registryRepository = mock<RegistryRepository>()
+            whenever(repository.getAll()).thenReturn(flowOf(listOf(saved)))
+            whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+            whenever(registryRepository.getByProviderId(saved.provider, saved.providerId))
+                .thenReturn(registryStation)
+            val viewModel = viewModel(repository, registryRepository)
+
+            assertEquals(
+                customSvg.absolutePath,
+                viewModel.stations.first { it.isNotEmpty() }.single().logoPath,
+            )
+            runCurrent()
+            verify(repository, never()).update(any())
+        } finally {
+            customSvg.delete()
+        }
     }
 
     @Test
@@ -287,7 +395,7 @@ class MainViewModelStateTest {
     }
 
     @Test
-    fun advancingARecentlyPlayedQueueDoesNotResortTheVisibleLastPlayedList() = runTest {
+    fun playingFromAnActiveLastPlayedListReordersTheVisibleFavorites() = runTest {
         val worldwide = station(1, "Worldwide FM", lastPlayedAt = 4_000)
         val radio4 = station(2, "BBC Radio 4", lastPlayedAt = 3_000)
         val kool = station(3, "Kool FM", lastPlayedAt = 2_000)
@@ -307,11 +415,18 @@ class MainViewModelStateTest {
         stationRows.value = listOf(worldwide, radio4.copy(lastPlayedAt = 5_000), kool, radio1Dance)
         runCurrent()
 
-        assertEquals(initialOrder, viewModel.stations.value.map(Station::id))
+        assertEquals(
+            listOf(radio4.id, worldwide.id, kool.id, radio1Dance.id),
+            viewModel.stations.value.map(Station::id),
+        )
+        assertEquals(
+            listOf(radio4.id, worldwide.id, kool.id, radio1Dance.id),
+            viewModel.playbackUiState.value.queue.map(Station::id),
+        )
     }
 
     @Test
-    fun returningToFavoritesRefreshesLastPlayedOrderFromLatestRows() = runTest {
+    fun lastPlayedOrderRemainsUpdatedWhenReturningToFavorites() = runTest {
         val worldwide = station(1, "Worldwide FM", lastPlayedAt = 4_000)
         val radio4 = station(2, "BBC Radio 4", lastPlayedAt = 3_000)
         val rows = MutableStateFlow(listOf(worldwide, radio4))
@@ -325,7 +440,7 @@ class MainViewModelStateTest {
         rows.value = listOf(worldwide, radio4.copy(lastPlayedAt = 5_000))
         runCurrent()
         assertEquals(
-            listOf(worldwide.id, radio4.id),
+            listOf(radio4.id, worldwide.id),
             viewModel.stations.first { it.size == 2 }.map(Station::id),
         )
 
@@ -336,6 +451,32 @@ class MainViewModelStateTest {
         assertEquals(
             listOf(radio4.id, worldwide.id),
             viewModel.stations.first { it.size == 2 && it.first().id == radio4.id }.map(Station::id),
+        )
+    }
+
+    @Test
+    fun playingFromAnActiveMostPlayedListReordersTheVisibleFavorites() = runTest {
+        val alpha = station(1, "Alpha", playCount = 1)
+        val bravo = station(2, "Bravo", playCount = 2)
+        val rows = MutableStateFlow(listOf(alpha, bravo))
+        val repository = mock<StationRepository>()
+        whenever(repository.getAll()).thenReturn(rows)
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val viewModel = viewModel(repository, mock())
+        runCurrent()
+
+        viewModel.setFavoritesSort(FavoritesSort.MOST_PLAYED)
+        viewModel.play(alpha, listOf(alpha, bravo))
+        rows.value = listOf(alpha.copy(playCount = 3), bravo)
+        runCurrent()
+
+        assertEquals(
+            listOf(alpha.id, bravo.id),
+            viewModel.stations.first { it.size == 2 }.map(Station::id),
+        )
+        assertEquals(
+            listOf(alpha.id, bravo.id),
+            viewModel.playbackUiState.value.queue.map(Station::id),
         )
     }
 
