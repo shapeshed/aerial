@@ -222,7 +222,7 @@ dependencies {
     implementation "androidx.room:room-ktx:$roomVersion"
     ksp "androidx.room:room-compiler:$roomVersion"
 
-    def navigation3Version = '1.1.6'
+    def navigation3Version = '1.1.7'
     implementation "androidx.navigation3:navigation3-runtime:$navigation3Version"
     implementation "androidx.navigation3:navigation3-ui:$navigation3Version"
     implementation 'androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0'
