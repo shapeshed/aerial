@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" translatable="false">Aerial</string>
+    <!-- Common actions -->
+    <string name="action_back">Wstecz</string>
+    <string name="action_remove">Usuń</string>
+    <string name="action_cancel">Anuluj</string>
+    <string name="action_clear">Wyczyść</string>
+    <string name="action_save">Zapisz</string>
+    <string name="action_edit">Edytuj</string>
+    <string name="save_all">Zapisz wszystko</string>
+    <!-- Search / home -->
+    <string name="search_hint">Szukaj stacji</string>
+    <string name="clear_search">Wyczyść wyszukiwanie</string>
+    <string name="settings">Ustawienia</string>
+    <string name="buffering">Buforowanie…</string>
+    <string name="play">Odtwórz</string>
+    <string name="pause">Pauza</string>
+    <string name="stop">Zatrzymaj</string>
+    <string name="filter_country">Kraj</string>
+    <string name="filter_genre">Gatunek</string>
+    <string name="search_countries">Szukaj krajów</string>
+    <string name="search_genres">Szukaj gatunków</string>
+    <string name="clear_all">Wyczyść wszystko</string>
+    <string name="remove_station_title">Usunąć stację?</string>
+    <string name="remove_station_message">Stacja „%1$s” zostanie usunięta z ulubionych.</string>
+    <string name="no_stations_found">Nie znaleziono żadnych stacji</string>
+    <string name="no_stations_found_desc">Spróbuj innego wyszukiwania lub dodaj stację, używając jej adresu URL strumienia.</string>
+    <string name="add_your_own_station">Dodaj własną stację</string>
+    <string name="save_to_favorites">Dodaj do ulubionych</string>
+    <string name="remove_from_favorites">Usuń z ulubionych</string>
+    <string name="favorite_removed_message">Usunięto stację %1$s z ulubionych</string>
+    <string name="undo">Cofnij</string>
+    <string name="no_internet_title">Brak połączenia z internetem</string>
+    <string name="no_internet_desc">Strumieniowanie radia wymaga aktywnego połączenia z internetem.</string>
+    <string name="favorites_header">Twoje ulubione</string>
+    <string name="home_view_cards">Karty</string>
+    <string name="home_view_list">Lista</string>
+    <string name="search_stations_header">Stacje</string>
+    <string name="view_all">Zobacz wszystko</string>
+    <string name="no_matches">Brak dopasowań</string>
+    <string name="no_matches_desc">Spróbuj innego wyszukiwania</string>
+    <string name="listen_by_mood">Dopasuj do nastroju</string>
+    <string name="mood_relax">Relaks</string>
+    <string name="mood_relax_desc">Odpręż się i odpuść</string>
+    <string name="mood_relax_detail_desc">Zwolnij tempo przy muzyce ambient, jazzie i łagodnych brzmieniach z całego świata.</string>
+    <string name="mood_focus">Skupienie</string>
+    <string name="mood_focus_desc">Zgromadź myśli i bądź produktywny</string>
+    <string name="mood_morning">Poranek</string>
+    <string name="mood_morning_desc">Rozpocznij dzień z pozytywną energią</string>
+    <string name="mood_driving">W trasie</string>
+    <string name="mood_driving_desc">Szeroki miks idealny do jazdy</string>
+    <string name="mood_late_night">Późna noc</string>
+    <string name="mood_late_night_desc">Muzyka na spokojne godziny</string>
+    <string name="mood_workout">Trening</string>
+    <string name="mood_workout_desc">Wysoka energia, by utrzymać tempo</string>
+    <!-- Now playing -->
+    <string name="close_player">Zamknij odtwarzacz</string>
+    <string name="add_to_favorites">Dodaj do ulubionych</string>
+    <string name="share_station">Udostępnij stację</string>
+    <string name="copy_track_info">Kopiuj informacje o utworze</string>
+    <string name="stream_bitrate_format" translatable="false">%1$d kbps</string>
+    <!-- Settings -->
+    <string name="show_stream_bitrate">Pokaż bitrate strumienia</string>
+    <string name="show_stream_bitrate_desc">Wyświetlaj aktualną jakość strumienia w odtwarzaczu</string>
+    <string name="section_data">Dane</string>
+    <string name="export_backup">Eksportuj kopię zapasową</string>
+    <string name="export_backup_desc">Zapisz stacje, ustawienia i lokalne logotypy</string>
+    <string name="import_backup">Importuj kopię zapasową</string>
+    <string name="import_backup_desc">Scal stacje i przywróć ustawienia z kopii zapasowej</string>
+    <string name="backup_exported">Wyeksportowano kopię zapasową</string>
+    <string name="backup_export_failed">Nie udało się wyeksportować kopii zapasowej</string>
+    <string name="backup_import_failed">Nie udało się zaimportować kopii zapasowej</string>
+    <plurals name="backup_imported">
+        <item quantity="one">Zaimportowano %1$d stację i ustawienia</item>
+        <item quantity="few">Zaimportowano %1$d stacje i ustawienia</item>
+        <item quantity="many">Zaimportowano %1$d stacji i ustawienia</item>
+        <item quantity="other">Zaimportowano %1$d stacji i ustawienia</item>
+    </plurals>
+    <string name="version_format" translatable="false">Aerial %1$s</string>
+    <string name="language">Język</string>
+    <string name="language_system_default">Domyślny systemu</string>
+    <!-- Station edit -->
+    <string name="edit_station">Edytuj stację</string>
+    <string name="add_station">Dodaj stację</string>
+    <string name="change_station_logo">Zmień logo stacji</string>
+    <string name="choose_station_logo">Wybierz logo stacji</string>
+    <string name="remove_icon">Usuń ikonę</string>
+    <string name="remove_icon_title">Usunąć ikonę?</string>
+    <string name="remove_icon_message">Ikona stacji zostanie usunięta.</string>
+    <string name="field_name">Nazwa</string>
+    <string name="field_stream_url">Adres URL strumienia</string>
+    <!-- Playback -->
+    <string name="live_radio">Radio na żywo</string>
+    <string name="playback_connection_failed">Połączenie nie powiodło się</string>
+    <string name="playback_format_unsupported">Format strumienia jest nieobsługiwany</string>
+    <string name="playback_failed">Odtwarzanie nie powiodło się</string>
+    <string name="previous_station">Poprzednia stacja</string>
+    <string name="next_station">Następna stacja</string>
+    <!-- Curated genre/category tags. Display only — the English tag is the matching key. -->
+    <string name="tag_news">Wiadomości</string>
+    <string name="tag_sport">Sport</string>
+    <string name="tag_pop">Pop</string>
+    <string name="tag_rock">Rock</string>
+    <string name="tag_jazz">Jazz</string>
+    <string name="tag_classical">Muzyka klasyczna</string>
+    <string name="tag_dance">Dance</string>
+    <string name="tag_soul">Soul</string>
+    <string name="tag_country">Country</string>
+    <string name="tag_electronic">Elektroniczna</string>
+    <!-- Sleep timer -->
+    <string name="sleep_timer">Wyłącznik czasowy</string>
+    <string name="sleep_add_15">+15 min</string>
+    <string name="sleep_set_new_duration">Ustaw nowy czas</string>
+    <plurals name="sleep_preset_seconds">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekundy</item>
+        <item quantity="many">%1$d sekund</item>
+        <item quantity="other">%1$d sekund</item>
+    </plurals>
+    <plurals name="sleep_preset_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="many">%1$d minut</item>
+        <item quantity="other">%1$d minut</item>
+    </plurals>
+    <plurals name="sleep_preset_hours">
+        <item quantity="one">%1$d godzina</item>
+        <item quantity="few">%1$d godziny</item>
+        <item quantity="many">%1$d godzin</item>
+        <item quantity="other">%1$d godzin</item>
+    </plurals>
+    <string name="sleep_preset_hours_minutes">%1$d godz. %2$d min.</string>
+    <string name="tab_home">Główna</string>
+    <string name="tab_favorites">Ulubione</string>
+    <string name="show_home">Pokazuj kartę Główna</string>
+    <string name="show_home_desc">Pokazuj kartę Główna oraz foldery odkrywania obok Ulubionych</string>
+    <string name="sort_by">Sortuj według</string>
+    <string name="sort_az">Od A do Z</string>
+    <string name="sort_last_played">Ostatnio odtwarzane</string>
+    <string name="sort_most_played">Najczęściej odtwarzane</string>
+    <string name="for_you">Dla Ciebie</string>
+    <string name="no_favorites">Brak ulubionych</string>
+    <string name="no_favorites_desc">Dodaj stacje, które lubisz, aby łatwo je tutaj znaleźć</string>
+    <!-- Media browse tree (Android Auto, Google TV) -->
+    <string name="car_moods">Nastroje</string>
+    <string name="recently_played">Ostatnio odtwarzane</string>
+    <string name="station_options">Opcje stacji</string>
+</resources>
