@@ -134,7 +134,7 @@ fun StationEditScreen(
                         .clickable { imagePicker.launch(arrayOf("image/*")) },
                 ) {
                     if (logoModel != null) {
-                        StationLogoCircle(
+                        StationLogoSurface(
                             logoModel = logoModel,
                             size = 120.dp,
                             fallbackBackground = MaterialTheme.colorScheme.primaryContainer,

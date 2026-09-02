@@ -292,7 +292,14 @@ fun NowPlayingScreen(
                 maxHeight < 700.dp -> 0.38f
                 else -> 0.52f
             }
-            val artworkSize = (maxHeight * artworkFraction).coerceAtMost(maxWidth)
+            // On portrait screens, align the artwork with the same content edges as the
+            // metadata and control row. Keep the height cap for landscape panes so the hero
+            // does not consume the entire adaptive content area.
+            val artworkSize = if (maxWidth <= maxHeight) {
+                maxWidth
+            } else {
+                (maxHeight * artworkFraction).coerceAtMost(maxWidth)
+            }
             val contentWidth = maxWidth
             // Match the metadata's maximum edges to the hero on regular-height panes. When the
             // hero is deliberately reduced on a short pane, keep the readable content width so
@@ -591,12 +598,12 @@ private fun StationArtworkSurface(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxSize(),
     ) {
-        // Reuse the same circular outer plate and inset adaptive logo treatment as Favorites.
-        StationLogoCircle(
+        // Artwork sits directly on the now-playing screen surface. Circular artwork reveals
+        // that same surface through its transparent regions.
+        StationLogoSurface(
             logoModel = artworkModel,
             size = maxWidth,
-            fallbackBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-            opaqueArtworkBackground = MaterialTheme.colorScheme.surfaceContainer,
+            fallbackBackground = MaterialTheme.colorScheme.background,
         ) {
             Icon(
                 imageVector = Icons.Rounded.Radio,

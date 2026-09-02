@@ -139,7 +139,6 @@ internal fun MiniPlayer(
                                 isActive = true,
                                 size = 52.dp,
                                 surfaceColor = MaterialTheme.colorScheme.primaryContainer,
-                                artworkSurfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             )
                         },
                         trailingContent = {

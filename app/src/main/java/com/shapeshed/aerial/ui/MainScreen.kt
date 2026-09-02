@@ -1343,7 +1343,7 @@ private fun FavoriteResultItem(
             val imageRequest = logoModel?.let {
                 remember(context, it) { ImageRequest.Builder(context).data(it).build() }
             }
-            StationLogoCircle(logoModel = imageRequest, size = 50.dp) {
+            StationLogoSurface(logoModel = imageRequest, size = 50.dp) {
                 Text(
                     text = station.name.avatarInitial(),
                     style = MaterialTheme.typography.titleLarge,
@@ -1430,7 +1430,7 @@ private fun RegistryResultItem(
     ListItem(
         modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
-            StationLogoCircle(
+            StationLogoSurface(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 50.dp,
             ) {
@@ -1899,7 +1899,7 @@ private fun MoodStationRow(
             colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             modifier = Modifier.clickable(onClick = onPlay),
             leadingContent = {
-                StationLogoCircle(
+                StationLogoSurface(
                     logoModel = logoModelFor(station.logoUrl),
                     size = 50.dp,
                 ) {
@@ -1980,6 +1980,12 @@ private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
     },
 )
 
+internal fun favoritesGridMinimumWidth(maxWidth: Dp): Dp = when {
+    maxWidth >= 840.dp -> 160.dp
+    maxWidth >= 600.dp -> 144.dp
+    else -> 112.dp
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun FavoritesTabContent(
@@ -2010,7 +2016,6 @@ internal fun FavoritesTabContent(
         return
     }
 
-    val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     var showSortSheet by remember { mutableStateOf(false) }
     var previousStationKeys by remember { mutableStateOf(emptyList<String>()) }
     val stationKeys = stations.map { it.id.toString() }
@@ -2041,59 +2046,61 @@ internal fun FavoritesTabContent(
         )
     }
 
-    LazyVerticalGrid(
-        columns = if (homeViewMode == HomeViewMode.Cards) {
-            GridCells.Adaptive(minSize = 160.dp)
-        } else {
-            GridCells.Fixed(1)
-        },
-        state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
-        modifier = Modifier.testTag("favorites-content"),
-    ) {
-        item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
-            FavoritesHeader(
-                favoritesSort = favoritesSort,
-                homeViewMode = homeViewMode,
-                onSortClick = { showSortSheet = true },
-                onHomeViewModeChange = onHomeViewModeChange,
-                horizontalPadding = 0.dp,
-            )
-        }
-        gridItems(
-            items = stations,
-            key = { station -> "favorite-${station.id}" },
-            contentType = { "favorite-station" },
-        ) { station ->
-            val isActive = currentStation?.id == station.id
-            Box(modifier = Modifier.animateItem()) {
-                when (homeViewMode) {
-                    HomeViewMode.Cards -> StationTile(
-                        station = station,
-                        // The card carries the active state; keep the artwork plate on the
-                        // normal tile tone so its circular boundary remains visible.
-                        tileColor = tileColor,
-                        isActive = isActive,
-                        isPlaying = isPlaying && isActive,
-                        isBuffering = isBuffering && isActive,
-                        onClick = { onPlay(station) },
-                        onLongClick = { onStationLongPress(station) },
-                        modifier = Modifier
-                            .testTag("favorite-card-${station.id}")
-                            .padding(bottom = 12.dp),
-                    )
-                    HomeViewMode.List -> StationListRow(
-                        station = station,
-                        isActive = isActive,
-                        isPlaying = isPlaying && isActive,
-                        isBuffering = isBuffering && isActive,
-                        onPlay = { onPlay(station) },
-                        onDismiss = { onRemoveFavorite(station) },
-                        onLongClick = { onStationLongPress(station) },
-                        horizontalPadding = 0.dp,
-                        modifier = Modifier.testTag("favorite-list-${station.id}"),
-                    )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val minimumCardWidth = favoritesGridMinimumWidth(maxWidth)
+        LazyVerticalGrid(
+            columns = if (homeViewMode == HomeViewMode.Cards) {
+                GridCells.Adaptive(minSize = minimumCardWidth)
+            } else {
+                GridCells.Fixed(1)
+            },
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+            modifier = Modifier.testTag("favorites-content"),
+        ) {
+            item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
+                FavoritesHeader(
+                    favoritesSort = favoritesSort,
+                    homeViewMode = homeViewMode,
+                    onSortClick = { showSortSheet = true },
+                    onHomeViewModeChange = onHomeViewModeChange,
+                    horizontalPadding = 0.dp,
+                )
+            }
+            gridItems(
+                items = stations,
+                key = { station -> "favorite-${station.id}" },
+                contentType = { "favorite-station" },
+            ) { station ->
+                val isActive = currentStation?.id == station.id
+                Box(modifier = Modifier.animateItem()) {
+                    when (homeViewMode) {
+                        HomeViewMode.Cards -> StationTile(
+                            station = station,
+                            // The card carries the active state; keep the artwork plate on the
+                            // normal tile tone so its rounded-square boundary remains visible.
+                            isActive = isActive,
+                            isPlaying = isPlaying && isActive,
+                            isBuffering = isBuffering && isActive,
+                            onClick = { onPlay(station) },
+                            onLongClick = { onStationLongPress(station) },
+                            modifier = Modifier
+                                .testTag("favorite-card-${station.id}")
+                                .padding(bottom = 12.dp),
+                        )
+                        HomeViewMode.List -> StationListRow(
+                            station = station,
+                            isActive = isActive,
+                            isPlaying = isPlaying && isActive,
+                            isBuffering = isBuffering && isActive,
+                            onPlay = { onPlay(station) },
+                            onDismiss = { onRemoveFavorite(station) },
+                            onLongClick = { onStationLongPress(station) },
+                            horizontalPadding = 0.dp,
+                            modifier = Modifier.testTag("favorite-list-${station.id}"),
+                        )
+                    }
                 }
             }
         }
@@ -2356,13 +2363,10 @@ private fun StationListRow(
     }
 }
 
-private const val GRID_LOGO_INSET_FRACTION = 0.85f
-
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun StationTile(
     station: Station,
-    tileColor: androidx.compose.ui.graphics.Color,
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
@@ -2373,10 +2377,11 @@ private fun StationTile(
 ) {
     val haptic = LocalHapticFeedback.current
     val stationOptionsLabel = stringResource(R.string.station_options)
+    val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
+    else MaterialTheme.colorScheme.surfaceContainer
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-        else MaterialTheme.colorScheme.surfaceContainer,
+        color = cardColor,
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -2389,70 +2394,23 @@ private fun StationTile(
             ),
     ) {
         Column {
-        val logoModel = logoModelFor(station.logoPath)
-        var logoFailed by remember(logoModel) { mutableStateOf(false) }
-        var logoIsLight by remember(logoModel) { mutableStateOf(false) }
-        var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
-        var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
-        var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
-        LaunchedEffect(logoModel, loadedLogo) {
-            val image = loadedLogo ?: return@LaunchedEffect
-            val appearance = sharedLogoAppearanceAnalyzer.analyze(logoModel.toString(), image)
-            logoIsLight = appearance.isLight
-            logoPrefersLightPlate = appearance.prefersLightPlate
-            logoHasTransparentMargin = appearance.hasTransparentMargin
-        }
-        val showLogo = logoModel != null && !logoFailed
-
-        Surface(
-            // Same plate treatment as the other artwork surfaces: an adaptive plate behind
-            // rendered logos (visible only through transparency), tonal otherwise.
-            // Keep the outer circular surface tonal; transparent artwork gets its adaptive
-            // plate only on the inset image circle below.
-            // Use the base surface inside an active card so the circular artwork border
-            // remains visible against the active card container.
-            color = if (isActive) MaterialTheme.colorScheme.surfaceContainer else tileColor,
-            // Keep the artwork plate circular so transparent regions reveal the tile surface
-            // around the logo instead of creating a white square behind it.
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-                .aspectRatio(1f),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                if (!showLogo) {
-                    Icon(
-                        imageVector = Icons.Rounded.Radio,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(48.dp),
-                    )
-                }
-                if (logoModel != null && !logoFailed) {
-                    AsyncImage(
-                        model = logoModel,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        onError = { logoFailed = true },
-                        onSuccess = { state -> loadedLogo = state.result.image },
-                        // Use the same proportional inset for every logo so SVGs with different
-                        // intrinsic margins share one consistent circular border treatment.
-                        modifier = Modifier
-                            .fillMaxSize(GRID_LOGO_INSET_FRACTION)
-                            .clip(CircleShape)
-                            .background(
-                                if (logoHasTransparentMargin) {
-                                    artworkPlateColor(logoIsLight, logoPrefersLightPlate, hasTransparentMargin = true)
-                                } else {
-                                    Color.Transparent
-                                },
-                                CircleShape,
-                            ),
-                    )
-                }
+            StationLogoSurface(
+                logoModel = logoModelFor(station.logoPath),
+                size = Dp.Unspecified,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
+                fallbackBackground = cardColor,
+                allowContrastPlate = false,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Radio,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(48.dp),
+                )
             }
-        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -2615,7 +2573,7 @@ private fun ForYouStationCard(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.padding(12.dp).fillMaxSize(),
         ) {
-            StationLogoCircle(
+            StationLogoSurface(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 64.dp,
             ) {
@@ -2636,17 +2594,17 @@ private fun ForYouStationCard(
     }
 }
 
-// Circular station logo on a plate. The plate shows through transparent regions of third-party
-// artwork so every logo sits on a consistent background, and it is never a visible ring because
-// the artwork fills the circle. Stations without a usable logo keep a tonal circle behind the
-// fallback content instead of the plate.
+// Square station logo surface shared by grids, lists, search results, and player artwork.
+// Circular artwork is masked inside the square surface so transparent regions reveal the same
+// surface as the surrounding item.
 @Composable
-fun StationLogoCircle(
+fun StationLogoSurface(
     logoModel: Any?,
     size: Dp,
     modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape? = null,
     fallbackBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    opaqueArtworkBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
+    allowContrastPlate: Boolean = true,
     fallback: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -2655,26 +2613,33 @@ fun StationLogoCircle(
     var logoIsLight by remember(logoModel) { mutableStateOf(false) }
     var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
     var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
+    var logoHasCircularArtwork by remember(logoModel) { mutableStateOf(false) }
     var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
     LaunchedEffect(logoModel, loadedLogo) {
         val image = loadedLogo ?: return@LaunchedEffect
-        logoIsLight = sharedLogoAppearanceAnalyzer
-            .analyze(logoModel.toString(), image)
-            .also {
-                logoPrefersLightPlate = it.prefersLightPlate
-                logoHasTransparentMargin = it.hasTransparentMargin
-            }
-            .isLight
+        val appearance = sharedLogoAppearanceAnalyzer.analyze(logoModel.toString(), image)
+        logoIsLight = appearance.isLight
+        logoPrefersLightPlate = appearance.prefersLightPlate
+        logoHasTransparentMargin = appearance.hasTransparentMargin
+        logoHasCircularArtwork = appearance.hasCircularArtwork
     }
     val showLogo = logoModel != null && !logoFailed
+    val containerShape = shape ?: MaterialTheme.shapes.small
+    val artworkShape = if (logoHasCircularArtwork) CircleShape else containerShape
+    val useContrastPlate = allowContrastPlate && logoHasTransparentMargin && artworkNeedsContrastPlate(
+        isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f,
+        isArtworkLight = logoIsLight,
+        prefersLightPlate = logoPrefersLightPlate,
+        hasTransparentMargin = true,
+    )
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(size)
-            .clip(CircleShape)
+            .then(if (size == Dp.Unspecified) Modifier.fillMaxSize() else Modifier.size(size))
+            .clip(containerShape)
             .background(
-                // The outer circle is the row's tonal surface; adaptive artwork color is
-                // applied only to the inset image circle below so the border remains visible.
+                // The outer container is the item's square Material surface. Circular artwork
+                // is masked below so its surrounding surface remains visible.
                 fallbackBackground,
             ),
     ) {
@@ -2687,19 +2652,23 @@ fun StationLogoCircle(
                 onError = { logoFailed = true },
                 onSuccess = { state -> loadedLogo = state.result.image },
                 modifier = Modifier
-                    .fillMaxSize(GRID_LOGO_INSET_FRACTION)
-                    .clip(CircleShape)
+                    .fillMaxSize()
+                    .clip(artworkShape)
                     .background(
-                        if (logoHasTransparentMargin) {
+                        if (useContrastPlate) {
+                            // Use the shared contrast-aware plate only when the artwork would
+                            // otherwise disappear against the current theme surface.
                             artworkPlateColor(
-                                logoIsLight,
-                                logoPrefersLightPlate,
+                                isArtworkLight = logoIsLight,
+                                prefersLightPlate = logoPrefersLightPlate,
                                 hasTransparentMargin = true,
                             )
                         } else {
-                            opaqueArtworkBackground
+                            // Artwork uses the same surface as its surrounding item. Transparent
+                            // regions reveal it and opaque artwork no longer creates a tonal square.
+                            fallbackBackground
                         },
-                        CircleShape,
+                        artworkShape,
                     ),
             )
         } else {
@@ -2715,14 +2684,12 @@ fun StationAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     surfaceColor: androidx.compose.ui.graphics.Color? = null,
-    artworkSurfaceColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
     val logoModel = logoModelFor(station.logoPath)
-    StationLogoCircle(
+    StationLogoSurface(
         logoModel = logoModel,
         size = size,
         modifier = modifier,
-        opaqueArtworkBackground = artworkSurfaceColor,
         fallbackBackground = surfaceColor ?: if (isActive) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
