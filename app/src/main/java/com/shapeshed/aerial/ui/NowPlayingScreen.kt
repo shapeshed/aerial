@@ -292,10 +292,10 @@ fun NowPlayingScreen(
                 maxHeight < 700.dp -> 0.38f
                 else -> 0.52f
             }
-            // On portrait screens, align the artwork with the same content edges as the
-            // metadata and control row. Keep the height cap for landscape panes so the hero
-            // does not consume the entire adaptive content area.
-            val artworkSize = if (maxWidth <= maxHeight) {
+            // On sufficiently tall portrait screens, align the artwork with the same content
+            // edges as the metadata and control row. Keep the height cap on short and landscape
+            // panes so the hero leaves room for metadata and fixed controls.
+            val artworkSize = if (maxWidth <= maxHeight && maxHeight >= 700.dp) {
                 maxWidth
             } else {
                 (maxHeight * artworkFraction).coerceAtMost(maxWidth)
