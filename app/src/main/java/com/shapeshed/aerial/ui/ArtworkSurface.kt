@@ -39,4 +39,16 @@ internal fun artworkNeedsLightPlate(
     isArtworkLight: Boolean,
     prefersLightPlate: Boolean,
     hasTransparentMargin: Boolean,
-): Boolean = isDarkTheme && (hasTransparentMargin || !isArtworkLight || prefersLightPlate)
+): Boolean = isDarkTheme && ((!isArtworkLight && hasTransparentMargin) || prefersLightPlate)
+
+internal fun artworkNeedsContrastPlate(
+    isDarkTheme: Boolean,
+    isArtworkLight: Boolean,
+    prefersLightPlate: Boolean,
+    hasTransparentMargin: Boolean,
+): Boolean = artworkNeedsLightPlate(
+    isDarkTheme = isDarkTheme,
+    isArtworkLight = isArtworkLight,
+    prefersLightPlate = prefersLightPlate,
+    hasTransparentMargin = hasTransparentMargin,
+) || (!isDarkTheme && isArtworkLight)

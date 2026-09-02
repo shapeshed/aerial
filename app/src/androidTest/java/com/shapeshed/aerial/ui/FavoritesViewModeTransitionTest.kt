@@ -19,12 +19,20 @@ import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.ui.theme.AerialTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
 class FavoritesViewModeTransitionTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun favoritesGridMinimumWidthUsesAdaptiveWindowBands() {
+        assertEquals(112.dp, favoritesGridMinimumWidth(400.dp))
+        assertEquals(144.dp, favoritesGridMinimumWidth(600.dp))
+        assertEquals(160.dp, favoritesGridMinimumWidth(900.dp))
+    }
 
     @Test
     fun switchingToListDoesNotRemeasureAndFlashTheOutgoingCard() {

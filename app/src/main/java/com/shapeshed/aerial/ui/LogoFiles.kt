@@ -35,6 +35,7 @@ data class LogoAppearance(
     val isLight: Boolean,
     val hasTransparentMargin: Boolean,
     val prefersLightPlate: Boolean = false,
+    val hasCircularArtwork: Boolean = false,
 )
 
 class LogoAppearanceCache(private val maxEntries: Int = 128) {
@@ -62,6 +63,7 @@ class LogoAppearanceAnalyzer(
                 isLight = image.isPredominantlyLight(),
                 hasTransparentMargin = image.hasTransparentMargin(),
                 prefersLightPlate = image.prefersLightPlate(),
+                hasCircularArtwork = image.hasCircularArtwork(),
             )
         }
     }
@@ -353,6 +355,59 @@ fun Image.hasTransparentMargin(): Boolean {
         bitmap[right, bottom],
     ).any { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
 }
+
+/** Detects circular artwork, including circular marks exported on an opaque square canvas. */
+fun Image.hasCircularArtwork(): Boolean = toTransparentBitmap().hasCircularArtwork()
+
+private fun Bitmap.hasCircularArtwork(): Boolean {
+    if (width < 4 || height < 4) return false
+    val insetX = (width * 0.08f).toInt().coerceAtLeast(1)
+    val insetY = (height * 0.08f).toInt().coerceAtLeast(1)
+    val corners = listOf(
+        this[insetX, insetY],
+        this[width - 1 - insetX, insetY],
+        this[insetX, height - 1 - insetY],
+        this[width - 1 - insetX, height - 1 - insetY],
+    )
+    val edges = listOf(
+        this[width / 2, insetY],
+        this[width - 1 - insetX, height / 2],
+        this[width / 2, height - 1 - insetY],
+        this[insetX, height / 2],
+    )
+    val transparentCorners = corners.count { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
+    if (transparentCorners == corners.size) return edges.count { android.graphics.Color.alpha(it) >= MIN_OPAQUE_ALPHA } >= 2
+
+    val cornerColor = corners.map { color ->
+        floatArrayOf(
+            android.graphics.Color.red(color) / 255f,
+            android.graphics.Color.green(color) / 255f,
+            android.graphics.Color.blue(color) / 255f,
+        )
+    }
+    val cornersMatch = cornerColor.maxOf { color ->
+        cornerColor.maxOf { other -> colorDistance(color, other) }
+    } < 0.18f
+    val averageCorner = FloatArray(3) { index -> cornerColor.map { it[index] }.average().toFloat() }
+    val contrastingEdges = edges.count { color ->
+        colorDistance(
+            floatArrayOf(
+                android.graphics.Color.red(color) / 255f,
+                android.graphics.Color.green(color) / 255f,
+                android.graphics.Color.blue(color) / 255f,
+            ),
+            averageCorner,
+        ) > 0.20f
+    }
+    return cornersMatch && contrastingEdges >= 2
+}
+
+private fun colorDistance(first: FloatArray, second: FloatArray): Float =
+    kotlin.math.sqrt(first.indices.sumOf { index ->
+        val difference = first[index] - second[index]
+        (difference * difference).toDouble()
+    }).toFloat()
+
 
 // MD3 baseline Neutral-10 (on-surface dark tone) — pre-API-31 fallback for adaptiveNeutral(),
 // on devices with no dynamic color palette to draw from.
