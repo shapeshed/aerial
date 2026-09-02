@@ -183,10 +183,7 @@ class PlayerService : MediaLibraryService() {
         // radio those generic methods can restart the current item instead of moving through the
         // playlist. Expose a forwarding player to the session so those calls always navigate by
         // media item; the service continues to use the ExoPlayer instance directly.
-        sessionPlayer = object : ForwardingPlayer(player) {
-            override fun seekToPrevious() = seekToPreviousMediaItem()
-            override fun seekToNext() = seekToNextMediaItem()
-        }
+        sessionPlayer = createSessionPlayer(player)
         mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, librarySessionCallback)
             .setSessionActivity(pendingIntent())
             .setMediaButtonPreferences(listOf(favoriteButton(null)))
@@ -745,6 +742,40 @@ class PlayerService : MediaLibraryService() {
         const val HTTP_TIMEOUT_MS = 8_000
     }
 }
+
+@OptIn(UnstableApi::class)
+internal fun createSessionPlayer(player: Player): Player = object : ForwardingPlayer(player) {
+    override fun seekToPrevious() = seekToPreviousMediaItem()
+    override fun seekToNext() = seekToNextMediaItem()
+
+    // Repeat-all is intentional for station queues, but it also makes a one-item timeline
+    // report next/previous as available. That causes redundant controls to appear in the
+    // notification and on the lock screen, where both actions would only restart the same
+    // station.
+    override fun isCommandAvailable(command: Int): Boolean =
+        command.isSkipCommandAvailableFor(player.mediaItemCount) &&
+            super.isCommandAvailable(command)
+
+    override fun getAvailableCommands(): Player.Commands =
+        super.getAvailableCommands().withoutSkipCommandsFor(player.mediaItemCount)
+}
+
+private fun Int.isSkipCommandAvailableFor(mediaItemCount: Int): Boolean =
+    mediaItemCount > 1 || this !in SKIP_COMMANDS
+
+private fun Player.Commands.withoutSkipCommandsFor(mediaItemCount: Int): Player.Commands =
+    if (mediaItemCount > 1) {
+        this
+    } else {
+        buildUpon().removeAll(*SKIP_COMMANDS).build()
+    }
+
+private val SKIP_COMMANDS = intArrayOf(
+    Player.COMMAND_SEEK_TO_PREVIOUS,
+    Player.COMMAND_SEEK_TO_NEXT,
+    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+)
 
 /** Re-prepares a failed item without replacing the player's timeline. */
 @OptIn(UnstableApi::class)
