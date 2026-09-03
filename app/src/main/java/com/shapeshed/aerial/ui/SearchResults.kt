@@ -273,7 +273,7 @@ private fun FavoriteResultItem(
             val imageRequest = logoModel?.let {
                 remember(context, it) { ImageRequest.Builder(context).data(it).build() }
             }
-            StationLogoCircle(logoModel = imageRequest, size = 50.dp) {
+            StationLogoSurface(logoModel = imageRequest, size = 50.dp) {
                 Text(
                     text = station.name.avatarInitial(),
                     style = MaterialTheme.typography.titleLarge,
@@ -360,7 +360,7 @@ private fun RegistryResultItem(
     ListItem(
         modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
         leadingContent = {
-            StationLogoCircle(
+            StationLogoSurface(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 50.dp,
             ) {

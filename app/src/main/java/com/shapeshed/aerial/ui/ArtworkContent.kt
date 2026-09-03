@@ -60,7 +60,7 @@ internal fun ForYouStationCard(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.padding(12.dp).fillMaxSize(),
         ) {
-            StationLogoCircle(
+            StationLogoSurface(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 64.dp,
             ) {
@@ -251,14 +251,12 @@ fun StationAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     surfaceColor: androidx.compose.ui.graphics.Color? = null,
-    artworkSurfaceColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
     val logoModel = logoModelFor(station.logoPath)
-    StationLogoCircle(
+    StationLogoSurface(
         logoModel = logoModel,
         size = size,
         modifier = modifier,
-        opaqueArtworkBackground = artworkSurfaceColor,
         fallbackBackground = surfaceColor ?: if (isActive) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
