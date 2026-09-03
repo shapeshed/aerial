@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +39,8 @@ internal fun logoModelFor(path: String): Any? = when {
     path.isNotEmpty() -> File(path)
     else -> null
 }
+
+internal const val GRID_LOGO_INSET_FRACTION = 0.85f
 
 @Composable
 internal fun ForYouStationCard(
@@ -98,6 +101,81 @@ fun StationLogoCircle(
         opaqueArtworkBackground = opaqueArtworkBackground,
         fallback = fallback,
     )
+}
+
+// Square station logo surface shared by grids, lists, search results, and player artwork.
+// Circular artwork is masked inside the square surface so transparent regions reveal the same
+// surface as the surrounding item.
+@Composable
+fun StationLogoSurface(
+    logoModel: Any?,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape? = null,
+    fallbackBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    allowContrastPlate: Boolean = true,
+    fallback: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val imageLoader = remember(context) { SingletonImageLoader.get(context) }
+    var logoFailed by remember(logoModel) { mutableStateOf(false) }
+    var logoIsLight by remember(logoModel) { mutableStateOf(false) }
+    var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
+    var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
+    var logoHasCircularArtwork by remember(logoModel) { mutableStateOf(false) }
+    var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
+    LaunchedEffect(logoModel, loadedLogo) {
+        val image = loadedLogo ?: return@LaunchedEffect
+        val appearance = sharedLogoAppearanceAnalyzer.analyze(logoModel.toString(), image)
+        logoIsLight = appearance.isLight
+        logoPrefersLightPlate = appearance.prefersLightPlate
+        logoHasTransparentMargin = appearance.hasTransparentMargin
+        logoHasCircularArtwork = appearance.hasCircularArtwork
+    }
+    val showLogo = logoModel != null && !logoFailed
+    val containerShape = shape ?: MaterialTheme.shapes.small
+    val artworkShape = if (logoHasCircularArtwork) CircleShape else containerShape
+    val useContrastPlate = allowContrastPlate && logoHasTransparentMargin && artworkNeedsContrastPlate(
+        isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f,
+        isArtworkLight = logoIsLight,
+        prefersLightPlate = logoPrefersLightPlate,
+        hasTransparentMargin = true,
+    )
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .then(if (size == Dp.Unspecified) Modifier.fillMaxSize() else Modifier.size(size))
+            .clip(containerShape)
+            .background(fallbackBackground),
+    ) {
+        if (showLogo) {
+            AsyncImage(
+                model = logoModel,
+                imageLoader = imageLoader,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                onError = { logoFailed = true },
+                onSuccess = { state -> loadedLogo = state.result.image },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(artworkShape)
+                    .background(
+                        if (useContrastPlate) {
+                            artworkPlateColor(
+                                isArtworkLight = logoIsLight,
+                                prefersLightPlate = logoPrefersLightPlate,
+                                hasTransparentMargin = true,
+                            )
+                        } else {
+                            fallbackBackground
+                        },
+                        artworkShape,
+                    ),
+            )
+        } else {
+            fallback()
+        }
+    }
 }
 
 @Composable
