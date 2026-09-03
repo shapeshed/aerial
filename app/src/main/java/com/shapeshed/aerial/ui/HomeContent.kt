@@ -393,7 +393,7 @@ private fun MoodStationRow(
             colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             modifier = Modifier.clickable(onClick = onPlay),
             leadingContent = {
-                StationLogoCircle(
+                StationLogoSurface(
                     logoModel = logoModelFor(station.logoUrl),
                     size = 50.dp,
                 ) {
