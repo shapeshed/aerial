@@ -17,8 +17,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class SettingsViewModel internal constructor(
+@HiltViewModel
+class SettingsViewModel @Inject internal constructor(
     application: Application,
     private val dataStore: DataStore<Preferences>,
     private val backupManager: SettingsBackupManager,

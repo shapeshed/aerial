@@ -2,9 +2,10 @@ package com.shapeshed.aerial.ui
 
 import androidx.datastore.preferences.core.edit
 import androidx.media3.common.Player
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.testing.AerialTestEnvironment
+import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
 import com.shapeshed.aerial.toPlayableMediaItem
 import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.Station
@@ -18,15 +19,18 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class Issue148PlaybackSyncTest {
+    @get:Rule
+    val testEnvironment = AerialTestEnvironmentRule()
 
     @Test
     fun stationTransitionClearsPreviousMetadataInTheSameSnapshot() = runBlocking {
-        val app = ApplicationProvider.getApplicationContext<AerialApp>()
+        val app = AerialTestEnvironment.app()
         val left = station("Metadata left", "metadata-left")
         val right = station("Metadata right", "metadata-right")
         val viewModel = withContext(Dispatchers.Main) {
@@ -48,7 +52,7 @@ class Issue148PlaybackSyncTest {
 
     @Test
     fun playbackSnapshotKeepsStationQueueAndPlayStateCoherent() = runBlocking {
-        val app = ApplicationProvider.getApplicationContext<AerialApp>()
+        val app = AerialTestEnvironment.app()
         val leftId = app.repository.insertOrGetExisting(station("Snapshot left", "snapshot-left"))
         val rightId = app.repository.insertOrGetExisting(station("Snapshot right", "snapshot-right"))
         val left = app.repository.getById(leftId)!!
@@ -97,7 +101,7 @@ class Issue148PlaybackSyncTest {
 
     @Test
     fun immediatePlayStateAfterExternalTransitionPersistsTransitionedStation() = runBlocking {
-        val app = ApplicationProvider.getApplicationContext<AerialApp>()
+        val app = AerialTestEnvironment.app()
         val left = station("Left station", "left")
         val right = station("Right station", "right")
         val leftId = app.repository.insertOrGetExisting(left)

@@ -2,13 +2,13 @@
 
 Target: `/home/go/src/github.com/shapeshed/aerial`
 
-Date: 2026-08-22
+Date: 2026-09-03
 
 Confidence: High
 
 ## Executive Summary
 
-The Compose implementation is generally modern: lifecycle-aware Flow collection is used consistently, lazy collections are keyed and typed, animated values are usually read in draw/layout phases, edge-to-edge is enabled, Material 3 Expressive components and semantic color roles are used throughout, and release shrinking is enabled. The Compose compiler confirms Strong Skipping and 100% named restartable composable skippability.
+The Compose implementation is generally modern: lifecycle-aware Flow collection is used consistently, lazy collections are keyed and typed, animated values are usually read in draw/layout phases, edge-to-edge is enabled, Material 3 Expressive components and semantic color roles are used throughout, and release shrinking is enabled. The current Compose compiler output confirms Strong Skipping and 100% named restartable composable skippability.
 
 The earlier structural risks are resolved: app navigation is type-safe Navigation 3, the route collects one cohesive UI state, playback metadata is atomic, image analysis and filter derivation run off the UI thread, and navigation chrome responds to window width. Settings now has a stateless content seam, expanded settings/edit layouts constrain readable width, and long-click station actions have accessibility labels. The largest remaining quality risk is narrower: `MainScreen.kt` still combines too many UI responsibilities.
 
@@ -22,6 +22,7 @@ Resolved on `refactor/navigation3-compose-quality`:
 - Logo appearance analysis runs on `Dispatchers.Default` and is cached by logo key with bounded LRU behavior.
 - Medium and expanded portrait windows now select navigation rail by width rather than an orientation heuristic.
 - Public route/reusable composables gained standard outermost `modifier` seams.
+- Station tile and shared station-logo rendering now share one loading and appearance-analysis implementation.
 
 The scores below are the post-refactor result. The original Compose baseline was 66/100, Navigation 3 compliance was 5/10, and Material 3 compliance was 82/100.
 
@@ -41,10 +42,10 @@ Calculation: `(9 × .35 + 9 × .25 + 9 × .20 + 8 × .20) × 10 = 88`. Delta: **
 
 - Compiler diagnostics used: yes.
 - Strong Skipping: enabled (`app/build/compose_audit/release/app-module.json`).
-- Module-wide skippability: 246/318 restartable composables, 77.4%. This includes generated/anonymous composable lambdas that cannot all be skipped.
-- Named-only skippability: 37/37 restartable named composables, 100% (`app/build/compose_audit/app-composables.csv`).
-- Inferred unstable classes: 17, principally Android components, databases, ViewModels, and Navigation 3 infrastructure. No broken or expensive equality behavior was found on shared UI model parameters.
-- SSM-on ceiling applied: no cap. Named-only skippability is at least 95%, and source review did not find widespread per-recomposition unstable-parameter recreation.
+- Module-wide skippability: 142/181 restartable composables, 78.5%. This includes generated/anonymous composable lambdas that cannot all be skipped.
+- Named-only skippability: 27/27 restartable named composables, 100% (`app/build/compose_audit/app-composables.csv`).
+- Inferred unstable classes: 0 in the current release report. No broken or expensive equality behavior was found on shared UI model parameters.
+- Strong Skipping is enabled; the named-only metric is 100%, and no widespread per-recomposition instance recreation or expensive equality behavior was found.
 
 ## Critical Findings
 
@@ -52,7 +53,7 @@ No systemic 0–3 severity Compose issue was found. The following are the highes
 
 ### 1. The root route remains overly broad
 
-Evidence: `app/src/main/java/com/shapeshed/aerial/ui/MainScreen.kt:301-733` now collects one `MainUiState`, but the same route still owns navigation chrome, search, sheets, overlays, and most event wiring; the file remains about 2,700 lines.
+Evidence: `MainScreen.kt` now delegates the Navigation 3 graph to `MainNavigationHost` and the Home/Favorites/Mood presentation to `MainRouteContent.kt`; the stateful coordinator still owns navigation chrome, search, sheets, overlays, and most event wiring, but its source file is now about 2,700 lines.
 
 Recommendation: retain the cohesive state model and split the route into stateless app-shell, search, home, favorites, and overlay content seams receiving state plus event callbacks.
 
@@ -60,13 +61,13 @@ Expected impact: smaller recomposition scopes, simpler previews and targeted sem
 
 References: <https://developer.android.com/topic/architecture/ui-layer/stateholders>, <https://developer.android.com/develop/ui/compose/state-hoisting>
 
-### 2. Activity-level navigation tests await device execution
+### 2. Activity-level navigation coverage is now established
 
-Evidence: `AerialActivityNavigationTest.kt` and `SettingsContentTest.kt` compile, while the existing navigator and restoration tests cover the underlying contracts. The attached device disconnected before the new activity tests could execute.
+Evidence: `MainActivityNavigationTest.kt` now opens Settings through the real Material control and verifies that system Back returns to the main route. The isolated connected suite passed all 34 tests on a Pixel 9 Pro XL running Android 17.
 
-Recommendation: execute the isolated connected suite when a device is attached; keep the `.deviceTest` application-id boundary so development data remains untouched.
+Recommendation: retain the `.deviceTest` application-id boundary and extend this small activity-level matrix only for high-value routes.
 
-Expected impact: closes runtime verification for real Material controls, system Back, and the new stateless settings surface.
+Expected impact: confirms runtime wiring for a real Material control, system Back, and the stateless settings surface without touching developer data.
 
 References: <https://developer.android.com/develop/ui/compose/performance/bestpractices>, <https://developer.android.com/topic/architecture/ui-layer/state-production>
 
@@ -91,6 +92,7 @@ Positive evidence:
 - `NowPlayingScreen.kt:163-167` applies the drag value in `graphicsLayer`, avoiding per-frame recomposition of layout content.
 - `FilterPickerItems.kt` produces localization/filtering/sorting on `Dispatchers.Default` and has deterministic unit coverage.
 - Release builds enable minification and resource shrinking (`app/build.gradle:50-55`).
+- `StationTile` and `StationLogoCircle` share `StationLogoContent` for image loading, failure handling, and appearance analysis (`MainScreen.kt:2630`).
 
 Deductions:
 
@@ -194,6 +196,6 @@ References: <https://developer.android.com/develop/ui/compose/layouts/adaptive/u
 
 ## Notes And Limits
 
-- The report was produced from source review plus a release Compose compiler metrics build using the audit init script. Generated metrics under `app/build/compose_audit` are build output and are not intended for source control.
+- The report was produced from source review, a release Compose compiler metrics build using the audit init script, and the isolated connected suite on a Pixel 9 Pro XL running Android 17. Generated metrics under `app/build/compose_audit` are build output and are not intended for source control.
 - Material scoring is a source-level compliance review; contrast was not measured from screenshots for every dynamic device palette.
 - Runtime jank and startup were not profiled, so baseline-profile work remains a measured follow-up rather than a speculative code change.

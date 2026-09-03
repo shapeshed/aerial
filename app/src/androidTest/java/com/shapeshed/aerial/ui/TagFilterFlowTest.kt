@@ -16,11 +16,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.ComponentActivity
-import androidx.test.core.app.ApplicationProvider
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.testing.AerialTestEnvironment
+import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
 import com.shapeshed.aerial.ui.theme.AerialTheme
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -31,13 +30,15 @@ class TagFilterFlowTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    @get:Rule
+    val testEnvironment = AerialTestEnvironmentRule()
+
     private lateinit var viewModel: MainViewModel
     private lateinit var stations: List<RegistryStation>
 
     @Before
     fun setUp() {
-        val app = ApplicationProvider.getApplicationContext<AerialApp>()
-        runBlocking { app.settingsDataStore.updateData { it.toMutablePreferences().apply { clear() } } }
+        val app = AerialTestEnvironment.app()
 
         stations = listOf(
             registryStation("Rock Station", "rock"),

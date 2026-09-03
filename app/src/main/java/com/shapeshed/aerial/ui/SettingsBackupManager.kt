@@ -25,17 +25,17 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal sealed interface BackupOperationResult<out T> {
+sealed interface BackupOperationResult<out T> {
     data class Success<T>(val value: T) : BackupOperationResult<T>
     data class Failure(val error: Exception) : BackupOperationResult<Nothing>
 }
 
-internal interface SettingsBackupManager {
+interface SettingsBackupManager {
     suspend fun export(uri: Uri): BackupOperationResult<Unit>
     suspend fun import(uri: Uri): BackupOperationResult<Int>
 }
 
-internal class ZipSettingsBackupManager(
+class ZipSettingsBackupManager(
     context: Context,
     private val repository: StationRepository,
     private val dataStore: DataStore<Preferences>,
