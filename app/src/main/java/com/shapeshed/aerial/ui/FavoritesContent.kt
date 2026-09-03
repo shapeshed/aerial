@@ -34,6 +34,12 @@ private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
     },
 )
 
+internal fun favoritesGridMinimumWidth(maxWidth: Dp): Dp = when {
+    maxWidth >= 840.dp -> 160.dp
+    maxWidth >= 600.dp -> 144.dp
+    else -> 112.dp
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun FavoritesTabContent(
@@ -64,7 +70,6 @@ internal fun FavoritesTabContent(
         return
     }
 
-    val tileColor = MaterialTheme.colorScheme.surfaceContainerHigh
     var showSortSheet by remember { mutableStateOf(false) }
     var previousStationKeys by remember { mutableStateOf(emptyList<String>()) }
     val stationKeys = stations.map { it.id.toString() }
@@ -95,63 +100,65 @@ internal fun FavoritesTabContent(
         )
     }
 
-    LazyVerticalGrid(
-        columns = if (homeViewMode == HomeViewMode.Cards) {
-            GridCells.Adaptive(minSize = 160.dp)
-        } else {
-            GridCells.Fixed(1)
-        },
-        state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
-        modifier = Modifier.testTag("favorites-content"),
-    ) {
-        item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
-            FavoritesHeader(
-                favoritesSort = favoritesSort,
-                homeViewMode = homeViewMode,
-                onSortClick = { showSortSheet = true },
-                onHomeViewModeChange = onHomeViewModeChange,
-                horizontalPadding = 0.dp,
-            )
-        }
-        gridItems(
-            items = stations,
-            key = { station -> "favorite-${station.id}" },
-            contentType = { "favorite-station" },
-        ) { station ->
-            val isActive = currentStation?.id == station.id
-            Box(modifier = Modifier.animateItem()) {
-                when (homeViewMode) {
-                    HomeViewMode.Cards -> StationTile(
-                        station = station,
-                        // The card carries the active state; keep the artwork plate on the
-                        // normal tile tone so its circular boundary remains visible.
-                        tileColor = tileColor,
-                        isActive = isActive,
-                        isPlaying = isPlaying && isActive,
-                        isBuffering = isBuffering && isActive,
-                        onClick = { onPlay(station) },
-                        onLongClick = { onStationLongPress(station) },
-                        modifier = Modifier
-                            .testTag("favorite-card-${station.id}")
-                            .padding(bottom = 12.dp),
-                    )
-                    HomeViewMode.List -> StationListRow(
-                        station = station,
-                        isActive = isActive,
-                        isPlaying = isPlaying && isActive,
-                        isBuffering = isBuffering && isActive,
-                        onPlay = { onPlay(station) },
-                        onDismiss = { onRemoveFavorite(station) },
-                        onLongClick = { onStationLongPress(station) },
-                        horizontalPadding = 0.dp,
-                        modifier = Modifier.testTag("favorite-list-${station.id}"),
-                    )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val minimumCardWidth = favoritesGridMinimumWidth(maxWidth)
+        LazyVerticalGrid(
+            columns = if (homeViewMode == HomeViewMode.Cards) {
+                GridCells.Adaptive(minSize = minimumCardWidth)
+            } else {
+                GridCells.Fixed(1)
+            },
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+            modifier = Modifier.testTag("favorites-content"),
+        ) {
+            item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
+                FavoritesHeader(
+                    favoritesSort = favoritesSort,
+                    homeViewMode = homeViewMode,
+                    onSortClick = { showSortSheet = true },
+                    onHomeViewModeChange = onHomeViewModeChange,
+                    horizontalPadding = 0.dp,
+                )
+            }
+            gridItems(
+                items = stations,
+                key = { station -> "favorite-${station.id}" },
+                contentType = { "favorite-station" },
+            ) { station ->
+                val isActive = currentStation?.id == station.id
+                Box(modifier = Modifier.animateItem()) {
+                    when (homeViewMode) {
+                        HomeViewMode.Cards -> StationTile(
+                            station = station,
+                            // The card carries the active state; keep the artwork plate on the
+                            // normal tile tone so its rounded-square boundary remains visible.
+                            isActive = isActive,
+                            isPlaying = isPlaying && isActive,
+                            isBuffering = isBuffering && isActive,
+                            onClick = { onPlay(station) },
+                            onLongClick = { onStationLongPress(station) },
+                            modifier = Modifier
+                                .testTag("favorite-card-${station.id}")
+                                .padding(bottom = 12.dp),
+                        )
+                        HomeViewMode.List -> StationListRow(
+                            station = station,
+                            isActive = isActive,
+                            isPlaying = isPlaying && isActive,
+                            isBuffering = isBuffering && isActive,
+                            onPlay = { onPlay(station) },
+                            onDismiss = { onRemoveFavorite(station) },
+                            onLongClick = { onStationLongPress(station) },
+                            horizontalPadding = 0.dp,
+                            modifier = Modifier.testTag("favorite-list-${station.id}"),
+                        )
+                    }
                 }
             }
-        }
-    }
+}
+}
 }
 @Composable
 private fun FavoritesHeader(
@@ -225,6 +232,7 @@ private fun FavoritesSortSheet(
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
+
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun HomeViewModeToggle(
@@ -243,7 +251,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.Cards,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.Cards) },
                     shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                    colors = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors(),
+                    colors = FilledTonalToggleButtonDefaults.colors(),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.GridView,
@@ -260,7 +268,7 @@ private fun HomeViewModeToggle(
                     checked = selected == HomeViewMode.List,
                     onCheckedChange = { if (it) onSelected(HomeViewMode.List) },
                     shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                    colors = FilledTonalToggleButtonDefaults.filledTonalToggleButtonColors(),
+                    colors = FilledTonalToggleButtonDefaults.colors(),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ViewList,
@@ -408,13 +416,10 @@ private fun StationListRow(
     }
 }
 
-internal const val GRID_LOGO_INSET_FRACTION = 0.85f
-
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun StationTile(
     station: Station,
-    tileColor: androidx.compose.ui.graphics.Color,
     isActive: Boolean,
     isPlaying: Boolean,
     isBuffering: Boolean,
@@ -425,10 +430,11 @@ private fun StationTile(
 ) {
     val haptic = LocalHapticFeedback.current
     val stationOptionsLabel = stringResource(R.string.station_options)
+    val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
+    else MaterialTheme.colorScheme.surfaceContainer
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-        else MaterialTheme.colorScheme.surfaceContainer,
+        color = cardColor,
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -441,29 +447,15 @@ private fun StationTile(
             ),
     ) {
         Column {
-        val logoModel = logoModelFor(station.logoPath)
-
-        Surface(
-            // Same plate treatment as the other artwork surfaces: an adaptive plate behind
-            // rendered logos (visible only through transparency), tonal otherwise.
-            // Keep the outer circular surface tonal; transparent artwork gets its adaptive
-            // plate only on the inset image circle below.
-            // Use the base surface inside an active card so the circular artwork border
-            // remains visible against the active card container.
-            color = if (isActive) MaterialTheme.colorScheme.surfaceContainer else tileColor,
-            // Keep the artwork plate circular so transparent regions reveal the tile surface
-            // around the logo instead of creating a white square behind it.
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-                .aspectRatio(1f),
-        ) {
-            StationLogoContent(
-                logoModel = logoModel,
-                modifier = Modifier.fillMaxSize(),
-                fallbackBackground = if (isActive) MaterialTheme.colorScheme.surfaceContainer else tileColor,
-                opaqueArtworkBackground = Color.Transparent,
+            StationLogoSurface(
+                logoModel = logoModelFor(station.logoPath),
+                size = Dp.Unspecified,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
+                fallbackBackground = cardColor,
+                allowContrastPlate = false,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Radio,
@@ -472,7 +464,6 @@ private fun StationTile(
                     modifier = Modifier.size(48.dp),
                 )
             }
-        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
