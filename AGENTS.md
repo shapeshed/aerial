@@ -80,6 +80,11 @@ build type, and an explicit Espresso 3.7.0 dependency for Android 17 compatibili
 Navigation tests should cover the pure `AerialNavigator` contract locally and
 `rememberNavBackStack` saved-state restoration on device.
 
+The complete testing strategy, safe commands, and feature/bug test policy are
+documented in [docs/testing.md](docs/testing.md). Every feature must add tests
+for observable behavior. Every bug fix must first add a regression test that
+fails against the old code, then demonstrate that the test passes with the fix.
+
 ## Release Versioning
 
 Release versions use:

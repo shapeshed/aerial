@@ -38,6 +38,9 @@ jobs:
       - name: Run quality gate
         run: ./gradlew quality
 
+      - name: Validate Compose screenshots
+        run: ./gradlew validateDebugScreenshotTest
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
@@ -96,6 +99,14 @@ jobs:
         with:
           name: aerial-unit-coverage
           path: app/build/reports/jacoco/jacocoDeviceTestUnitTestReport
+          if-no-files-found: warn
+
+      - name: Upload local test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aerial-local-test-reports
+          path: app/build/test-results/test*UnitTest
           if-no-files-found: warn
 
       - name: Upload instrumented test reports

@@ -16,13 +16,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 
-class StationEditViewModel internal constructor(
+@HiltViewModel(assistedFactory = StationEditViewModel.Factory::class)
+class StationEditViewModel @AssistedInject internal constructor(
     private val repository: StationRepository,
     private val registryRepository: RegistryRepository,
-    private val stationId: Long?,
-    private val logoImporter: suspend (Context, Uri) -> File? = ::importStationLogo,
+    @Assisted private val stationId: Long?,
+    @Assisted private val logoImporter: suspend (Context, Uri) -> File?,
 ) : ViewModel() {
+
+    internal constructor(
+        repository: StationRepository,
+        registryRepository: RegistryRepository,
+        stationId: Long?,
+    ) : this(repository, registryRepository, stationId, ::importStationLogo)
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            stationId: Long?,
+            logoImporter: suspend (Context, Uri) -> File?,
+        ): StationEditViewModel
+    }
 
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
@@ -108,7 +127,7 @@ class StationEditViewModel internal constructor(
     }
 }
 
-private suspend fun importStationLogo(context: Context, uri: Uri): File? {
+internal suspend fun importStationLogo(context: Context, uri: Uri): File? {
     val directory = File(context.filesDir, "logos").also { it.mkdirs() }
     return copyLogoFromUri(context, uri, directory)
 }

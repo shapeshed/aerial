@@ -16,12 +16,14 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.svg.SvgDecoder
+import dagger.hilt.android.HiltAndroidApp
 import okhttp3.OkHttpClient
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
+@HiltAndroidApp
 class AerialApp : Application(), SingletonImageLoader.Factory {
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->

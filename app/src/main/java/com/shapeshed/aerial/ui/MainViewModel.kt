@@ -68,6 +68,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
@@ -104,13 +106,13 @@ internal fun reorderPlayerPlaylist(player: Player, current: List<Station>, desir
     }
 }
 
-class MainViewModel(
+@HiltViewModel
+class MainViewModel @Inject constructor(
     application: Application,
     private val repository: StationRepository,
     private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
-    // Default is test/preview-only — the viewModelFactory { initializer { } } in MainActivity
-    // always passes an explicit SavedStateHandle via CreationExtras.createSavedStateHandle().
+    // Default is test/preview-only; Hilt supplies the production SavedStateHandle.
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),

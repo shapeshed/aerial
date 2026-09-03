@@ -10,12 +10,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.test.core.app.ApplicationProvider
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.R
-import kotlinx.coroutines.runBlocking
-import org.junit.Before
+import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
 import org.junit.Rule
 import org.junit.Test
 
@@ -24,11 +21,8 @@ class FocusNavigationTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
-    @Before
-    fun setUp() {
-        val app = ApplicationProvider.getApplicationContext<AerialApp>()
-        runBlocking { app.settingsDataStore.updateData { it.toMutablePreferences().apply { clear() } } }
-    }
+    @get:Rule
+    val testEnvironment = AerialTestEnvironmentRule()
 
     @Test
     fun focusIsAFullScreenDestinationAndBackReturnsHome() {
