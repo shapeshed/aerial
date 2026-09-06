@@ -1,6 +1,6 @@
-- Polish translation, contributed by @tmpjx555.
-- Fixed single-station playback controls and preserved compact Now Playing metadata.
-- Kept playback queues and Media3 controls consistent across favourites, notifications, Bluetooth, and Android Auto.
-- Improved playback resumption, stream metadata, and transparent station artwork handling.
-- Updated Favourites, Now Playing, and Settings with adaptive Material 3 layouts.
-- Added dirty and nightly build identifiers in Settings for easier issue reporting.
+- Polish translation, contributed by @tmpjx555. (#205)
+- Fixed single-station playback controls and preserved compact Now Playing metadata. (#212, #204)
+- Kept playback queues and Media3 controls consistent across favourites, notifications, Bluetooth, and Android Auto. (#220)
+- Improved playback resumption, stream metadata, and transparent station artwork handling. (#220)
+- Updated Favourites, Now Playing, and Settings with adaptive Material 3 layouts. (#204, #220)
+- Added dirty and nightly build identifiers in Settings for easier issue reporting. (#220)
