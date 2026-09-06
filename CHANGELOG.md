@@ -10,19 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- Polish translation, contributed by [@tmpjx555](https://github.com/tmpjx555).
+- Polish translation, contributed by [@tmpjx555](https://github.com/tmpjx555). (#205)
 
 ### Fixed
 
-- Single-station playback no longer shows unnecessary previous and next controls.
-- Compact Now Playing layouts preserve space for station metadata.
-- Playback queues and Media3 controls now stay consistent when playback starts from favourites, notifications, Bluetooth, or Android Auto.
+- Single-station playback no longer shows unnecessary previous and next controls. (#212)
+- Compact Now Playing layouts preserve space for station metadata. (#204)
+- Playback queues and Media3 controls now stay consistent when playback starts from favourites, notifications, Bluetooth, or Android Auto. (#220)
 
 ### Changed
 
-- Improved playback resumption, metadata, artwork handling, and station artwork consistency.
-- Aligned the Favourites grid and list, Now Playing, and Settings screens with adaptive Material 3 layouts.
-- Settings now show dirty and nightly build identifiers for easier issue reporting.
+- Improved playback resumption, metadata, artwork handling, and station artwork consistency. (#220)
+- Aligned the Favourites grid and list, Now Playing, and Settings screens with adaptive Material 3 layouts. (#204, #220)
+- Settings now show dirty and nightly build identifiers for easier issue reporting. (#220)
 
 ## [0.7.0] - 2026-08-25
 
