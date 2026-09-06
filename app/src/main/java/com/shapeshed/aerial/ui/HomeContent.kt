@@ -136,12 +136,7 @@ internal fun HomeTabContent(
     ) {
         if (recentlyPlayedStations.isNotEmpty()) {
             item("recently-played-header", span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = stringResource(R.string.recently_played),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
+                HomeSectionHeading(text = stringResource(R.string.recently_played))
             }
             item("recently-played-row", span = { GridItemSpan(maxLineSpan) }) {
                 val rowState = rememberLazyListState()
@@ -175,20 +170,11 @@ internal fun HomeTabContent(
 
         if (forYouStations.isNotEmpty()) {
             item("for-you-header", span = { GridItemSpan(maxLineSpan) }) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                HomeSectionHeading(
+                    // The localized country name is the header; plain "For you" when
+                    // the selection isn't country-specific.
+                    text = forYouCountry ?: stringResource(R.string.for_you),
                 ) {
-                    Text(
-                        // The localized country name is the header; plain "For you" when
-                        // the selection isn't country-specific.
-                        text = forYouCountry ?: stringResource(R.string.for_you),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                    )
                     IconButton(
                         onClick = onForYouViewAll,
                         shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
@@ -220,12 +206,7 @@ internal fun HomeTabContent(
         }
 
         item("moods-header", span = { GridItemSpan(maxLineSpan) }) {
-            Text(
-                text = stringResource(R.string.listen_by_mood),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 16.dp),
-            )
+            HomeSectionHeading(text = stringResource(R.string.listen_by_mood))
         }
         gridItems(
             items = CURATED_MOODS,
@@ -237,6 +218,29 @@ internal fun HomeTabContent(
                 onClick = { onMoodTap(mood) },
             )
         }
+    }
+}
+
+@Composable
+private fun HomeSectionHeading(
+    text: String,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+            .heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        action?.invoke()
     }
 }
 
@@ -385,9 +389,9 @@ private fun MoodStationRow(
         color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = if (isActive) 0.dp else 1.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp),
+            modifier = modifier
+                .fillMaxWidth()
+            .padding(horizontal = 16.dp),
     ) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
@@ -396,6 +400,9 @@ private fun MoodStationRow(
                 StationLogoSurface(
                     logoModel = logoModelFor(station.logoUrl),
                     size = 50.dp,
+                    fallbackBackground = if (isActive) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.surface,
+                    allowContrastPlate = false,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Radio,

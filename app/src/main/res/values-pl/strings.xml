@@ -78,6 +78,7 @@
         <item quantity="other">Zaimportowano %1$d stacji i ustawienia</item>
     </plurals>
     <string name="version_format" translatable="false">Aerial %1$s</string>
+    <string name="section_display">Wyświetlanie</string>
     <string name="language">Język</string>
     <string name="language_system_default">Domyślny systemu</string>
     <!-- Station edit -->

@@ -251,6 +251,7 @@ fun StationAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     surfaceColor: androidx.compose.ui.graphics.Color? = null,
+    allowContrastPlate: Boolean = true,
 ) {
     val logoModel = logoModelFor(station.logoPath)
     StationLogoSurface(
@@ -259,6 +260,7 @@ fun StationAvatar(
         modifier = modifier,
         fallbackBackground = surfaceColor ?: if (isActive) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.surfaceContainerHigh,
+        allowContrastPlate = allowContrastPlate,
     ) {
         Icon(
             imageVector = Icons.Rounded.Radio,

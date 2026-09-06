@@ -6,9 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-06
+
+### Added
+
+- Polish translation, contributed by `tmpjx555` via Weblate.
+
+### Fixed
+
+- Single-station playback no longer shows unnecessary previous and next controls.
+- Compact Now Playing layouts preserve space for station metadata.
+- Playback queues and Media3 controls now stay consistent when playback starts from favourites, notifications, Bluetooth, or Android Auto.
+
 ### Changed
 
-- Improved adaptive playback, privacy, settings, and station browsing UI.
+- Improved playback resumption, metadata, artwork handling, and station artwork consistency.
+- Aligned the Favourites grid and list, Now Playing, and Settings screens with adaptive Material 3 layouts.
+- Automatic Android backups are disabled, while manual backup and restore remain available.
+- Settings now show dirty and nightly build identifiers for easier issue reporting.
 
 ## [0.7.0] - 2026-08-25
 
