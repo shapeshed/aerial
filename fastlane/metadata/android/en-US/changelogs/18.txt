@@ -1,0 +1,3 @@
+- Polish translation, contributed by `tmpjx555` via Weblate.
+- Improved playback reliability, adaptive Material 3 layouts, and station artwork handling.
+- Disabled automatic Android backups and added dirty/nightly build identifiers in Settings.

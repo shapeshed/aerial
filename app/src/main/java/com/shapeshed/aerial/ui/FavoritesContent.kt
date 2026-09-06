@@ -112,11 +112,19 @@ internal fun FavoritesTabContent(
                 GridCells.Fixed(1)
             },
             state = gridState,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = if (homeViewMode == HomeViewMode.Cards) {
+                Arrangement.spacedBy(16.dp)
+            } else {
+                Arrangement.Start
+            },
+            verticalArrangement = if (homeViewMode == HomeViewMode.Cards) {
+                Arrangement.spacedBy(16.dp)
+            } else {
+                Arrangement.Top
+            },
             contentPadding = PaddingValues(
                 start = 16.dp,
-                top = 8.dp,
+                top = if (homeViewMode == HomeViewMode.Cards) 8.dp else 0.dp,
                 end = 16.dp,
                 bottom = bottomPadding + 16.dp,
             ),
@@ -129,6 +137,7 @@ internal fun FavoritesTabContent(
                     onSortClick = { showSortSheet = true },
                     onHomeViewModeChange = onHomeViewModeChange,
                     horizontalPadding = 0.dp,
+                    verticalPadding = if (homeViewMode == HomeViewMode.Cards) 0.dp else 8.dp,
                 )
             }
             gridItems(
@@ -176,13 +185,14 @@ private fun FavoritesHeader(
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 16.dp,
+    verticalPadding: Dp = 8.dp,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .testTag("favorites-controls")
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding),
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         TextButton(onClick = onSortClick) {
             Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -364,7 +374,7 @@ private fun StationListRow(
             shape = MaterialTheme.shapes.medium,
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = 2.dp),
+                .padding(horizontal = horizontalPadding),
         ) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
@@ -377,7 +387,14 @@ private fun StationListRow(
                     },
                 ),
                 leadingContent = {
-                    StationAvatar(station = station, isActive = isActive, size = 50.dp)
+                    StationAvatar(
+                        station = station,
+                        isActive = isActive,
+                        size = 50.dp,
+                        surfaceColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
+                        else MaterialTheme.colorScheme.surfaceContainer,
+                        allowContrastPlate = false,
+                    )
                 },
                 supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
                     {

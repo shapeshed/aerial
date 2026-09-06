@@ -273,7 +273,12 @@ private fun FavoriteResultItem(
             val imageRequest = logoModel?.let {
                 remember(context, it) { ImageRequest.Builder(context).data(it).build() }
             }
-            StationLogoSurface(logoModel = imageRequest, size = 50.dp) {
+            StationLogoSurface(
+                logoModel = imageRequest,
+                size = 50.dp,
+                fallbackBackground = MaterialTheme.colorScheme.surface,
+                allowContrastPlate = false,
+            ) {
                 Text(
                     text = station.name.avatarInitial(),
                     style = MaterialTheme.typography.titleLarge,
@@ -363,6 +368,8 @@ private fun RegistryResultItem(
             StationLogoSurface(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 50.dp,
+                fallbackBackground = MaterialTheme.colorScheme.surface,
+                allowContrastPlate = false,
             ) {
                 Text(
                     text = station.name.avatarInitial(),
