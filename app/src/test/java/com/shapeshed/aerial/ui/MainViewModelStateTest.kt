@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -93,6 +95,28 @@ class MainViewModelStateTest {
         assertEquals(listOf(registryStation), viewModel.registrySearchResults.first { it.isNotEmpty() })
     }
 
+    @Test
+    fun rapidSearchInputOnlyExecutesTheLatestQueryAfterDebounce() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.searchFavorites(any())).thenReturn(emptyList())
+        whenever(registryRepository.search(any(), any(), any())).thenReturn(emptyList())
+        val viewModel = viewModel(repository, registryRepository)
+
+        viewModel.searchRegistry("m")
+        viewModel.searchRegistry("ma")
+        viewModel.searchRegistry("mango")
+        advanceTimeBy(249)
+        verify(repository, never()).searchFavorites(any())
+        advanceTimeBy(1)
+        advanceUntilIdle()
+
+        verify(repository).searchFavorites("mango")
+        verify(registryRepository).search("mango", emptySet(), emptySet())
+    }
+
 
     @Test
     fun countryFilterReissuesSearchAndPropagatesSelectedCountry() = runTest {
@@ -126,7 +150,7 @@ class MainViewModelStateTest {
         assertEquals(setOf("rock"), viewModel.selectedTags.first { it.isNotEmpty() })
 
         viewModel.clearAllFilters()
-        runCurrent()
+        advanceUntilIdle()
         assertEquals(emptySet<String>(), viewModel.selectedCountries.value)
         assertEquals(emptySet<String>(), viewModel.selectedTags.value)
         verify(registryRepository, atLeastOnce()).search("mango", emptySet(), emptySet())
@@ -148,7 +172,7 @@ class MainViewModelStateTest {
 
         viewModel.clearCountryFilter()
         viewModel.clearTagFilter()
-        runCurrent()
+        advanceUntilIdle()
 
         assertEquals(emptySet<String>(), viewModel.selectedCountries.value)
         assertEquals(emptySet<String>(), viewModel.selectedTags.value)

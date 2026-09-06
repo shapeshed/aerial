@@ -57,22 +57,25 @@ internal fun FavoritesTabContent(
     onHomeViewModeChange: (HomeViewMode) -> Unit,
     onSortSelected: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Matches Drive's "No starred files": just the illustration and caption, no sort/view
     // controls (meaningless with nothing to sort) and no button — the search bar above is
     // always the way in.
     if (stations.isEmpty()) {
-        HomeEmptyState(
-            text = stringResource(R.string.no_favorites),
-            supportingText = stringResource(R.string.no_favorites_desc),
-            icon = Icons.Rounded.FavoriteBorder,
-        )
+        Box(modifier = modifier) {
+            HomeEmptyState(
+                text = stringResource(R.string.no_favorites),
+                supportingText = stringResource(R.string.no_favorites_desc),
+                icon = Icons.Rounded.FavoriteBorder,
+            )
+        }
         return
     }
 
     var showSortSheet by remember { mutableStateOf(false) }
     var previousStationKeys by remember { mutableStateOf(emptyList<String>()) }
-    val stationKeys = stations.map { it.id.toString() }
+    val stationKeys = remember(stations) { stations.map { it.id.toString() } }
 
     // Play-dependent sorts can move the newly played station while the user is browsing
     // Favorites. Re-anchor the active layout like Home's recently-played shelf, but never
@@ -100,7 +103,7 @@ internal fun FavoritesTabContent(
         )
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val minimumCardWidth = favoritesGridMinimumWidth(maxWidth)
         LazyVerticalGrid(
             columns = if (homeViewMode == HomeViewMode.Cards) {
@@ -109,8 +112,14 @@ internal fun FavoritesTabContent(
                 GridCells.Fixed(1)
             },
             state = gridState,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding + 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 8.dp,
+                end = 16.dp,
+                bottom = bottomPadding + 16.dp,
+            ),
             modifier = Modifier.testTag("favorites-content"),
         ) {
             item("favorites-controls", span = { GridItemSpan(maxLineSpan) }) {
@@ -141,7 +150,6 @@ internal fun FavoritesTabContent(
                             onLongClick = { onStationLongPress(station) },
                             modifier = Modifier
                                 .testTag("favorite-card-${station.id}")
-                                .padding(bottom = 12.dp),
                         )
                         HomeViewMode.List -> StationListRow(
                             station = station,
@@ -174,7 +182,7 @@ private fun FavoritesHeader(
         modifier = modifier
             .testTag("favorites-controls")
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding),
     ) {
         TextButton(onClick = onSortClick) {
             Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -431,10 +439,11 @@ private fun StationTile(
     val haptic = LocalHapticFeedback.current
     val stationOptionsLabel = stringResource(R.string.station_options)
     val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-    else MaterialTheme.colorScheme.surfaceContainer
+    else MaterialTheme.colorScheme.surfaceContainerLow
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = cardColor,
+        tonalElevation = 1.dp,
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -453,6 +462,7 @@ private fun StationTile(
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(12.dp)
                     .aspectRatio(1f),
                 fallbackBackground = cardColor,
                 allowContrastPlate = false,
@@ -476,20 +486,25 @@ private fun StationTile(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (showActivityIndicator && isActive && (isPlaying || isBuffering)) {
-                Spacer(Modifier.width(8.dp))
-                if (isBuffering) {
-                    CircularWavyProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
-                    )
-                } else {
-                    EqualizerBars(
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(width = 28.dp, height = 22.dp),
-                        barCount = 3,
-                    )
+            Spacer(Modifier.width(8.dp))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(width = 24.dp, height = 20.dp),
+            ) {
+                if (showActivityIndicator && isActive && (isPlaying || isBuffering)) {
+                    if (isBuffering) {
+                        CircularWavyProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                        )
+                    } else {
+                        EqualizerBars(
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                            barCount = 3,
+                        )
+                    }
                 }
             }
         }

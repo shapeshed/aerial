@@ -1,7 +1,6 @@
 package com.shapeshed.aerial.ui
 
 import android.app.Application
-import android.content.ComponentName
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -22,20 +21,20 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionToken
 import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.AerialApp
-import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.stationNameFromMediaMetadata
+import com.shapeshed.aerial.stationFromMediaItem
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
 import com.shapeshed.aerial.data.FavoritesSort
-import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
+import com.shapeshed.aerial.data.FavoritesQueueCoordinator
 import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.NetworkMonitor
+import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
@@ -43,10 +42,9 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.resolveQueueStart
-import com.shapeshed.aerial.data.sortStations
-import com.shapeshed.aerial.data.lastPlayedStationSnapshot
-import com.shapeshed.aerial.data.toLastPlayedJson
-import com.shapeshed.aerial.data.parseTrackMetadata
+import com.shapeshed.aerial.data.queueForResumption
+import com.shapeshed.aerial.data.normalizeTrackMetadata
+import com.shapeshed.aerial.data.buildPlaybackQueuePlan
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import java.io.File
@@ -75,37 +73,6 @@ private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val RECENTLY_PLAYED_LIMIT = 10
 
-/** Keeps a favourite usable when its app-private cached logo disappeared during reinstall. */
-internal fun recoverLogoPath(storedPath: String, remoteLogoUrl: String, fileExists: Boolean): String =
-    when {
-        // A file that still exists may be artwork explicitly selected by the user. It is the
-        // authoritative value; the registry URL is only a recovery source for missing cached
-        // files (for example after restoring a backup or reinstalling the app).
-        fileExists -> storedPath
-        remoteLogoUrl.isNotBlank() -> remoteLogoUrl
-        else -> storedPath
-    }
-
-/** Chooses artwork for a recently-played registry row when a saved logo file may be stale. */
-internal fun recentlyPlayedLogoPath(storedPath: String, remoteLogoUrl: String): String =
-    recoverLogoPath(
-        storedPath = storedPath,
-        remoteLogoUrl = remoteLogoUrl,
-        fileExists = storedPath.isNotBlank() && !storedPath.startsWith("http") && File(storedPath).isFile,
-    )
-
-/** Reorders an existing Media3 playlist without clearing or preparing the active item. */
-internal fun reorderPlayerPlaylist(player: Player, current: List<Station>, desired: List<Station>) {
-    val working = current.toMutableList()
-    desired.forEachIndexed { targetIndex, station ->
-        val currentIndex = working.indexOfFirst { it.matches(station) }
-        if (currentIndex >= 0 && currentIndex != targetIndex) {
-            player.moveMediaItem(currentIndex, targetIndex)
-            working.add(targetIndex, working.removeAt(currentIndex))
-        }
-    }
-}
-
 @HiltViewModel
 class MainViewModel @Inject constructor(
     application: Application,
@@ -116,9 +83,12 @@ class MainViewModel @Inject constructor(
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
+    private val networkMonitor: NetworkMonitor = (application as AerialApp).networkMonitor,
+    private val mediaControllerGateway: MediaControllerGateway = DefaultMediaControllerGateway(),
 ) : AndroidViewModel(application) {
 
-    val isOnline = (application as AerialApp).networkMonitor.isOnline
+    val isOnline = networkMonitor.isOnline
+    private val playbackSnapshotStore = PlaybackSnapshotStore(dataStore)
     private val searchStateHolder = SearchStateHolder(
         scope = viewModelScope,
         repository = repository,
@@ -276,17 +246,12 @@ class MainViewModel @Inject constructor(
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
     private val _activeFavoritesOrder = MutableStateFlow<List<Long>?>(null)
+    private val favoritesQueueCoordinator = FavoritesQueueCoordinator()
 
     private fun favoritesOrder(queue: List<Station>): List<Long>? {
-        if (queue.size < 2 || queue.any { it.id == 0L }) return null
         val favorites = _allStations.value.filter(Station::isFavorite)
-        return queue.takeIf { ordered ->
-            ordered.size == favorites.size && favorites.all { favorite -> ordered.any { it.matches(favorite) } }
-        }?.map(Station::id)
+        return favoritesQueueCoordinator.persistedOrder(queue, favorites)
     }
-
-    private fun sortFavorites(stations: List<Station>, sort: FavoritesSort): List<Station> =
-        sortStations(stations.filter(Station::isFavorite), sort)
 
     fun setFavoritesSort(sort: FavoritesSort) {
         _favoritesSort.value = sort
@@ -302,11 +267,8 @@ class MainViewModel @Inject constructor(
         if (activeQueue.size < 2) return
 
         val favorites = _allStations.value.filter(Station::isFavorite)
-        val isFavoritesQueue = favorites.size == activeQueue.size &&
-            favorites.all { favorite -> activeQueue.any { it.matches(favorite) } }
-        if (!isFavoritesQueue) return
-
-        val reorderedQueue = sortStations(favorites, sort)
+        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
+            ?: return
         _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
         controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
@@ -315,10 +277,7 @@ class MainViewModel @Inject constructor(
     }
 
     val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort, _activeFavoritesOrder) { list, sort, activeOrder ->
-        val sorted = sortFavorites(list, sort)
-        activeOrder?.let { order ->
-            sorted.sortedBy { station -> order.indexOf(station.id).takeIf { it >= 0 } ?: Int.MAX_VALUE }
-        } ?: sorted
+        favoritesQueueCoordinator.sortForDisplay(list, sort, activeOrder)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _currentStationId = MutableStateFlow<Long?>(null)
@@ -369,11 +328,8 @@ class MainViewModel @Inject constructor(
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
         val favorites = stations.filter(Station::isFavorite)
-        val isFavoritesQueue = favorites.size == activeQueue.size &&
-            favorites.all { favorite -> activeQueue.any { it.matches(favorite) } }
-        if (!isFavoritesQueue) return
-
-        val reorderedQueue = sortStations(favorites, sort)
+        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
+            ?: return
         if (reorderedQueue.map(Station::id) == activeQueue.map(Station::id)) return
         _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
@@ -628,8 +584,7 @@ class MainViewModel @Inject constructor(
     fun connect(context: Context) {
         if (controllerFuture != null) return
         val appContext = context.applicationContext
-        val token = SessionToken(appContext, ComponentName(appContext, PlayerService::class.java))
-        controllerFuture = MediaController.Builder(appContext, token).buildAsync()
+        controllerFuture = mediaControllerGateway.connect(appContext)
         controllerFuture?.addListener({
             controller = controllerFuture?.get()
             controller?.addListener(playerListener)
@@ -686,7 +641,7 @@ class MainViewModel @Inject constructor(
             }
             repository.delete(station)
             if (!isCurrent) {
-                withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
+                withContext(Dispatchers.IO) { deleteStationArtworkFiles(station.logoPath) }
             }
         }
     }
@@ -774,20 +729,21 @@ class MainViewModel @Inject constructor(
     }
 
     private fun applyPlaybackMetadata(title: String?, artist: String?) {
-        val parsed = parseTrackMetadata(title, artist)
-        val normalizedTitle = parsed.title?.takeIf { it != liveRadio() && !isStationName(it) }
-        val normalizedArtist = parsed.artist?.takeIf { it != liveRadio() && !isStationName(it) }
-        _playbackUiState.value = _playbackUiState.value.copy(
-            trackTitle = normalizedTitle ?: normalizedArtist,
-            trackArtist = normalizedArtist,
-        )
-    }
-
-    private fun isStationName(value: String): Boolean {
         val playback = _playbackUiState.value
-        return playback.station?.name?.equals(value, ignoreCase = true) == true ||
-            playback.queue.any { it.name.equals(value, ignoreCase = true) } ||
-            _allStations.value.any { it.name.equals(value, ignoreCase = true) }
+        val normalized = normalizeTrackMetadata(
+            title = title,
+            artist = artist,
+            liveRadioLabel = liveRadio(),
+            stationNames = buildList {
+                playback.station?.name?.let(::add)
+                addAll(playback.queue.map(Station::name))
+                addAll(_allStations.value.map(Station::name))
+            },
+        )
+        _playbackUiState.value = _playbackUiState.value.copy(
+            trackTitle = normalized.title,
+            trackArtist = normalized.artist,
+        )
     }
 
     private fun syncPlaybackState(player: Player?, resolvedStation: Station? = null) {
@@ -838,34 +794,8 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    private fun resolveStation(mediaItem: MediaItem?): Station? {
-        val item = mediaItem ?: return null
-        val extras = item.mediaMetadata.extras
-        val streamUrl = extras?.getString("streamUrl").orEmpty()
-        val provider = extras?.getString("provider").orEmpty()
-        val providerId = extras?.getString("providerId").orEmpty()
-        // Resolve to a saved row the same way PlayerService.stationForMediaItem does:
-        // numeric mediaId first, then provider identity, then stream URL.
-        val saved = item.mediaId.toLongOrNull()
-            ?.let { id -> _allStations.value.firstOrNull { it.id == id } }
-            ?: _allStations.value.firstOrNull {
-                provider.isNotBlank() && providerId.isNotBlank() &&
-                    it.provider == provider && it.providerId == providerId
-            }
-            ?: _allStations.value.firstOrNull { streamUrl.isNotBlank() && it.streamUrl == streamUrl }
-        return saved ?: streamUrl.takeIf { it.isNotBlank() }?.let {
-            Station(
-                name = stationNameFromMediaMetadata(
-                    item.mediaMetadata.extras?.getString("stationName"),
-                    item.mediaMetadata.title,
-                ),
-                streamUrl = streamUrl,
-                logoPath = extras?.getString("logoPath").orEmpty(),
-                provider = provider,
-                providerId = providerId,
-            )
-        }
-    }
+    private fun resolveStation(mediaItem: MediaItem?): Station? =
+        stationFromMediaItem(mediaItem, _allStations.value)
 
     private fun setCurrentStation(station: Station?) {
         val changed = stationChanged(station)
@@ -940,25 +870,20 @@ class MainViewModel @Inject constructor(
         // Use the recovered station instance for every playback surface. This preserves a
         // user-edited logo while supplying the registry fallback for imported rows whose old
         // local artwork path no longer exists (including the mini-player).
-        val recoveredStations = _allStations.value
-        val playbackStation = recoveredStations.firstOrNull { it.matches(station) } ?: station
-        val playbackQueue = queue.map { queued ->
-            recoveredStations.firstOrNull { it.matches(queued) } ?: queued
-        }
-        _activeFavoritesOrder.value = favoritesOrder(playbackQueue)
-        setCurrentStation(playbackStation)
+        val playbackPlan = buildPlaybackQueuePlan(station, queue, _allStations.value)
+        _activeFavoritesOrder.value = favoritesOrder(playbackPlan.requestedQueue)
+        setCurrentStation(playbackPlan.station)
         _playbackUiState.value = _playbackUiState.value.copy(
-            queue = playbackQueue.takeIf { resolveQueueStart(it, playbackStation) != null }
-                ?: listOf(playbackStation),
+            queue = playbackPlan.playerQueue,
         )
-        persistLastPlayedStation(playbackStation, playbackQueue)
-        val startIndex = resolveQueueStart(playbackQueue, playbackStation)
+        persistLastPlayedStation(playbackPlan.station, playbackPlan.requestedQueue)
+        val startIndex = playbackPlan.startIndex
         controller?.let { mediaController ->
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     if (startIndex != null) {
                         val mediaItems = coroutineScope {
-                            playbackQueue.map { station ->
+                            playbackPlan.requestedQueue.map { station ->
                                 async { station.toSystemPlayableMediaItem(getApplication()) }
                             }.awaitAll()
                         }
@@ -966,7 +891,7 @@ class MainViewModel @Inject constructor(
                             mediaController.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
                         }
                     } else {
-                        val mediaItem = playbackStation.toSystemPlayableMediaItem(getApplication())
+                        val mediaItem = playbackPlan.station.toSystemPlayableMediaItem(getApplication())
                         withContext(Dispatchers.Main.immediate) {
                             mediaController.setMediaItem(mediaItem)
                         }
@@ -1008,7 +933,7 @@ class MainViewModel @Inject constructor(
         setCurrentStation(null)
         _playbackUiState.value = PlaybackUiState()
         viewModelScope.launch {
-            dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
+            playbackSnapshotStore.clear()
             suppressLastPlayedPersist = false
         }
     }
@@ -1046,15 +971,15 @@ class MainViewModel @Inject constructor(
         }
         clearLastPlayedStationIfMatching(station)
         repository.delete(station)
-        withContext(Dispatchers.IO) { deleteLogoFiles(station.logoPath) }
+        withContext(Dispatchers.IO) { deleteStationArtworkFiles(station.logoPath) }
     }
 
     override fun onCleared() {
-        controllerFuture?.let { MediaController.releaseFuture(it) }
+        controllerFuture?.let(mediaControllerGateway::release)
     }
 
     private suspend fun restoreLastPlayedStation() {
-        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
+        val snapshot = playbackSnapshotStore.read()
         if (snapshot == null) {
             pendingRestoreStation.complete(null)
             return
@@ -1076,34 +1001,25 @@ class MainViewModel @Inject constructor(
 
     private fun persistLastPlayedStation(station: Station, queue: List<Station> = emptyList()) {
         viewModelScope.launch {
-            dataStore.edit { prefs ->
-                val existingQueue = prefs[LAST_PLAYED_STATION_KEY]
-                    ?.let(::lastPlayedStationSnapshot)
-                    ?.queue
-                    .orEmpty()
-                prefs[LAST_PLAYED_STATION_KEY] = station
-                    .toLastPlayedJson(queue.ifEmpty { existingQueue })
-                    .toString()
-            }
+            playbackSnapshotStore.write(station, queue)
         }
     }
 
     private fun clearLastPlayedStationIfMatching(station: Station) {
         viewModelScope.launch {
-            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot) ?: return@launch
-            if (snapshot.station.id == station.id || snapshot.station.streamUrl == station.streamUrl) {
-                dataStore.edit { prefs -> prefs.remove(LAST_PLAYED_STATION_KEY) }
-            }
+            playbackSnapshotStore.clearIfMatching(station)
         }
     }
 
     private suspend fun loadStationPaused(station: Station) {
         // Prefer the exact timeline captured by the Media3 session. Legacy snapshots did not
         // include a queue, so only those fall back to rebuilding from the database and sort.
-        val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]
-            ?.let(::lastPlayedStationSnapshot)
-        val storedQueue = snapshot?.queue?.takeIf { it.size > 1 }
-            ?: sortStations(repository.getAll().first(), _favoritesSort.value)
+        val snapshot = playbackSnapshotStore.read()
+        val storedQueue = queueForResumption(
+            snapshotQueue = snapshot?.queue.orEmpty(),
+            fallbackStations = repository.getAll().first(),
+            sort = _favoritesSort.value,
+        )
         // Backups can contain paths to the old app-private logo directory. Resolve every
         // restored entry through the registry before constructing Media3 items; otherwise the
         // missing local path produces the fallback app icon in system controls.
@@ -1144,26 +1060,3 @@ class MainViewModel @Inject constructor(
 }
 
 private fun Station.toEphemeral(): Station = copy(id = 0)
-
-private fun deleteLogoFiles(logoPath: String) {
-    if (logoPath.isBlank() || logoPath.startsWith("http")) return
-    val file = java.io.File(logoPath)
-    file.delete()
-    java.io.File(file.parentFile, "${file.nameWithoutExtension}_media.png").delete()
-}
-
-internal fun playbackErrorMessageRes(errorCode: Int): Int =
-    when (errorCode) {
-        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
-        PlaybackException.ERROR_CODE_TIMEOUT,
-        -> R.string.playback_connection_failed
-        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
-        PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
-        PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
-        PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
-        -> R.string.playback_format_unsupported
-        else -> R.string.playback_failed
-    }

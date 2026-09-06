@@ -63,10 +63,14 @@ Run the suites with:
 ./gradlew validateDebugScreenshotTest
 
 # Isolated instrumented tests on an attached device or emulator
+./scripts/check-device-ready.sh
 ./gradlew connectedDeviceTestAndroidTest
 
 # Release verification
 ./gradlew test lint assembleRelease bundleRelease
+
+# Release shrinker/configuration verification
+./gradlew assembleRelease analyzeReleaseR8Config
 ```
 
 Do not change `testBuildType` to `debug` and do not use package-clearing
@@ -75,6 +79,13 @@ commands against `com.shapeshed.aerial` while running tests.
 CI runs the quality gate, screenshot validation, local coverage, and isolated
 emulator tests. Local JUnit reports, coverage, and instrumented reports are
 uploaded as build artifacts when available, including after failures.
+
+### External coverage tracking
+
+CI can upload the JaCoCo XML report to Codecov for project and pull-request
+trends. Add a `CODECOV_TOKEN` repository secret in GitHub; the upload step is
+skipped when the secret is absent. The local JaCoCo verification task remains
+the required, provider-independent coverage gate.
 
 ## Dependency injection
 

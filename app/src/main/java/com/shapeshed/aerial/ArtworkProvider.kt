@@ -28,17 +28,11 @@ class ArtworkProvider : ContentProvider() {
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val context = context ?: throw FileNotFoundException(uri.toString())
         val segments = uri.pathSegments
+        if (segments.size != 2) throw FileNotFoundException(uri.toString())
         val dirName = segments.getOrNull(0) ?: throw FileNotFoundException(uri.toString())
         val fileName = segments.getOrNull(1) ?: throw FileNotFoundException(uri.toString())
-        val dir = when (dirName) {
-            REGISTRY_ARTWORK_DIR -> File(context.cacheDir, REGISTRY_ARTWORK_DIR)
-            LOCAL_LOGO_DIR -> File(context.filesDir, LOCAL_LOGO_DIR)
-            else -> throw FileNotFoundException(uri.toString())
-        }
-        val file = File(dir, fileName)
-        if (file.canonicalFile.parentFile != dir.canonicalFile || !file.exists()) {
-            throw FileNotFoundException(uri.toString())
-        }
+        val file = resolveArtworkFile(context, dirName, fileName)
+            ?: throw FileNotFoundException(uri.toString())
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }
 
@@ -70,4 +64,14 @@ class ArtworkProvider : ContentProvider() {
         fun uriFor(context: android.content.Context, dir: String, fileName: String): Uri =
             "content://${context.packageName}.artwork/$dir/$fileName".toUri()
     }
+}
+
+internal fun resolveArtworkFile(context: android.content.Context, directory: String, fileName: String): File? {
+    val dir = when (directory) {
+        ArtworkProvider.REGISTRY_ARTWORK_DIR -> File(context.cacheDir, directory)
+        ArtworkProvider.LOCAL_LOGO_DIR -> File(context.filesDir, directory)
+        else -> return null
+    }
+    val file = File(dir, fileName)
+    return file.takeIf { it.canonicalFile.parentFile == dir.canonicalFile && it.isFile }
 }

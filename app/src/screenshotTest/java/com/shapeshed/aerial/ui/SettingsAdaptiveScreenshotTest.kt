@@ -35,6 +35,7 @@ import com.android.tools.screenshot.PreviewTest
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.ui.theme.AerialTheme
 import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
 
 @Preview(name = "400x400", device = "spec:width=400dp,height=400dp,dpi=420")
@@ -90,16 +91,31 @@ fun ExpandedNavigationScreenshot() {
 }
 
 @PreviewTest
-@Preview(name = "Favorites compact", device = "spec:width=400dp,height=500dp,dpi=420")
+@AdaptiveFormFactorPreviews
 @Composable
-fun CompactFavoritesScreenshot() {
+fun FavoritesAdaptiveScreenshot() {
     FavoritesScreenshotContent()
 }
 
 @PreviewTest
-@Preview(name = "Favorites expanded", device = "spec:width=900dp,height=500dp,dpi=420")
+@Preview(
+    name = "Favorites dark",
+    device = "spec:width=400dp,height=500dp,dpi=420",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
-fun ExpandedFavoritesScreenshot() {
+fun FavoritesDarkScreenshot() {
+    FavoritesScreenshotContent()
+}
+
+@PreviewTest
+@Preview(
+    name = "Favorites large font",
+    device = "spec:width=400dp,height=500dp,dpi=420",
+    fontScale = 1.5f,
+)
+@Composable
+fun FavoritesLargeFontScreenshot() {
     FavoritesScreenshotContent()
 }
 
@@ -121,6 +137,48 @@ fun MediumHomeScreenshot() {
 @Preview(name = "Home expanded", device = "spec:width=900dp,height=500dp,dpi=420")
 @Composable
 fun ExpandedHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationRail)
+}
+
+@PreviewTest
+@Preview(name = "Home compact short", device = "spec:width=400dp,height=400dp,dpi=420")
+@Composable
+fun CompactShortHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationBar)
+}
+
+@PreviewTest
+@Preview(name = "Home compact tall", device = "spec:width=400dp,height=1000dp,dpi=420")
+@Composable
+fun CompactTallHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationBar)
+}
+
+@PreviewTest
+@Preview(name = "Home medium short", device = "spec:width=610dp,height=400dp,dpi=420")
+@Composable
+fun MediumShortHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationRail)
+}
+
+@PreviewTest
+@Preview(name = "Home medium tall", device = "spec:width=610dp,height=1000dp,dpi=420")
+@Composable
+fun MediumTallHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationRail)
+}
+
+@PreviewTest
+@Preview(name = "Home expanded short", device = "spec:width=900dp,height=400dp,dpi=420")
+@Composable
+fun ExpandedShortHomeScreenshot() {
+    HomeScreenshotContent(NavigationSuiteType.NavigationRail)
+}
+
+@PreviewTest
+@Preview(name = "Home expanded tall", device = "spec:width=900dp,height=1000dp,dpi=420")
+@Composable
+fun ExpandedTallHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
@@ -170,6 +228,31 @@ fun MiniPlayerScreenshot() {
     }
 }
 
+@PreviewTest
+@Preview(name = "Now playing compact", device = "spec:width=400dp,height=500dp,dpi=420")
+@Composable
+fun CompactNowPlayingScreenshot() {
+    NowPlayingScreenshotContent()
+}
+
+@PreviewTest
+@Preview(name = "Now playing medium", device = "spec:width=610dp,height=500dp,dpi=420")
+@Composable
+fun MediumNowPlayingScreenshot() {
+    NowPlayingScreenshotContent()
+}
+
+@PreviewTest
+@Preview(
+    name = "Now playing dark",
+    device = "spec:width=400dp,height=500dp,dpi=420",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun DarkNowPlayingScreenshot() {
+    NowPlayingScreenshotContent()
+}
+
 @Composable
 private fun FavoritesScreenshotContent() {
     AerialTheme(dynamicColor = false) {
@@ -188,6 +271,31 @@ private fun FavoritesScreenshotContent() {
             onHomeViewModeChange = {},
             onSortSelected = {},
             onStationLongPress = {},
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingScreenshotContent() {
+    AerialTheme(dynamicColor = false) {
+        NowPlayingScreen(
+            station = previewStations.first().copy(isFavorite = true),
+            isPlaying = true,
+            isBuffering = false,
+            currentTrackTitle = "Mango Groove",
+            currentTrackArtist = "Aerial Preview",
+            currentBitrateKbps = 192,
+            showStreamBitrate = true,
+            sleepTimer = SleepTimerState(totalMs = 30 * 60 * 1000L, remainingMs = 18 * 60 * 1000L),
+            swipeStations = previewStations.take(3),
+            onPlayStation = {},
+            onPreviousStation = {},
+            onNextStation = {},
+            onToggle = {},
+            onToggleFavorite = {},
+            onSetSleepTimer = {},
+            onCancelSleepTimer = {},
+            onDismiss = {},
         )
     }
 }
@@ -348,7 +456,6 @@ private fun SettingsScreenshotContent() {
     SettingsContent(
         showStreamBitrate = true,
         showHome = true,
-        versionName = "preview",
         snackbarHostState = SnackbarHostState(),
         onShowStreamBitrateChange = {},
         onShowHomeChange = {},
