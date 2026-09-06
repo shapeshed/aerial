@@ -1,4 +1,4 @@
-- Polish translation, contributed by `tmpjx555` via Weblate.
+- Polish translation, contributed by @tmpjx555.
 - Fixed single-station playback controls and preserved compact Now Playing metadata.
 - Kept playback queues and Media3 controls consistent across favourites, notifications, Bluetooth, and Android Auto.
 - Improved playback resumption, stream metadata, and transparent station artwork handling.
