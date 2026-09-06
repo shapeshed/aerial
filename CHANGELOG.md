@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- Polish translation, contributed by `tmpjx555` via Weblate.
+- Polish translation, contributed by [@tmpjx555](https://github.com/tmpjx555).
 
 ### Fixed
 
