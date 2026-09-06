@@ -11,7 +11,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
@@ -45,25 +44,21 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
-import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
-import com.shapeshed.aerial.data.FavoritesSort
-import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.httpGetText
-import com.shapeshed.aerial.data.lastPlayedStationSnapshot
 import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.resolveStreamUrl
+import com.shapeshed.aerial.data.queueForResumption
+import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
-import com.shapeshed.aerial.data.sortStations
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseTrackMetadata
-import com.shapeshed.aerial.data.toLastPlayedJson
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import kotlinx.coroutines.CoroutineScope
@@ -96,6 +91,7 @@ class PlayerService : MediaLibraryService() {
     private lateinit var repository: StationRepository
     private lateinit var registryRepository: RegistryRepository
     private lateinit var mediaBrowseTree: MediaBrowseTree
+    private val playbackSnapshotStore by lazy { PlaybackSnapshotStore(dataStore) }
     private var stations: List<Station> = emptyList()
     private val parentIdByMediaId = mutableMapOf<String, String>()
     private var lastRecordedStationKey: String? = null
@@ -484,19 +480,11 @@ class PlayerService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            val snapshot = dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
+            val snapshot = playbackSnapshotStore.read()
                 ?: throw UnsupportedOperationException("No last-played station to resume")
             val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
                 ?: repository.getByStreamUrl(snapshot.station.streamUrl)
-            val queue = snapshot.queue.takeIf { it.size > 1 } ?: run {
-                // Backward compatibility for snapshots written before ordered queues were
-                // persisted. New snapshots restore the exact Media3 timeline instead of
-                // rebuilding it from mutable Last/Most Played statistics.
-                val sort = dataStore.data.first()[FAVORITES_SORT_KEY]
-                    ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
-                    ?: FavoritesSort.AZ
-                sortStations(repository.getAll().first(), sort)
-            }
+            val queue = queueForResumption(snapshot.queue, repository.getAll().first(), playbackSnapshotStore.favoriteSort())
             val resumed = savedStation ?: snapshot.station.copy(id = 0)
             val startIndex = resolveQueueStart(queue, resumed)
             if (startIndex != null) {
@@ -534,7 +522,7 @@ class PlayerService : MediaLibraryService() {
     // every phone-played unsaved station — so buffering pauses and same-station restarts
     // don't double-count; playing a different station in between resets the guard.
     private fun recordPlayOnce() {
-        val station = stationForMediaItem(player.currentMediaItem) ?: return
+        val station = stationFromMediaItem(player.currentMediaItem, stations) ?: return
         val stationKey = "${station.provider}|${station.providerId}|${station.streamUrl}"
         if (stationKey == lastRecordedStationKey) return
         lastRecordedStationKey = stationKey
@@ -618,47 +606,13 @@ class PlayerService : MediaLibraryService() {
         SleepTimerStore.set(null)
     }
 
-    private fun currentStation(): Station? = stationForMediaItem(player.currentMediaItem)
+    private fun currentStation(): Station? = stationFromMediaItem(player.currentMediaItem, stations)
 
     private fun persistPlaybackSnapshot() {
         val current = currentStation() ?: return
         val queue = (0 until player.mediaItemCount)
-            .mapNotNull { index -> stationForMediaItem(player.getMediaItemAt(index)) }
-        serviceScope.launch {
-            dataStore.edit { preferences ->
-                preferences[LAST_PLAYED_STATION_KEY] = current.toLastPlayedJson(queue).toString()
-            }
-        }
-    }
-
-    private fun stationForMediaItem(mediaItem: MediaItem?): Station? {
-        if (mediaItem == null) return null
-        mediaItem.mediaId.toLongOrNull()?.let { id ->
-            stations.firstOrNull { it.id == id }?.let { return it }
-        }
-        val extras = mediaItem.mediaMetadata.extras ?: return null
-        val streamUrl = extras.getString("streamUrl")?.takeIf { it.isNotBlank() } ?: return null
-        // A station playing under an ephemeral mediaId ("0" from the phone, "reg:4492" from
-        // the Android Auto browse tree) may still exist as a saved row — matched the same way
-        // StationRepository.findExisting does — and must resolve to it, or the favorite toggle
-        // would see isFavorite=false forever and re-save instead of unfavoriting.
-        val provider = extras.getString("provider").orEmpty()
-        val providerId = extras.getString("providerId").orEmpty()
-        if (provider.isNotBlank() && providerId.isNotBlank()) {
-            stations.firstOrNull { it.provider == provider && it.providerId == providerId }?.let { return it }
-        }
-        stations.firstOrNull { it.streamUrl == streamUrl }?.let { return it }
-        return Station(
-            id = 0,
-            name = stationNameFromMediaMetadata(
-                mediaItem.mediaMetadata.extras?.getString("stationName"),
-                mediaItem.mediaMetadata.title,
-            ),
-            streamUrl = streamUrl,
-            logoPath = extras.getString("logoPath").orEmpty(),
-            provider = provider,
-            providerId = providerId,
-        )
+            .mapNotNull { index -> stationFromMediaItem(player.getMediaItemAt(index), stations) }
+        serviceScope.launch { playbackSnapshotStore.write(current, queue) }
     }
 
     private fun replaceCurrentMediaItem(
@@ -743,71 +697,10 @@ class PlayerService : MediaLibraryService() {
     }
 }
 
-@OptIn(UnstableApi::class)
-internal fun createSessionPlayer(player: Player): Player = object : ForwardingPlayer(player) {
-    override fun seekToPrevious() = seekToPreviousMediaItem()
-    override fun seekToNext() = seekToNextMediaItem()
-
-    // Repeat-all is intentional for station queues, but it also makes a one-item timeline
-    // report next/previous as available. That causes redundant controls to appear in the
-    // notification and on the lock screen, where both actions would only restart the same
-    // station.
-    override fun isCommandAvailable(command: Int): Boolean =
-        command.isSkipCommandAvailableFor(player.mediaItemCount) &&
-            super.isCommandAvailable(command)
-
-    override fun getAvailableCommands(): Player.Commands =
-        super.getAvailableCommands().withoutSkipCommandsFor(player.mediaItemCount)
-}
-
-private fun Int.isSkipCommandAvailableFor(mediaItemCount: Int): Boolean =
-    mediaItemCount > 1 || this !in SKIP_COMMANDS
-
-@OptIn(UnstableApi::class)
-private fun Player.Commands.withoutSkipCommandsFor(mediaItemCount: Int): Player.Commands =
-    if (mediaItemCount > 1) {
-        this
-    } else {
-        buildUpon().removeAll(*SKIP_COMMANDS).build()
-    }
-
-private val SKIP_COMMANDS = intArrayOf(
-    Player.COMMAND_SEEK_TO_PREVIOUS,
-    Player.COMMAND_SEEK_TO_NEXT,
-    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-)
-
 /** Re-prepares a failed item without replacing the player's timeline. */
 @OptIn(UnstableApi::class)
 internal fun reconnectPlayerAfterError(player: Player, shouldResume: Boolean = player.playWhenReady) {
     player.stop()
     player.prepare()
     player.playWhenReady = shouldResume
-}
-
-@OptIn(UnstableApi::class)
-internal suspend fun expandControllerQueue(
-    mediaItems: List<MediaItem>,
-    startIndex: Int,
-    startPositionMs: Long,
-    controllerPackage: String,
-    appPackage: String,
-    parentIdForMediaId: (String) -> String?,
-    childrenForParent: suspend (String) -> List<MediaItem>?,
-    resolveMediaItem: suspend (String) -> MediaItem?,
-): MediaSession.MediaItemsWithStartPosition {
-    val effectiveIndex = startIndex.takeIf { it in mediaItems.indices } ?: 0
-    val tappedId = mediaItems.getOrNull(effectiveIndex)?.mediaId
-    val parentId = tappedId
-        ?.takeIf { mediaItems.size == 1 && controllerPackage != appPackage }
-        ?.let(parentIdForMediaId)
-    val siblings = if (parentId != null) childrenForParent(parentId) else null
-    val siblingIndex = siblings?.indexOfFirst { it.mediaId == tappedId } ?: -1
-    return if (siblings != null && siblingIndex >= 0) {
-        MediaSession.MediaItemsWithStartPosition(siblings, siblingIndex, startPositionMs)
-    } else {
-        val resolved = mediaItems.map { item -> resolveMediaItem(item.mediaId) ?: item }
-        MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
-    }
 }

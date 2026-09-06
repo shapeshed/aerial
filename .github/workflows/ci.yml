@@ -44,6 +44,9 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      - name: Verify minified release and R8 configuration
+        run: ./gradlew assembleRelease analyzeReleaseR8Config
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
@@ -80,7 +83,16 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Run local unit tests with coverage
-        run: ./gradlew jacocoDeviceTestUnitTestReport
+        run: ./gradlew jacocoDeviceTestUnitTestReport jacocoDeviceTestUnitTestCoverageVerification
+
+      - name: Upload JaCoCo coverage to Codecov
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./app/build/reports/jacoco/jacocoDeviceTestUnitTestReport/jacocoDeviceTestUnitTestReport.xml
+          flags: device-test-unit
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Start Android emulator and run isolated device tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -91,7 +103,7 @@ jobs:
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           disable-animations: true
-          script: ./gradlew connectedDeviceTestAndroidTest
+          script: ./scripts/check-device-ready.sh && ./gradlew connectedDeviceTestAndroidTest
 
       - name: Upload unit coverage report
         if: always()

@@ -75,6 +75,23 @@ fun sortStations(stations: List<Station>, sort: FavoritesSort): List<Station> = 
     )
 }
 
+/** Returns true when two station collections contain the same station identities. */
+fun haveSameStationIdentities(left: List<Station>, right: List<Station>): Boolean {
+    if (left.size != right.size) return false
+    val rightKeys = right.flatMapTo(mutableSetOf(), Station::identityKeys)
+    return left.all { station -> station.identityKeys().any(rightKeys::contains) }
+}
+
+/** Builds a linear-time lookup for a persisted queue order. */
+fun stationOrder(ids: List<Long>): Map<Long, Int> =
+    ids.mapIndexed { index, id -> id to index }.toMap()
+
+private fun Station.identityKeys(): Set<String> = buildSet {
+    if (id != 0L) add("id:$id")
+    if (streamUrl.isNotBlank()) add("url:$streamUrl")
+    if (provider.isNotBlank() && providerId.isNotBlank()) add("provider:$provider:$providerId")
+}
+
 // Maps English number words and digit strings to zero-padded numbers so that
 // "BBC Radio One", "BBC Radio Two" … sort in numeric order rather than alphabetically.
 private val NUMBER_WORDS = mapOf(

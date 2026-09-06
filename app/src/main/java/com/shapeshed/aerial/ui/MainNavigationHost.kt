@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -19,14 +20,19 @@ internal fun MainNavigationHost(
     settingsContent: @Composable (onDismiss: () -> Unit) -> Unit,
     stationEditContent: @Composable (stationId: Long?, onDismiss: () -> Unit) -> Unit,
 ) {
+    val saveableStateDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+    val viewModelDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
+    val decorators = androidx.compose.runtime.remember<List<NavEntryDecorator<NavKey>>>(
+        saveableStateDecorator,
+        viewModelDecorator,
+    ) {
+        listOf(saveableStateDecorator, viewModelDecorator)
+    }
     NavDisplay(
         backStack = backStack,
         onBack = { navigator.goBack() },
         modifier = Modifier.fillMaxSize(),
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator(),
-        ),
+        entryDecorators = decorators,
         entryProvider = entryProvider {
             entry<AerialRoute.Home> { renderMainRoute(TAB_HOME, null) }
             entry<AerialRoute.Favorites> { renderMainRoute(TAB_FAVORITES, null) }

@@ -96,6 +96,51 @@ class FavoritesViewModeTransitionTest {
         composeRule.onNodeWithTag("favorites-controls").assertDoesNotExist()
     }
 
+    @Test
+    fun startingPlaybackDoesNotChangeFavoriteCardHeight() {
+        val station = Station(
+            id = 1L,
+            name = "Station 1",
+            streamUrl = "https://example.test/1",
+        )
+
+        composeRule.setContent {
+            var currentStation by remember { mutableStateOf<Station?>(null) }
+            var isPlaying by remember { mutableStateOf(false) }
+            AerialTheme(dynamicColor = false) {
+                FavoritesTabContent(
+                    stations = listOf(station),
+                    currentStation = currentStation,
+                    isPlaying = isPlaying,
+                    isBuffering = false,
+                    homeViewMode = HomeViewMode.Cards,
+                    favoritesSort = FavoritesSort.AZ,
+                    gridState = rememberLazyGridState(),
+                    onScrollToTop = {},
+                    bottomPadding = 0.dp,
+                    onPlay = {
+                        currentStation = it
+                        isPlaying = true
+                    },
+                    onRemoveFavorite = {},
+                    onHomeViewModeChange = {},
+                    onSortSelected = {},
+                    onStationLongPress = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val idleHeight = composeRule.onNodeWithTag("favorite-card-1")
+            .fetchSemanticsNode().boundsInRoot.height
+
+        composeRule.onNodeWithTag("favorite-card-1").performClick()
+        composeRule.waitForIdle()
+        val playingHeight = composeRule.onNodeWithTag("favorite-card-1")
+            .fetchSemanticsNode().boundsInRoot.height
+
+        assertEquals(idleHeight, playingHeight)
+    }
+
     private fun waitForTag(tag: String) {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             try {

@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.dataStore
 import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.StationRepository
 import dagger.Module
 import dagger.Provides
@@ -28,8 +29,18 @@ object UiModule {
 
     @Provides
     @Singleton
+    fun provideNetworkMonitor(application: Application): NetworkMonitor =
+        NetworkMonitor(application)
+
+    @Provides
+    @Singleton
     fun provideArtworkLoader(application: Application): ArtworkLoader =
         CoilArtworkLoader(application)
+
+    @Provides
+    @Singleton
+    fun provideMediaControllerGateway(): MediaControllerGateway =
+        DefaultMediaControllerGateway()
 
     @Provides
     @Singleton

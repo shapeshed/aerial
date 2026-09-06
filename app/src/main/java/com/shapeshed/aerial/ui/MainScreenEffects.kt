@@ -48,12 +48,9 @@ internal fun MainScreenEffects(
         textFieldState.edit { replace(0, length, "") }
         scope.launch { searchBarState.animateToCollapsed() }
     }
-    LaunchedEffect(searchQueryText) {
-        viewModel.searchRegistry(searchQueryText)
-    }
-    LaunchedEffect(isSearchExpanded) {
-        if (isSearchExpanded) viewModel.searchRegistry(searchQueryText)
-    }
+    // SearchStateHolder debounces and distincts this event stream. Dispatching from
+    // the query effect only also avoids running the same query when the bar expands.
+    LaunchedEffect(searchQueryText) { viewModel.searchRegistry(searchQueryText) }
     LaunchedEffect(recentlyAddedStationId) {
         val stationId = recentlyAddedStationId ?: return@LaunchedEffect
         delay(1_500)

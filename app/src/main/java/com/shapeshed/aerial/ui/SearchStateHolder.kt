@@ -9,12 +9,17 @@ import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -25,6 +30,7 @@ private val SEARCH_COUNTRIES_KEY = stringPreferencesKey("search_countries")
 private val SEARCH_TAGS_KEY = stringPreferencesKey("search_tags")
 private const val MAX_RECENT_SEARCHES = 5
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 internal class SearchStateHolder(
     private val scope: CoroutineScope,
     private val repository: StationRepository,
@@ -47,8 +53,32 @@ internal class SearchStateHolder(
         .map { preferences -> preferences.recentSearches() }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private var lastQuery = ""
-    private var searchJob: Job? = null
+    private data class SearchRequest(
+        val query: String,
+        val countries: Set<String>,
+        val tags: Set<String>,
+    )
+
+    private val searchRequests = MutableStateFlow(SearchRequest("", emptySet(), emptySet()))
+
+    init {
+        searchRequests
+            .debounce(SEARCH_DEBOUNCE_MS)
+            .distinctUntilChanged()
+            .mapLatest { request ->
+                if (request.query.isBlank()) {
+                    _favoriteResults.value = emptyList()
+                } else {
+                    _favoriteResults.value = repository.searchFavorites(request.query)
+                }
+                _registryResults.value = registryRepository.search(
+                    request.query,
+                    request.countries,
+                    request.tags,
+                )
+            }
+            .launchIn(scope)
+    }
 
     fun restoreFilters(preferences: Preferences) {
         _selectedCountries.value = preferences[SEARCH_COUNTRIES_KEY].toFilterSet()
@@ -56,8 +86,7 @@ internal class SearchStateHolder(
     }
 
     fun search(query: String) {
-        lastQuery = query
-        runSearch()
+        publishSearchRequest(query)
     }
 
     fun toggleCountry(country: String) {
@@ -116,7 +145,7 @@ internal class SearchStateHolder(
 
     private fun filtersChanged() {
         persistFilters()
-        runSearch()
+        publishSearchRequest()
     }
 
     private fun persistFilters() {
@@ -130,15 +159,17 @@ internal class SearchStateHolder(
         }
     }
 
-    private fun runSearch() {
-        searchJob?.cancel()
-        val query = lastQuery
-        val countries = _selectedCountries.value
-        val tags = _selectedTags.value
-        searchJob = scope.launch {
-            _favoriteResults.value = if (query.isBlank()) emptyList() else repository.searchFavorites(query)
-            _registryResults.value = registryRepository.search(query, countries, tags)
-        }
+    private fun publishSearchRequest(query: String? = null) {
+        val current = searchRequests.value
+        searchRequests.value = SearchRequest(
+            query = query ?: current.query,
+            countries = _selectedCountries.value,
+            tags = _selectedTags.value,
+        )
+    }
+
+    private companion object {
+        const val SEARCH_DEBOUNCE_MS = 250L
     }
 }
 

@@ -4,6 +4,12 @@ All notable changes to Aerial will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers should follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once public releases begin.
 
+## [Unreleased]
+
+### Changed
+
+- Improved adaptive playback, privacy, settings, and station browsing UI.
+
 ## [0.7.0] - 2026-08-25
 
 ### Added

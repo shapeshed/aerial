@@ -28,6 +28,18 @@ android {
     def releaseKeystorePassword = System.getenv("AERIAL_KEYSTORE_PASSWORD")
     def releaseKeyAlias = System.getenv("AERIAL_KEY_ALIAS")
     def releaseKeyPassword = System.getenv("AERIAL_KEY_PASSWORD")
+    def gitOutput = { List args ->
+        providers.exec {
+            commandLine "git", *args
+        }.standardOutput.asText.get().trim()
+    }
+    def gitShortSha = gitOutput(["rev-parse", "--short=7", "HEAD"])
+    def workingTreeDirty = gitOutput(["status", "--porcelain"])
+    def exactTag = gitOutput(["tag", "--points-at", "HEAD"])
+    def buildHash = (System.getenv("GITHUB_SHA") ?: gitShortSha).take(7)
+    def buildLabel = System.getenv("AERIAL_BUILD_CHANNEL") == "nightly"
+        ? "nightly-${buildHash}"
+        : (workingTreeDirty && !exactTag ? "dirty-${buildHash}" : "")
     def hasReleaseSigning = releaseKeystoreFile &&
         releaseKeystorePassword &&
         releaseKeyAlias &&
@@ -39,6 +51,7 @@ android {
         targetSdk 37
         versionCode 17
         versionName "0.7.0"
+        buildConfigField "String", "BUILD_LABEL", "\"${buildLabel}\""
         testInstrumentationRunner "com.shapeshed.aerial.testing.AerialTestRunner"
     }
 
@@ -176,18 +189,53 @@ tasks.register("jacocoDeviceTestUnitTestReport", JacocoReport) {
         "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
     ))
     sourceDirectories.from(files("src/main/java", "src/main/kotlin"))
-    classDirectories.from(files(
-        fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/deviceTest/compileDeviceTestKotlin/classes")) {
-            exclude('**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*')
-        },
-        fileTree(layout.buildDirectory.dir("intermediates/javac/deviceTest/compileDeviceTestJavaWithJavac/classes")) {
-            exclude('**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*')
-        },
-    ))
+    // Use the post-ASM classes that the unit-test task executes. The previous
+    // pre-transform Kotlin/Javac directories could contain the same class with
+    // a different JaCoCo id, producing a report that looked successful but was
+    // not trustworthy.
+    classDirectories.from(fileTree(
+        layout.buildDirectory.dir("intermediates/classes/deviceTest/transformDeviceTestClassesWithAsm/dirs"),
+    ) {
+        include('com/shapeshed/aerial/**')
+        exclude(
+            '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
+            '**/*Hilt*', '**/Dagger*', '**/*_Factory*', '**/*_MembersInjector*',
+        )
+    })
     reports {
         html.required = true
         xml.required = true
         csv.required = false
+    }
+}
+
+tasks.register("jacocoDeviceTestUnitTestCoverageVerification", JacocoCoverageVerification) {
+    dependsOn("testDeviceTestUnitTest")
+    group = "verification"
+    description = "Verifies the measured line coverage for local deviceTest unit tests."
+
+    executionData.from(fileTree(layout.buildDirectory).include(
+        "jacoco/testDeviceTestUnitTest.exec",
+        "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
+    ))
+    classDirectories.from(fileTree(
+        layout.buildDirectory.dir("intermediates/classes/deviceTest/transformDeviceTestClassesWithAsm/dirs"),
+    ) {
+        include('com/shapeshed/aerial/**')
+        exclude(
+            '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
+            '**/*Hilt*', '**/Dagger*', '**/*_Factory*', '**/*_MembersInjector*',
+        )
+    })
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.18
+            }
+        }
     }
 }
 

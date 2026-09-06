@@ -63,6 +63,7 @@
     <!-- Settings -->
     <string name="show_stream_bitrate">Show stream bitrate</string>
     <string name="show_stream_bitrate_desc">Display the current stream quality on the player</string>
+    <string name="section_display">Display</string>
     <string name="section_data">Data</string>
     <string name="export_backup">Export backup</string>
     <string name="export_backup_desc">Save stations, settings, and local logos</string>
@@ -76,6 +77,7 @@
         <item quantity="other">Imported %1$d stations and settings</item>
     </plurals>
     <string name="version_format" translatable="false">Aerial %1$s</string>
+    <string name="build_label_format" translatable="false">%1$s</string>
     <string name="language">Language</string>
     <string name="language_system_default">System default</string>
     <!-- Station edit -->

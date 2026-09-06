@@ -1,10 +1,15 @@
 package com.shapeshed.aerial.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -37,6 +44,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +63,6 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val versionName = BuildConfig.VERSION_NAME
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip"),
@@ -92,7 +100,6 @@ fun SettingsScreen(
     SettingsContent(
         showStreamBitrate = loadedSettings.showStreamBitrate,
         showHome = loadedSettings.showHome,
-        versionName = versionName,
         snackbarHostState = snackbarHostState,
         onShowStreamBitrateChange = viewModel::setShowStreamBitrate,
         onShowHomeChange = viewModel::setShowHome,
@@ -108,7 +115,6 @@ fun SettingsScreen(
 internal fun SettingsContent(
     showStreamBitrate: Boolean,
     showHome: Boolean,
-    versionName: String,
     snackbarHostState: SnackbarHostState,
     onShowStreamBitrateChange: (Boolean) -> Unit,
     onShowHomeChange: (Boolean) -> Unit,
@@ -117,6 +123,10 @@ internal fun SettingsContent(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val versionLabel = BuildConfig.BUILD_LABEL.takeIf { it.isNotBlank() }?.let { label ->
+        stringResource(R.string.build_label_format, label)
+    } ?: stringResource(R.string.version_format, BuildConfig.VERSION_NAME)
+    val context = LocalContext.current
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -137,13 +147,19 @@ internal fun SettingsContent(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             LazyColumn(
                 modifier = Modifier
-                    .widthIn(max = 840.dp)
+                    .widthIn(max = 720.dp)
                     .fillMaxSize()
                     .align(Alignment.TopCenter),
+                contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+            item(contentType = "section") {
+                SettingsGroupLabel(text = stringResource(R.string.section_display))
+            }
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { onShowHomeChange(!showHome) },
+                    leadingContent = { Icon(Icons.Rounded.Home, contentDescription = null) },
                     supportingContent = { Text(stringResource(R.string.show_home_desc)) },
                     trailingContent = {
                         Switch(
@@ -154,11 +170,11 @@ internal fun SettingsContent(
                 ) {
                     Text(stringResource(R.string.show_home))
                 }
-                HorizontalDivider()
             }
             item(contentType = "setting") {
                 ListItem(
                     modifier = Modifier.clickable { onShowStreamBitrateChange(!showStreamBitrate) },
+                    leadingContent = { Icon(Icons.Rounded.Speed, contentDescription = null) },
                     supportingContent = { Text(stringResource(R.string.show_stream_bitrate_desc)) },
                     trailingContent = {
                         Switch(
@@ -169,13 +185,11 @@ internal fun SettingsContent(
                 ) {
                     Text(stringResource(R.string.show_stream_bitrate))
                 }
-                HorizontalDivider()
             }
             // In-app language picker only for pre-Android-13; 13+ uses the system per-app setting.
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                 item(contentType = "setting") {
                     LanguageSettingRow()
-                    HorizontalDivider()
                 }
             }
             item(contentType = "section") {
@@ -183,7 +197,7 @@ internal fun SettingsContent(
                     text = stringResource(R.string.section_data),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
                 )
             }
             item(contentType = "action") {
@@ -196,7 +210,6 @@ internal fun SettingsContent(
                 ) {
                     Text(stringResource(R.string.export_backup))
                 }
-                HorizontalDivider()
             }
             item(contentType = "action") {
                 ListItem(
@@ -208,20 +221,37 @@ internal fun SettingsContent(
                 ) {
                     Text(stringResource(R.string.import_backup))
                 }
-                HorizontalDivider()
             }
             item(contentType = "footer") {
                 Text(
-                    text = stringResource(R.string.version_format, versionName),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = versionLabel,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
+                        .testTag("settings-version")
+                        .clickable {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("version", versionLabel))
+                        }
+                        .padding(vertical = 16.dp),
                 )
             }
             }
         }
     }
+}
+
+@Composable
+private fun SettingsGroupLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
+    )
 }
