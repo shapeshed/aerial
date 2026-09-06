@@ -120,7 +120,7 @@ internal fun FavoritesTabContent(
             verticalArrangement = if (homeViewMode == HomeViewMode.Cards) {
                 Arrangement.spacedBy(16.dp)
             } else {
-                Arrangement.Top
+                Arrangement.spacedBy(8.dp)
             },
             contentPadding = PaddingValues(
                 start = 16.dp,
