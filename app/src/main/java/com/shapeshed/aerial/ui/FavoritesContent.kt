@@ -40,6 +40,13 @@ internal fun favoritesGridMinimumWidth(maxWidth: Dp): Dp = when {
     else -> 112.dp
 }
 
+internal fun shouldShowStationActivityIndicator(
+    showActivityIndicator: Boolean,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+): Boolean = showActivityIndicator && isActive && (isPlaying || isBuffering)
+
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun FavoritesTabContent(
@@ -455,6 +462,12 @@ private fun StationTile(
 ) {
     val haptic = LocalHapticFeedback.current
     val stationOptionsLabel = stringResource(R.string.station_options)
+    val hasActivityIndicator = shouldShowStationActivityIndicator(
+        showActivityIndicator = showActivityIndicator,
+        isActive = isActive,
+        isPlaying = isPlaying,
+        isBuffering = isBuffering,
+    )
     val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
     else MaterialTheme.colorScheme.surfaceContainerLow
     Surface(
@@ -501,14 +514,16 @@ private fun StationTile(
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (isPlaying) Modifier.safeMarquee() else Modifier),
             )
-            Spacer(Modifier.width(8.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(width = 24.dp, height = 20.dp),
-            ) {
-                if (showActivityIndicator && isActive && (isPlaying || isBuffering)) {
+            if (hasActivityIndicator) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                ) {
                     if (isBuffering) {
                         CircularWavyProgressIndicator(
                             modifier = Modifier.size(20.dp),
