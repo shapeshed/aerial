@@ -399,7 +399,26 @@ private fun Bitmap.hasCircularArtwork(): Boolean {
             averageCorner,
         ) > 0.20f
     }
-    return cornersMatch && contrastingEdges >= 2
+    return looksLikeCircularArtwork(
+        transparentCorners = transparentCorners,
+        cornersMatch = cornersMatch,
+        contrastingEdges = contrastingEdges,
+    )
+}
+
+/**
+ * Opaque circular marks should reach the artwork on all four cardinal edges. Requiring only two
+ * contrasting edges misclassifies full-bleed square artwork with a horizontal or vertical band
+ * as circular, which causes its corners to be clipped in the grid.
+ */
+internal fun looksLikeCircularArtwork(
+    transparentCorners: Int,
+    cornersMatch: Boolean,
+    contrastingEdges: Int,
+): Boolean = if (transparentCorners == 4) {
+    contrastingEdges >= 2
+} else {
+    cornersMatch && contrastingEdges >= 3
 }
 
 private fun colorDistance(first: FloatArray, second: FloatArray): Float =
