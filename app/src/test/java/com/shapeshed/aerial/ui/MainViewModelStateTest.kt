@@ -620,6 +620,37 @@ class MainViewModelStateTest {
         verify(repository).insertOrGetExisting(argThat { logoPath == "/tmp/aerial-logo.png" })
     }
 
+    @Test
+    fun addingCurrentlyPlayingRegistryStationPromotesEphemeralPlaybackToFavorite() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        val stations = MutableStateFlow<List<Station>>(emptyList())
+        whenever(repository.getAll()).thenReturn(stations)
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val registryStation = registry("Mango Radio")
+        val savedStation = Station(
+            id = 42L,
+            name = registryStation.name,
+            streamUrl = registryStation.streamUrl,
+            isFavorite = true,
+            provider = registryStation.provider,
+            providerId = registryStation.providerId,
+        )
+        whenever(repository.insertOrGetExisting(any())).thenReturn(savedStation.id)
+        whenever(repository.getById(savedStation.id)).thenReturn(savedStation)
+        val viewModel = viewModel(repository, registryRepository)
+
+        viewModel.playFromRegistry(registryStation)
+        assertEquals(0L, viewModel.playbackUiState.value.station?.id)
+
+        viewModel.addFromRegistry(registryStation)
+        viewModel.recentlyAddedStationId.first { it == savedStation.id }
+        stations.value = listOf(savedStation)
+        runCurrent()
+
+        assertEquals(savedStation, viewModel.playbackUiState.value.station)
+    }
+
     private fun viewModel(
         repository: StationRepository,
         registryRepository: RegistryRepository,

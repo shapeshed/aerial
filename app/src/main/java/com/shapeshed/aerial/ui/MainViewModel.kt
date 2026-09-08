@@ -308,8 +308,16 @@ class MainViewModel @Inject constructor(
                     previous.firstOrNull { it.id == id }?.let { removed ->
                         setCurrentStation(removed.copy(id = 0, isFavorite = false))
                     }
-            } else if (id != null) {
+                } else if (id != null) {
                     list.firstOrNull { it.id == id }?.let(::refreshCurrentStation)
+                } else {
+                    // A station started from search or an external media control is ephemeral
+                    // until it is saved. When that save happens in another scope (including the
+                    // media service handling a notification/lock-screen action), promote the
+                    // matching persisted row so Favorites and Now Playing share its identity.
+                    val ephemeral = _ephemeralStation.value
+                    list.firstOrNull { it.isFavorite && ephemeral?.matches(it) == true }
+                        ?.let(::setCurrentStation)
                 }
                 refreshActiveFavoritesQueueForStationUpdate(list)
                 previous = list
