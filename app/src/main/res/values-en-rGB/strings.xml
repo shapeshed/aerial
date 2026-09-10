@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- British English: only the strings that differ from the base (en-US) "favorite" spelling. -->
-<resources>
+<!-- British English: only the strings that differ from the base (en-US) "favorite" spelling. --><resources>
     <string name="remove_station_message">\"%1$s\" will be removed from your favourites.</string>
     <string name="save_to_favorites">Save to favourites</string>
     <string name="remove_from_favorites">Remove from favourites</string>
@@ -20,4 +19,7 @@
     <string name="for_you">For you</string>
     <string name="favorite_removed_message">%1$s removed from favourites</string>
     <string name="undo">Undo</string>
+    <string name="action_back">Back</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_cancel">Cancel</string>
 </resources>
