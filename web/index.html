@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aerial — Radio in your browser</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Aerial</h1>
+    <p class="tagline">Just radio, in your browser.</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="browse" role="tab">Browse</button>
+    <button class="tab" data-view="search" role="tab">Search</button>
+    <button class="tab" data-view="favorites" role="tab">Favorites</button>
+  </nav>
+
+  <main id="content">
+    <section id="view-browse" class="view active">
+      <p class="status" id="browse-status">Loading stations…</p>
+      <div id="curated-groups"></div>
+    </section>
+
+    <section id="view-search" class="view">
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Search by name, tag, or country…"
+        autocomplete="off"
+      />
+      <ul id="search-results" class="station-list"></ul>
+    </section>
+
+    <section id="view-favorites" class="view">
+      <div class="backup-actions">
+        <button id="export-btn">Export favorites…</button>
+        <label class="import-label">
+          Import favorites…
+          <input type="file" id="import-input" accept=".zip" hidden />
+        </label>
+      </div>
+      <p class="status" id="backup-status" hidden></p>
+      <ul id="favorites-list" class="station-list"></ul>
+      <p class="empty-hint" id="favorites-empty" hidden>
+        No favorites yet. Star a station from Browse or Search.
+      </p>
+    </section>
+  </main>
+
+  <footer class="now-playing" id="now-playing" hidden>
+    <img id="now-playing-logo" alt="" />
+    <div class="now-playing-info">
+      <div id="now-playing-name">—</div>
+      <div id="now-playing-status" class="status"></div>
+    </div>
+    <button id="now-playing-toggle">Pause</button>
+  </footer>
+
+  <audio id="audio" preload="none"></audio>
+
+  <script src="vendor/fflate.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
