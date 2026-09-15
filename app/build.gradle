@@ -267,7 +267,7 @@ dependencies {
     implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
     implementation "androidx.media3:media3-session:$media3Version"
 
-    def roomVersion = '2.8.4'
+    def roomVersion = '2.8.5'
     implementation "androidx.room:room-runtime:$roomVersion"
     implementation "androidx.room:room-ktx:$roomVersion"
     ksp "androidx.room:room-compiler:$roomVersion"
