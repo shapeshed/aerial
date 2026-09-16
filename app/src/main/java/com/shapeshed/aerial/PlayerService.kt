@@ -61,6 +61,7 @@ import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.SHOW_HOME_KEY
+import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -192,6 +193,7 @@ class PlayerService : MediaLibraryService() {
             repository.getAll().collectLatest { updatedStations ->
                 stations = updatedStations
                 updateFavoriteButton()
+                requestAerialWidgetUpdate(this@PlayerService)
             }
         }
         serviceScope.launch {
