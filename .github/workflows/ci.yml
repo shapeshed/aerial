@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload JaCoCo coverage to Codecov
         if: ${{ secrets.CODECOV_TOKEN != '' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ./app/build/reports/jacoco/jacocoDeviceTestUnitTestReport/jacocoDeviceTestUnitTestReport.xml
           flags: device-test-unit
