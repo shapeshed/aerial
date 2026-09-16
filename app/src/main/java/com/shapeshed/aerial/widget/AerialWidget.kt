@@ -65,13 +65,46 @@ class AerialWidget : GlanceAppWidget() {
         val favorites = stationsForWidget(app.repository.getAll().first())
         val title = context.getString(com.shapeshed.aerial.R.string.widget_title)
         val emptyMessage = context.getString(com.shapeshed.aerial.R.string.widget_empty)
+        val previous = context.getString(com.shapeshed.aerial.R.string.widget_previous)
+        val play = context.getString(com.shapeshed.aerial.R.string.widget_play)
+        val pause = context.getString(com.shapeshed.aerial.R.string.widget_pause)
+        val next = context.getString(com.shapeshed.aerial.R.string.widget_next)
+        val playback = readPlayback(context)
 
         provideContent {
             GlanceTheme {
-                AerialWidgetContent(favorites, title, emptyMessage)
+                AerialWidgetContent(
+                    favorites,
+                    title,
+                    emptyMessage,
+                    previous,
+                    if (playback.isPlaying) pause else play,
+                    next,
+                    playback,
+                )
             }
         }
     }
+}
+
+private data class WidgetPlayback(
+    val mediaId: String?,
+    val isPlaying: Boolean,
+)
+
+private suspend fun readPlayback(context: Context): WidgetPlayback {
+    val appContext = context.applicationContext
+    return runCatching {
+        val controller = MediaController.Builder(
+            appContext,
+            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
+        ).buildAsync().await()
+        try {
+            WidgetPlayback(controller.currentMediaItem?.mediaId, controller.isPlaying)
+        } finally {
+            controller.release()
+        }
+    }.getOrDefault(WidgetPlayback(null, false))
 }
 
 @Composable
@@ -79,6 +112,10 @@ private fun AerialWidgetContent(
     favorites: List<Station>,
     title: String,
     emptyMessage: String,
+    previous: String,
+    playPause: String,
+    next: String,
+    playback: WidgetPlayback,
 ) {
     Column(
         modifier = GlanceModifier
@@ -95,6 +132,43 @@ private fun AerialWidgetContent(
                 fontWeight = FontWeight.Bold,
             ),
         )
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp),
+            verticalAlignment = Alignment.Vertical.CenterVertically,
+        ) {
+            Text(
+                text = previous,
+                modifier = GlanceModifier
+                    .background(GlanceTheme.colors.secondaryContainer)
+                    .cornerRadius(18.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .clickable(actionRunCallback<PreviousFavoriteAction>()),
+                style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer),
+            )
+            Spacer(GlanceModifier.size(6.dp))
+            Text(
+                text = playPause,
+                modifier = GlanceModifier
+                    .background(GlanceTheme.colors.primaryContainer)
+                    .cornerRadius(18.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clickable(actionRunCallback<TogglePlaybackAction>()),
+                style = TextStyle(
+                    color = GlanceTheme.colors.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                ),
+            )
+            Spacer(GlanceModifier.size(6.dp))
+            Text(
+                text = next,
+                modifier = GlanceModifier
+                    .background(GlanceTheme.colors.secondaryContainer)
+                    .cornerRadius(18.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .clickable(actionRunCallback<NextFavoriteAction>()),
+                style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer),
+            )
+        }
         Spacer(GlanceModifier.size(8.dp))
         if (favorites.isEmpty()) {
             Text(
@@ -108,7 +182,13 @@ private fun AerialWidgetContent(
                     Row(
                         modifier = GlanceModifier
                             .fillMaxWidth()
-                            .background(GlanceTheme.colors.surfaceVariant)
+                            .background(
+                                if (station.id.toString() == playback.mediaId) {
+                                    GlanceTheme.colors.primaryContainer
+                                } else {
+                                    GlanceTheme.colors.surfaceVariant
+                                },
+                            )
                             .cornerRadius(20.dp)
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                             .clickable(
@@ -121,7 +201,13 @@ private fun AerialWidgetContent(
                         Text(
                             text = station.name,
                             maxLines = 1,
-                            style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                            style = TextStyle(
+                                color = if (station.id.toString() == playback.mediaId) {
+                                    GlanceTheme.colors.onPrimaryContainer
+                                } else {
+                                    GlanceTheme.colors.onSurfaceVariant
+                                },
+                            ),
                         )
                     }
                     Spacer(GlanceModifier.size(4.dp))
@@ -141,6 +227,8 @@ class PlayFavoriteAction : ActionCallback {
         val app = context.applicationContext as AerialApp
         val station = app.repository.getById(stationId) ?: return
         if (!station.isFavorite) return
+        val favorites = stationsForWidget(app.repository.getAll().first())
+        val startIndex = favorites.indexOfFirst { it.id == stationId }.takeIf { it >= 0 } ?: return
 
         val appContext = context.applicationContext
         val controller = MediaController.Builder(
@@ -148,11 +236,76 @@ class PlayFavoriteAction : ActionCallback {
             SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
         ).buildAsync().await()
         try {
-            controller.setMediaItem(station.toPlayableMediaItem(appContext))
+            controller.setMediaItems(
+                favorites.map { it.toPlayableMediaItem(appContext) },
+                startIndex,
+                androidx.media3.common.C.TIME_UNSET,
+            )
             controller.prepare()
             controller.play()
         } finally {
             controller.release()
+        }
+        AerialWidget().update(context, glanceId)
+    }
+}
+
+abstract class FavoriteNavigationAction : ActionCallback {
+    protected suspend fun withController(
+        context: Context,
+        block: suspend (MediaController) -> Unit,
+    ) {
+        val appContext = context.applicationContext
+        val controller = MediaController.Builder(
+            appContext,
+            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
+        ).buildAsync().await()
+        try {
+            block(controller)
+        } finally {
+            controller.release()
+        }
+    }
+
+    protected suspend fun navigateFavorites(context: Context, next: Boolean) {
+        val app = context.applicationContext as AerialApp
+        val favorites = stationsForWidget(app.repository.getAll().first())
+        if (favorites.size < 2) return
+        withController(context) { controller ->
+            val currentIndex = favorites.indexOfFirst {
+                it.id.toString() == controller.currentMediaItem?.mediaId
+            }
+            if (currentIndex < 0) return@withController
+            controller.setMediaItems(
+                favorites.map { it.toPlayableMediaItem(context.applicationContext) },
+                currentIndex,
+                androidx.media3.common.C.TIME_UNSET,
+            )
+            controller.prepare()
+            if (next) controller.seekToNextMediaItem() else controller.seekToPreviousMediaItem()
+            controller.play()
+        }
+    }
+}
+
+class PreviousFavoriteAction : FavoriteNavigationAction() {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        navigateFavorites(context, next = false)
+        AerialWidget().update(context, glanceId)
+    }
+}
+
+class NextFavoriteAction : FavoriteNavigationAction() {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        navigateFavorites(context, next = true)
+        AerialWidget().update(context, glanceId)
+    }
+}
+
+class TogglePlaybackAction : FavoriteNavigationAction() {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        withController(context) { controller ->
+            if (controller.isPlaying) controller.pause() else controller.play()
         }
         AerialWidget().update(context, glanceId)
     }
