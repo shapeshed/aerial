@@ -65,6 +65,7 @@ fun stationMediaMetadata(
         .setTitle(station.name)
         .setArtist(context.getString(R.string.live_radio))
         .setSubtitle(context.getString(R.string.live_radio))
+        .setAlbumTitle(station.name)
         .setIsBrowsable(false)
         .setIsPlayable(true)
         .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
