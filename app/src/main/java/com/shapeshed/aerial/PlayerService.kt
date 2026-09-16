@@ -628,6 +628,7 @@ class PlayerService : MediaLibraryService() {
             .setTitle(title)
             .setArtist(artist ?: stationName)
             .setSubtitle(title)
+            .setAlbumTitle(stationName)
             .apply {
                 if (artworkData != null) {
                     setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
