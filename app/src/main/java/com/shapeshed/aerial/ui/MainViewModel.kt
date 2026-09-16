@@ -47,6 +47,7 @@ import com.shapeshed.aerial.data.normalizeTrackMetadata
 import com.shapeshed.aerial.data.buildPlaybackQueuePlan
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toSystemPlayableMediaItem
+import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -629,6 +630,7 @@ class MainViewModel @Inject constructor(
                 _currentStationId.value = id
                 _allStations.first { list -> list.any { it.id == id } }
                 setCurrentStation(repository.getById(id) ?: station.copy(id = id, isFavorite = true))
+                requestAerialWidgetUpdate(getApplication())
                 return@launch
             }
             if (!station.isFavorite) {
@@ -651,6 +653,7 @@ class MainViewModel @Inject constructor(
             if (!isCurrent) {
                 withContext(Dispatchers.IO) { deleteStationArtworkFiles(station.logoPath) }
             }
+            requestAerialWidgetUpdate(getApplication())
         }
     }
 
@@ -661,6 +664,7 @@ class MainViewModel @Inject constructor(
                 _currentStationId.value = id
                 _ephemeralStation.value = null
             }
+            requestAerialWidgetUpdate(getApplication())
         }
     }
 

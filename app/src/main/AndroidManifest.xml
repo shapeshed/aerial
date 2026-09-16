@@ -58,6 +58,19 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.AerialWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.shapeshed.aerial.action.UPDATE_WIDGETS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/aerial_widget_info" />
+        </receiver>
+
         <service
             android:name=".PlayerService"
             android:foregroundServiceType="mediaPlayback"

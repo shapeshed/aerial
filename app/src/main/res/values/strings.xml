@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name" translatable="false">Aerial</string>
+    <string name="widget_name">Aerial favorites</string>
+    <string name="widget_title">Favorites</string>
+    <string name="widget_empty">Add favorite stations to see them here</string>
     <!-- Common actions -->
     <string name="action_back">Back</string>
     <string name="action_remove">Remove</string>
