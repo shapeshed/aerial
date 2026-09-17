@@ -62,6 +62,8 @@ import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import com.shapeshed.aerial.widget.WidgetPlaybackStore
+import com.shapeshed.aerial.widget.widgetNavigationAvailability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -207,6 +209,7 @@ class PlayerService : MediaLibraryService() {
     private val icyListener = object : Player.Listener {
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             log("onPlayWhenReadyChanged=$playWhenReady reason=$reason")
+            publishWidgetPlaybackState()
             if (!playWhenReady) {
                 pausedAtMs = SystemClock.elapsedRealtime()
                 return
@@ -221,6 +224,7 @@ class PlayerService : MediaLibraryService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             log("onIsPlayingChanged=$isPlaying")
+            publishWidgetPlaybackState()
             if (isPlaying) {
                 recordPlayOnce()
             }
@@ -228,6 +232,7 @@ class PlayerService : MediaLibraryService() {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
+            publishWidgetPlaybackState()
             lastIcyTitle = null
             lastId3Title = null
             updateFavoriteButton()
@@ -236,6 +241,7 @@ class PlayerService : MediaLibraryService() {
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             persistPlaybackSnapshot()
+            publishWidgetPlaybackState()
         }
 
         @OptIn(UnstableApi::class)
@@ -268,6 +274,13 @@ class PlayerService : MediaLibraryService() {
                     item.mediaMetadata.title,
                 )
                 val parsedTrack = parseTrackMetadata(title)
+                WidgetPlaybackStore.writeMetadata(
+                    this@PlayerService,
+                    item.mediaId,
+                    parsedTrack.title ?: title,
+                    parsedTrack.artist,
+                )
+                requestAerialWidgetUpdate(this@PlayerService)
                 replaceCurrentMediaItem(
                     item,
                     index = player.currentMediaItemIndex,
@@ -287,6 +300,13 @@ class PlayerService : MediaLibraryService() {
                         item.mediaMetadata.extras?.getString("stationName"),
                         item.mediaMetadata.title,
                     )
+                    WidgetPlaybackStore.writeMetadata(
+                        this@PlayerService,
+                        item.mediaId,
+                        id3Title,
+                        id3Artist,
+                    )
+                    requestAerialWidgetUpdate(this@PlayerService)
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
@@ -610,6 +630,21 @@ class PlayerService : MediaLibraryService() {
 
     private fun currentStation(): Station? = stationFromMediaItem(player.currentMediaItem, stations)
 
+    private fun publishWidgetPlaybackState() {
+        val navigation = widgetNavigationAvailability(
+            index = player.currentMediaItemIndex,
+            size = player.mediaItemCount,
+        )
+        WidgetPlaybackStore.write(
+            this,
+            player.currentMediaItem?.mediaId,
+            player.playWhenReady,
+            navigation.previous,
+            navigation.next,
+        )
+        requestAerialWidgetUpdate(this)
+    }
+
     private fun persistPlaybackSnapshot() {
         val current = currentStation() ?: return
         val queue = (0 until player.mediaItemCount)
@@ -666,6 +701,8 @@ class PlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        WidgetPlaybackStore.markStopped(this)
+        requestAerialWidgetUpdate(this)
         serviceScope.cancel()
         SleepTimerStore.set(null)
         player.removeListener(icyListener)
