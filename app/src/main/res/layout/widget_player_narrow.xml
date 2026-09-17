@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:theme="@style/Theme.Aerial.Widget">
+
+    <ImageView
+        android:id="@+id/widget_station_artwork"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_background"
+        android:clipToOutline="true"
+        android:scaleType="centerCrop"
+        tools:ignore="ContentDescription,UnusedAttribute" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        tools:ignore="UseAppTint">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_control_surface">
+
+            <ImageButton
+                android:id="@+id/widget_previous"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/widget_previous"
+                android:padding="12dp"
+                android:src="@drawable/ic_widget_previous"
+                android:tint="@color/widget_on_secondary_container" />
+        </FrameLayout>
+
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            tools:ignore="ContentDescription" />
+
+        <ImageButton
+            android:id="@+id/widget_play_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/widget_control_primary_paused"
+            android:contentDescription="@string/widget_play"
+            android:padding="12dp"
+            android:src="@drawable/ic_widget_play"
+            android:tint="@color/widget_on_primary_container" />
+
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            tools:ignore="ContentDescription" />
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_control_surface">
+
+            <ImageButton
+                android:id="@+id/widget_next"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/widget_next"
+                android:padding="12dp"
+                android:src="@drawable/ic_widget_next"
+                android:tint="@color/widget_on_secondary_container" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

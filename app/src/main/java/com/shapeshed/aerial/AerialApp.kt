@@ -17,6 +17,9 @@ import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.svg.SvgDecoder
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -25,6 +28,7 @@ val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
 @HiltAndroidApp
 class AerialApp : Application(), SingletonImageLoader.Factory {
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             chain.proceed(

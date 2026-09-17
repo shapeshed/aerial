@@ -1,55 +1,45 @@
 package com.shapeshed.aerial.widget
 
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import android.util.SizeF
+import android.widget.RemoteViews
 import androidx.concurrent.futures.await
-import androidx.glance.GlanceId
-import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
-import androidx.glance.action.ActionParameters
-import androidx.glance.action.actionParametersOf
-import androidx.glance.action.clickable
-import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
-import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.lazy.LazyColumn
-import androidx.glance.appwidget.lazy.items
-import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
-import androidx.glance.background
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Column
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.padding
-import androidx.glance.layout.size
-import androidx.glance.text.FontWeight
-import androidx.glance.text.Text
-import androidx.glance.text.TextStyle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.shapeshed.aerial.AerialApp
+import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.R
+import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.toPlayableMediaItem
+import com.shapeshed.aerial.toSystemPlayableMediaItem
+import com.shapeshed.aerial.ui.computeTrackDisplay
+import com.shapeshed.aerial.ui.hasCircularArtwork
+import com.shapeshed.aerial.ui.toTransparentBitmap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-private val stationIdKey = ActionParameters.Key<Long>("station_id")
-
-private val responsiveSizes = setOf(
-    DpSize(180.dp, 110.dp),
-    DpSize(250.dp, 180.dp),
-    DpSize(320.dp, 250.dp),
-)
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal fun stationsForWidget(stations: List<Station>): List<Station> = stations
     .asSequence()
@@ -57,275 +47,396 @@ internal fun stationsForWidget(stations: List<Station>): List<Station> = station
     .sortedBy { it.name.lowercase() }
     .toList()
 
-class AerialWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(responsiveSizes)
-
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val app = context.applicationContext as AerialApp
-        val favorites = stationsForWidget(app.repository.getAll().first())
-        val title = context.getString(com.shapeshed.aerial.R.string.widget_title)
-        val emptyMessage = context.getString(com.shapeshed.aerial.R.string.widget_empty)
-        val previous = context.getString(com.shapeshed.aerial.R.string.widget_previous)
-        val play = context.getString(com.shapeshed.aerial.R.string.widget_play)
-        val pause = context.getString(com.shapeshed.aerial.R.string.widget_pause)
-        val next = context.getString(com.shapeshed.aerial.R.string.widget_next)
-        val playback = readPlayback(context)
-
-        provideContent {
-            GlanceTheme {
-                AerialWidgetContent(
-                    favorites,
-                    title,
-                    emptyMessage,
-                    previous,
-                    if (playback.isPlaying) pause else play,
-                    next,
-                    playback,
-                )
-            }
-        }
-    }
-}
-
-private data class WidgetPlayback(
-    val mediaId: String?,
-    val isPlaying: Boolean,
-)
-
-private suspend fun readPlayback(context: Context): WidgetPlayback {
-    val appContext = context.applicationContext
-    return runCatching {
-        val controller = MediaController.Builder(
-            appContext,
-            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
-        ).buildAsync().await()
-        try {
-            WidgetPlayback(controller.currentMediaItem?.mediaId, controller.isPlaying)
-        } finally {
-            controller.release()
-        }
-    }.getOrDefault(WidgetPlayback(null, false))
-}
-
-@Composable
-private fun AerialWidgetContent(
-    favorites: List<Station>,
-    title: String,
-    emptyMessage: String,
-    previous: String,
-    playPause: String,
-    next: String,
-    playback: WidgetPlayback,
+internal suspend fun updateAerialWidgets(
+    context: Context,
+    shouldPublish: () -> Boolean = { true },
 ) {
-    Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(GlanceTheme.colors.widgetBackground)
-            .cornerRadius(28.dp)
-            .padding(16.dp),
-        verticalAlignment = Alignment.Vertical.Top,
-    ) {
-        Text(
-            text = title,
-            style = TextStyle(
-                color = GlanceTheme.colors.onSurface,
-                fontWeight = FontWeight.Bold,
-            ),
+    val app = context.applicationContext as AerialApp
+    val favorites = stationsForWidget(app.repository.getAll().first())
+    val playback = WidgetPlaybackStore.read(app)
+    val station = selectedStation(app, favorites, playback.mediaId)
+    val artwork = station?.let { stationArtwork(app, it) }
+    val playbackDisplay = station?.let {
+        computeTrackDisplay(
+            stationName = it.name,
+            trackTitle = playback.trackTitle?.takeIf(::isMeaningfulWidgetMetadata),
+            trackArtist = playback.trackArtist?.takeIf(::isMeaningfulWidgetMetadata),
+            liveRadio = app.getString(R.string.live_radio),
         )
-        Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp),
-            verticalAlignment = Alignment.Vertical.CenterVertically,
-        ) {
-            Text(
-                text = previous,
-                modifier = GlanceModifier
-                    .background(GlanceTheme.colors.secondaryContainer)
-                    .cornerRadius(18.dp)
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                    .clickable(actionRunCallback<PreviousFavoriteAction>()),
-                style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer),
-            )
-            Spacer(GlanceModifier.size(6.dp))
-            Text(
-                text = playPause,
-                modifier = GlanceModifier
-                    .background(GlanceTheme.colors.primaryContainer)
-                    .cornerRadius(18.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .clickable(actionRunCallback<TogglePlaybackAction>()),
-                style = TextStyle(
-                    color = GlanceTheme.colors.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            Spacer(GlanceModifier.size(6.dp))
-            Text(
-                text = next,
-                modifier = GlanceModifier
-                    .background(GlanceTheme.colors.secondaryContainer)
-                    .cornerRadius(18.dp)
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                    .clickable(actionRunCallback<NextFavoriteAction>()),
-                style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer),
-            )
-        }
-        Spacer(GlanceModifier.size(8.dp))
-        if (favorites.isEmpty()) {
-            Text(
-                text = emptyMessage,
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-            )
+    }
+    val layouts = mapOf(
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_stick,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+            hasArtwork = false,
+            hasText = false,
+        ),
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_stick,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+            hasArtwork = false,
+            hasText = false,
+        ),
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_narrow,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+            hasText = false,
+        ),
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_narrow,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+            hasText = false,
+        ),
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+        ),
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+        ),
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_expanded,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+        ),
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to widgetViews(
+            app,
+            R.layout.widget_player_expanded,
+            station,
+            artwork,
+            playbackDisplay?.title,
+            playbackDisplay?.artist,
+            playback,
+        ),
+    )
+    if (!shouldPublish()) return
+    AppWidgetManager.getInstance(app).updateWidgetLayouts(app, layouts)
+}
+
+private fun widgetViews(
+    app: AerialApp,
+    layoutId: Int,
+    station: Station?,
+    artwork: Bitmap?,
+    displayTitle: CharSequence?,
+    displaySubtitle: CharSequence?,
+    playback: WidgetPlaybackState,
+    hasArtwork: Boolean = true,
+    hasText: Boolean = true,
+): RemoteViews = RemoteViews(app.packageName, layoutId).apply {
+    if (hasText) {
+        setTextViewText(R.id.widget_station_name, displayTitle ?: app.getString(R.string.widget_empty))
+        setBoolean(R.id.widget_station_name, "setSelected", true)
+        setViewVisibility(
+            R.id.widget_live_radio,
+            if (station == null) android.view.View.GONE else android.view.View.VISIBLE,
+        )
+        setTextViewText(R.id.widget_live_radio, displaySubtitle)
+        setBoolean(R.id.widget_live_radio, "setSelected", true)
+    }
+    if (hasArtwork) {
+        if (artwork == null) {
+            setImageViewResource(R.id.widget_station_artwork, R.mipmap.ic_launcher)
         } else {
-            LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
-                items(favorites.size) { index ->
-                    val station = favorites[index]
-                    Row(
-                        modifier = GlanceModifier
-                            .fillMaxWidth()
-                            .background(
-                                if (station.id.toString() == playback.mediaId) {
-                                    GlanceTheme.colors.primaryContainer
-                                } else {
-                                    GlanceTheme.colors.surfaceVariant
-                                },
-                            )
-                            .cornerRadius(20.dp)
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
-                            .clickable(
-                                actionRunCallback<PlayFavoriteAction>(
-                                    actionParametersOf(stationIdKey to station.id),
-                                ),
-                            ),
-                        verticalAlignment = Alignment.Vertical.CenterVertically,
-                    ) {
-                        Text(
-                            text = station.name,
-                            maxLines = 1,
-                            style = TextStyle(
-                                color = if (station.id.toString() == playback.mediaId) {
-                                    GlanceTheme.colors.onPrimaryContainer
-                                } else {
-                                    GlanceTheme.colors.onSurfaceVariant
-                                },
-                            ),
-                        )
-                    }
-                    Spacer(GlanceModifier.size(4.dp))
-                }
-            }
+            setImageViewBitmap(R.id.widget_station_artwork, artwork)
         }
+        setContentDescription(R.id.widget_station_artwork, station?.name)
     }
-}
-
-class PlayFavoriteAction : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        val stationId = parameters[stationIdKey] ?: return
-        val app = context.applicationContext as AerialApp
-        val station = app.repository.getById(stationId) ?: return
-        if (!station.isFavorite) return
-        val favorites = stationsForWidget(app.repository.getAll().first())
-        val startIndex = favorites.indexOfFirst { it.id == stationId }.takeIf { it >= 0 } ?: return
-
-        val appContext = context.applicationContext
-        val controller = MediaController.Builder(
-            appContext,
-            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
-        ).buildAsync().await()
-        try {
-            controller.setMediaItems(
-                favorites.map { it.toPlayableMediaItem(appContext) },
-                startIndex,
-                androidx.media3.common.C.TIME_UNSET,
-            )
-            controller.prepare()
-            controller.play()
-        } finally {
-            controller.release()
-        }
-        AerialWidget().update(context, glanceId)
-    }
-}
-
-abstract class FavoriteNavigationAction : ActionCallback {
-    protected suspend fun withController(
-        context: Context,
-        block: suspend (MediaController) -> Unit,
-    ) {
-        val appContext = context.applicationContext
-        val controller = MediaController.Builder(
-            appContext,
-            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
-        ).buildAsync().await()
-        try {
-            block(controller)
-        } finally {
-            controller.release()
-        }
-    }
-
-    protected suspend fun navigateFavorites(context: Context, next: Boolean) {
-        val app = context.applicationContext as AerialApp
-        val favorites = stationsForWidget(app.repository.getAll().first())
-        if (favorites.size < 2) return
-        withController(context) { controller ->
-            val currentIndex = favorites.indexOfFirst {
-                it.id.toString() == controller.currentMediaItem?.mediaId
-            }
-            if (currentIndex < 0) return@withController
-            controller.setMediaItems(
-                favorites.map { it.toPlayableMediaItem(context.applicationContext) },
-                currentIndex,
-                androidx.media3.common.C.TIME_UNSET,
-            )
-            controller.prepare()
-            if (next) controller.seekToNextMediaItem() else controller.seekToPreviousMediaItem()
-            controller.play()
-        }
-    }
-}
-
-class PreviousFavoriteAction : FavoriteNavigationAction() {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        navigateFavorites(context, next = false)
-        AerialWidget().update(context, glanceId)
-    }
-}
-
-class NextFavoriteAction : FavoriteNavigationAction() {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        navigateFavorites(context, next = true)
-        AerialWidget().update(context, glanceId)
-    }
-}
-
-class TogglePlaybackAction : FavoriteNavigationAction() {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        withController(context) { controller ->
-            if (controller.isPlaying) controller.pause() else controller.play()
-        }
-        AerialWidget().update(context, glanceId)
-    }
-}
-
-class AerialWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = AerialWidget()
-
-    override fun onReceive(context: Context, intent: android.content.Intent) {
-        if (intent.action == ACTION_UPDATE_AERIAL_WIDGETS) {
-            val pendingResult = goAsync()
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                try {
-                    AerialWidget().updateAll(context)
-                } finally {
-                    pendingResult.finish()
-                }
-            }
+    setImageViewResource(
+        R.id.widget_play_pause,
+        if (playback.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play,
+    )
+    setContentDescription(
+        R.id.widget_play_pause,
+        app.getString(if (playback.isPlaying) R.string.widget_pause else R.string.widget_play),
+    )
+    setViewVisibility(
+        R.id.widget_previous,
+        if (playback.canSkipPrevious) android.view.View.VISIBLE else android.view.View.INVISIBLE,
+    )
+    setViewVisibility(
+        R.id.widget_next,
+        if (playback.canSkipNext) android.view.View.VISIBLE else android.view.View.INVISIBLE,
+    )
+    setInt(
+        R.id.widget_play_pause,
+        "setBackgroundResource",
+        if (playback.isPlaying) {
+            R.drawable.widget_control_primary_playing
         } else {
-            super.onReceive(context, intent)
+            R.drawable.widget_control_primary_paused
+        },
+    )
+    setOnClickPendingIntent(
+        R.id.widget_previous,
+        widgetPendingIntent(app, ACTION_WIDGET_PREVIOUS, 1),
+    )
+    setOnClickPendingIntent(
+        R.id.widget_play_pause,
+        widgetPendingIntent(app, ACTION_WIDGET_TOGGLE, 2),
+    )
+    setOnClickPendingIntent(
+        R.id.widget_next,
+        widgetPendingIntent(app, ACTION_WIDGET_NEXT, 3),
+    )
+    setOnClickPendingIntent(
+        android.R.id.background,
+        widgetOpenAppPendingIntent(app),
+    )
+}
+
+private fun AppWidgetManager.updateWidgetLayouts(
+    context: Context,
+    layouts: Map<SizeF, RemoteViews>,
+) {
+    val component = ComponentName(context, AerialWidgetReceiver::class.java)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        updateAppWidget(component, RemoteViews(layouts))
+        return
+    }
+    getAppWidgetIds(component).forEach { id ->
+        val options = getAppWidgetOptions(id)
+        val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+        val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+        val size = widgetLayoutSize(width, height)
+        updateAppWidget(id, layouts.getValue(widgetSize(size.width, size.height)))
+    }
+}
+
+internal data class WidgetLayoutSize(val width: Int, val height: Int)
+
+internal fun widgetLayoutSize(width: Int, height: Int): WidgetLayoutSize = when {
+    height >= WIDGET_PANE_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
+        WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP)
+    height >= WIDGET_PANE_HEIGHT_DP ->
+        WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP)
+    height >= WIDGET_TALL_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
+        WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP)
+    height >= WIDGET_TALL_HEIGHT_DP -> WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP)
+    height >= WIDGET_WAFER_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
+        WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP)
+    height >= WIDGET_WAFER_HEIGHT_DP ->
+        WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP)
+    width >= WIDGET_WIDE_WIDTH_DP -> WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP)
+    else -> WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP)
+}
+
+private fun widgetSize(width: Int, height: Int) = SizeF(width.toFloat(), height.toFloat())
+
+private fun isMeaningfulWidgetMetadata(value: String): Boolean = value.any(Char::isLetterOrDigit)
+
+private fun widgetPendingIntent(context: Context, action: String, requestCode: Int): PendingIntent =
+    PendingIntent.getBroadcast(
+        context,
+        requestCode,
+        Intent(context, AerialWidgetActionReceiver::class.java).setAction(action),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+private fun widgetOpenAppPendingIntent(context: Context): PendingIntent =
+    PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, MainActivity::class.java),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+private suspend fun selectedStation(
+    app: AerialApp,
+    favorites: List<Station>,
+    mediaId: String?,
+): Station? = favorites.firstOrNull { it.id.toString() == mediaId }
+    ?: PlaybackSnapshotStore(app.settingsDataStore).read()?.station
+    ?: favorites.firstOrNull()
+
+private suspend fun stationArtwork(context: Context, station: Station): Bitmap? =
+    withTimeoutOrNull(ARTWORK_TIMEOUT_MS) {
+        runCatching {
+            val metadata = station.toSystemPlayableMediaItem(context).mediaMetadata
+            val artwork = metadata.artworkUri ?: metadata.artworkData ?: return@runCatching null
+            val request = ImageRequest.Builder(context)
+                .data(artwork)
+                .size(MAX_ARTWORK_SIZE_PX)
+                .build()
+            val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult
+            val bitmap = result?.image?.toTransparentBitmap()
+            bitmap?.scaledForWidget()?.maskedForWidget()
+        }.getOrNull()
+    }
+
+private fun Bitmap.scaledForWidget(): Bitmap {
+    val largestSide = maxOf(width, height)
+    if (largestSide <= MAX_ARTWORK_SIZE_PX) return this
+    val scale = MAX_ARTWORK_SIZE_PX.toFloat() / largestSide
+    return Bitmap.createScaledBitmap(
+        this,
+        (width * scale).toInt().coerceAtLeast(1),
+        (height * scale).toInt().coerceAtLeast(1),
+        true,
+    )
+}
+
+private fun Bitmap.maskedForWidget(): Bitmap {
+    val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(result)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = BitmapShader(this@maskedForWidget, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    }
+    val bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
+    if (hasCircularArtwork()) {
+        canvas.drawOval(bounds, paint)
+    } else {
+        val radius = minOf(width, height) * ARTWORK_CORNER_FRACTION
+        canvas.drawRoundRect(bounds, radius, radius, paint)
+    }
+    return result
+}
+
+private suspend fun withController(
+    context: Context,
+    block: suspend (MediaController) -> Unit,
+) = withContext(Dispatchers.Main.immediate) {
+    val appContext = context.applicationContext
+    val controller = MediaController.Builder(
+        appContext,
+        SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
+    ).buildAsync().await()
+    try {
+        block(controller)
+    } finally {
+        controller.release()
+    }
+}
+
+private suspend fun favorites(context: Context): List<Station> {
+    val app = context.applicationContext as AerialApp
+    return stationsForWidget(app.repository.getAll().first())
+}
+
+private fun setStationQueue(
+    context: Context,
+    controller: MediaController,
+    stations: List<Station>,
+    index: Int,
+) {
+    controller.setMediaItems(
+        stations.map { it.toPlayableMediaItem(context.applicationContext) },
+        index,
+        androidx.media3.common.C.TIME_UNSET,
+    )
+    controller.prepare()
+    controller.play()
+}
+
+private suspend fun handleWidgetPlaybackAction(context: Context, action: String?) {
+    withController(context) { controller ->
+        when (action) {
+            ACTION_WIDGET_PREVIOUS -> if (controller.hasPreviousMediaItem()) {
+                controller.seekToPreviousMediaItem()
+                controller.play()
+            }
+            ACTION_WIDGET_NEXT -> if (controller.hasNextMediaItem()) {
+                controller.seekToNextMediaItem()
+                controller.play()
+            }
+            ACTION_WIDGET_TOGGLE -> when {
+                controller.playWhenReady -> controller.pause()
+                controller.currentMediaItem != null -> controller.play()
+                else -> restoreWidgetQueue(context, controller)
+            }
         }
     }
 }
+
+private suspend fun restoreWidgetQueue(context: Context, controller: MediaController) {
+    val app = context.applicationContext as AerialApp
+    val snapshot = PlaybackSnapshotStore(app.settingsDataStore).read()
+    val stations = snapshot?.queue?.takeIf { it.isNotEmpty() }
+        ?: snapshot?.station?.let(::listOf)
+        ?: favorites(context).firstOrNull()?.let(::listOf)
+        ?: return
+    val selected = snapshot?.station?.let { current ->
+        stations.indexOfFirst { it.matches(current) }.takeIf { it >= 0 }
+    } ?: 0
+    setStationQueue(context, controller, stations, selected)
+}
+
+class AerialWidgetActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val pendingResult = goAsync()
+        (context.applicationContext as AerialApp).applicationScope.launch {
+            try {
+                handleWidgetPlaybackAction(context.applicationContext, intent.action)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Playback action failed: ${intent.action}", error)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+}
+
+class AerialWidgetReceiver : AppWidgetProvider() {
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        requestAerialWidgetUpdate(context)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle?,
+    ) {
+        requestAerialWidgetUpdate(context)
+    }
+}
+
+private const val TAG = "AerialWidget"
+private const val ARTWORK_TIMEOUT_MS = 3_000L
+private const val MAX_ARTWORK_SIZE_PX = 256
+private const val ARTWORK_CORNER_FRACTION = 0.2f
+private const val WIDGET_NARROW_WIDTH_DP = 180
+private const val WIDGET_WIDE_WIDTH_DP = 304
+private const val WIDGET_STICK_HEIGHT_DP = 48
+private const val WIDGET_WAFER_HEIGHT_DP = 80
+private const val WIDGET_TALL_HEIGHT_DP = 152
+private const val WIDGET_PANE_HEIGHT_DP = 272

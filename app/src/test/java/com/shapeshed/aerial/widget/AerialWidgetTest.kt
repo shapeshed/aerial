@@ -15,4 +15,32 @@ class AerialWidgetTest {
 
         assertEquals(listOf(1L, 3L), stationsForWidget(stations).map(Station::id))
     }
+
+    @Test
+    fun navigationMirrorsTheActiveQueue() {
+        assertEquals(
+            WidgetNavigationAvailability(previous = false, next = false),
+            widgetNavigationAvailability(index = 0, size = 1),
+        )
+        assertEquals(
+            WidgetNavigationAvailability(previous = true, next = true),
+            widgetNavigationAvailability(index = 0, size = 3),
+        )
+        assertEquals(
+            WidgetNavigationAvailability(previous = true, next = true),
+            widgetNavigationAvailability(index = 2, size = 3),
+        )
+    }
+
+    @Test
+    fun widgetLayoutAdaptsToAvailableSize() {
+        assertEquals(WidgetLayoutSize(180, 48), widgetLayoutSize(width = 180, height = 48))
+        assertEquals(WidgetLayoutSize(304, 48), widgetLayoutSize(width = 400, height = 48))
+        assertEquals(WidgetLayoutSize(180, 80), widgetLayoutSize(width = 180, height = 100))
+        assertEquals(WidgetLayoutSize(304, 80), widgetLayoutSize(width = 400, height = 100))
+        assertEquals(WidgetLayoutSize(180, 152), widgetLayoutSize(width = 180, height = 200))
+        assertEquals(WidgetLayoutSize(304, 152), widgetLayoutSize(width = 400, height = 200))
+        assertEquals(WidgetLayoutSize(180, 272), widgetLayoutSize(width = 180, height = 300))
+        assertEquals(WidgetLayoutSize(304, 272), widgetLayoutSize(width = 400, height = 300))
+    }
 }
