@@ -2,7 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name" translatable="false">Aerial</string>
     <string name="widget_name">Aerial favorites</string>
-    <string name="widget_title">Favorites</string>
     <string name="widget_empty">Add favorite stations to see them here</string>
     <string name="widget_previous">Previous</string>
     <string name="widget_play">Play</string>

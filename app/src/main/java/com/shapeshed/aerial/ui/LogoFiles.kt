@@ -231,7 +231,7 @@ private fun String.extensionOrNull(): String? {
  * Renders a Coil [Image] to a same-size ARGB bitmap, preserving its own transparency —
  * shared decode step behind [toOpaqueBitmap] and [isPredominantlyLight].
  */
-private fun Image.toTransparentBitmap(): Bitmap {
+internal fun Image.toTransparentBitmap(): Bitmap {
     val width = width.takeIf { it > 0 } ?: 512
     val height = height.takeIf { it > 0 } ?: 512
     val bitmap = createBitmap(width, height)
@@ -359,7 +359,7 @@ fun Image.hasTransparentMargin(): Boolean {
 /** Detects circular artwork, including circular marks exported on an opaque square canvas. */
 fun Image.hasCircularArtwork(): Boolean = toTransparentBitmap().hasCircularArtwork()
 
-private fun Bitmap.hasCircularArtwork(): Boolean {
+internal fun Bitmap.hasCircularArtwork(): Boolean {
     if (width < 4 || height < 4) return false
     val insetX = (width * 0.08f).toInt().coerceAtLeast(1)
     val insetY = (height * 0.08f).toInt().coerceAtLeast(1)

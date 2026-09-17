@@ -18,4 +18,6 @@
     <style name="Theme.Aerial.Car" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="colorAccent">@color/car_accent</item>
     </style>
+
+    <style name="Theme.Aerial.Widget" parent="android:style/Theme.DeviceDefault.DayNight" />
 </resources>
