@@ -65,7 +65,7 @@ internal suspend fun updateAerialWidgets(
         )
     }
     val layouts = mapOf(
-        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_stick,
             station,
@@ -76,7 +76,7 @@ internal suspend fun updateAerialWidgets(
             hasArtwork = false,
             hasText = false,
         ),
-        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_stick,
             station,
@@ -87,7 +87,7 @@ internal suspend fun updateAerialWidgets(
             hasArtwork = false,
             hasText = false,
         ),
-        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_narrow,
             station,
@@ -97,7 +97,7 @@ internal suspend fun updateAerialWidgets(
             playback,
             hasText = false,
         ),
-        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_narrow,
             station,
@@ -107,7 +107,7 @@ internal suspend fun updateAerialWidgets(
             playback,
             hasText = false,
         ),
-        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player,
             station,
@@ -115,8 +115,9 @@ internal suspend fun updateAerialWidgets(
             playbackDisplay?.title,
             playbackDisplay?.artist,
             playback,
+            hasText = false,
         ),
-        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player,
             station,
@@ -124,8 +125,9 @@ internal suspend fun updateAerialWidgets(
             playbackDisplay?.title,
             playbackDisplay?.artist,
             playback,
+            hasText = false,
         ),
-        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_expanded,
             station,
@@ -134,7 +136,7 @@ internal suspend fun updateAerialWidgets(
             playbackDisplay?.artist,
             playback,
         ),
-        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to widgetViews(
+        widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to createWidgetViews(
             app,
             R.layout.widget_player_expanded,
             station,
@@ -148,7 +150,7 @@ internal suspend fun updateAerialWidgets(
     AppWidgetManager.getInstance(app).updateWidgetLayouts(app, layouts)
 }
 
-private fun widgetViews(
+internal fun createWidgetViews(
     app: AerialApp,
     layoutId: Int,
     station: Station?,
@@ -161,13 +163,11 @@ private fun widgetViews(
 ): RemoteViews = RemoteViews(app.packageName, layoutId).apply {
     if (hasText) {
         setTextViewText(R.id.widget_station_name, displayTitle ?: app.getString(R.string.widget_empty))
-        setBoolean(R.id.widget_station_name, "setSelected", true)
         setViewVisibility(
             R.id.widget_live_radio,
             if (station == null) android.view.View.GONE else android.view.View.VISIBLE,
         )
         setTextViewText(R.id.widget_live_radio, displaySubtitle)
-        setBoolean(R.id.widget_live_radio, "setSelected", true)
     }
     if (hasArtwork) {
         if (artwork == null) {
@@ -295,7 +295,7 @@ private suspend fun stationArtwork(context: Context, station: Station): Bitmap? 
                 .build()
             val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult
             val bitmap = result?.image?.toTransparentBitmap()
-            bitmap?.scaledForWidget()?.maskedForWidget()
+            bitmap?.scaledForWidget()?.maskedForWidget(context)
         }.getOrNull()
     }
 
@@ -311,7 +311,7 @@ private fun Bitmap.scaledForWidget(): Bitmap {
     )
 }
 
-private fun Bitmap.maskedForWidget(): Bitmap {
+private fun Bitmap.maskedForWidget(context: Context): Bitmap {
     val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(result)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -321,7 +321,14 @@ private fun Bitmap.maskedForWidget(): Bitmap {
     if (hasCircularArtwork()) {
         canvas.drawOval(bounds, paint)
     } else {
-        val radius = minOf(width, height) * ARTWORK_CORNER_FRACTION
+        val innerRadiusDp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.resources.getDimension(android.R.dimen.system_app_widget_inner_radius) /
+                context.resources.displayMetrics.density
+        } else {
+            PRE_S_ARTWORK_CORNER_DP
+        }
+        val dockedArtworkSizeDp = WIDGET_TALL_HEIGHT_DP - (2 * DOCKED_ARTWORK_MARGIN_DP)
+        val radius = minOf(width, height) * (innerRadiusDp / dockedArtworkSizeDp)
         canvas.drawRoundRect(bounds, radius, radius, paint)
     }
     return result
@@ -433,7 +440,8 @@ class AerialWidgetReceiver : AppWidgetProvider() {
 private const val TAG = "AerialWidget"
 private const val ARTWORK_TIMEOUT_MS = 3_000L
 private const val MAX_ARTWORK_SIZE_PX = 256
-private const val ARTWORK_CORNER_FRACTION = 0.2f
+private const val PRE_S_ARTWORK_CORNER_DP = 16f
+private const val DOCKED_ARTWORK_MARGIN_DP = 8
 private const val WIDGET_NARROW_WIDTH_DP = 180
 private const val WIDGET_WIDE_WIDTH_DP = 304
 private const val WIDGET_STICK_HEIGHT_DP = 48

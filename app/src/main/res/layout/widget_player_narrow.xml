@@ -11,6 +11,7 @@
         android:id="@+id/widget_station_artwork"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:alpha="0.45"
         android:background="@drawable/widget_background"
         android:clipToOutline="true"
         android:scaleType="centerCrop"

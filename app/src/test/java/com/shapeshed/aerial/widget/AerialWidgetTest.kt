@@ -43,4 +43,16 @@ class AerialWidgetTest {
         assertEquals(WidgetLayoutSize(180, 272), widgetLayoutSize(width = 180, height = 300))
         assertEquals(WidgetLayoutSize(304, 272), widgetLayoutSize(width = 400, height = 300))
     }
+
+    @Test
+    fun widgetLayoutChangesAtEachResponsiveBoundary() {
+        assertEquals(WidgetLayoutSize(180, 48), widgetLayoutSize(width = 303, height = 79))
+        assertEquals(WidgetLayoutSize(304, 48), widgetLayoutSize(width = 304, height = 79))
+        assertEquals(WidgetLayoutSize(180, 80), widgetLayoutSize(width = 303, height = 80))
+        assertEquals(WidgetLayoutSize(304, 80), widgetLayoutSize(width = 304, height = 80))
+        assertEquals(WidgetLayoutSize(180, 80), widgetLayoutSize(width = 303, height = 151))
+        assertEquals(WidgetLayoutSize(180, 152), widgetLayoutSize(width = 303, height = 152))
+        assertEquals(WidgetLayoutSize(180, 152), widgetLayoutSize(width = 303, height = 271))
+        assertEquals(WidgetLayoutSize(180, 272), widgetLayoutSize(width = 303, height = 272))
+    }
 }
