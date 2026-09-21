@@ -428,7 +428,6 @@ private fun RegistryResultItem(
     }
 }
 
-
 @Composable
 internal fun NoNetworkState() {
     Box(

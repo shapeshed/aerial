@@ -427,7 +427,6 @@ private fun colorDistance(first: FloatArray, second: FloatArray): Float =
         (difference * difference).toDouble()
     }).toFloat()
 
-
 // MD3 baseline Neutral-10 (on-surface dark tone) — pre-API-31 fallback for adaptiveNeutral(),
 // on devices with no dynamic color palette to draw from.
 private const val SYSTEM_SURFACE_DARK_PLATE_FALLBACK = 0xFF1D1B20.toInt()
