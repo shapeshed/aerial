@@ -10,6 +10,11 @@
     "dependencies",
     "renovate"
   ],
+  "automerge": true,
+  "platformAutomerge": true,
+  "major": {
+    "automerge": false
+  },
   "enabledManagers": [
     "gradle",
     "github-actions"
