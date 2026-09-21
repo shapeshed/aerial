@@ -56,7 +56,7 @@ normal application.
 Run the suites with:
 
 ```sh
-# Local business-logic tests, lint, and compilation
+# Local business-logic tests, lint, compilation, and coverage gate
 ./gradlew quality
 
 # Compose screenshot validation without a device
