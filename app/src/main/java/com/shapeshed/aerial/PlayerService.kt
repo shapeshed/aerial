@@ -27,7 +27,6 @@ import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
-import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -41,6 +40,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
+import com.shapeshed.aerial.data.ACTION_TOGGLE_FAVORITE
+import com.shapeshed.aerial.data.AERIAL_CUSTOM_COMMAND_ACTIONS
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.FavoriteToggleAction
 import com.shapeshed.aerial.data.MediaBrowseTree
@@ -58,11 +59,8 @@ import com.shapeshed.aerial.data.applyFavoriteToggleLocally
 import com.shapeshed.aerial.data.favoriteToggleAction
 import com.shapeshed.aerial.data.httpGetText
 import com.shapeshed.aerial.data.parseTrackMetadata
-import com.shapeshed.aerial.data.queueForResumption
-import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.streamMetadataFrames
-import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import com.shapeshed.aerial.widget.widgetNavigationAvailability
@@ -83,8 +81,6 @@ class PlayerService : MediaLibraryService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
-    private val sleepTimerSetCommand = SessionCommand(ACTION_SLEEP_TIMER_SET, Bundle.EMPTY)
-    private val sleepTimerCancelCommand = SessionCommand(ACTION_SLEEP_TIMER_CANCEL, Bundle.EMPTY)
     private lateinit var sleepTimerController: SleepTimerController
 
     private lateinit var player: ExoPlayer
@@ -94,9 +90,9 @@ class PlayerService : MediaLibraryService() {
     private lateinit var registryRepository: RegistryRepository
     private lateinit var artworkResolver: StationArtworkResolver
     private lateinit var mediaBrowseTree: MediaBrowseTree
+    private lateinit var sessionCoordinator: PlaybackSessionCoordinator
     private val playbackSnapshotStore by lazy { PlaybackSnapshotStore(dataStore) }
     private var stations: List<Station> = emptyList()
-    private val parentIdByMediaId = mutableMapOf<String, String>()
     private var lastRecordedStationKey: String? = null
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
@@ -119,6 +115,13 @@ class PlayerService : MediaLibraryService() {
         registryRepository = (application as AerialApp).registryRepository
         artworkResolver = StationArtworkResolver(registryRepository)
         mediaBrowseTree = MediaBrowseTree(this, repository, registryRepository)
+        sessionCoordinator = PlaybackSessionCoordinator(
+            context = this,
+            browseTree = mediaBrowseTree,
+            repository = repository,
+            snapshotStore = playbackSnapshotStore,
+            artworkResolver = artworkResolver,
+        )
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(AERIAL_USER_AGENT)
             .setAllowCrossProtocolRedirects(true)
@@ -318,9 +321,11 @@ class PlayerService : MediaLibraryService() {
                     .setAvailableSessionCommands(
                         MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                             .buildUpon()
-                            .add(favoriteCommand)
-                            .add(sleepTimerSetCommand)
-                            .add(sleepTimerCancelCommand)
+                            .apply {
+                                AERIAL_CUSTOM_COMMAND_ACTIONS.forEach {
+                                    add(SessionCommand(it, Bundle.EMPTY))
+                                }
+                            }
                             .build()
                     )
                     .build(),
@@ -371,30 +376,15 @@ class PlayerService : MediaLibraryService() {
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<MediaItem>> {
-            // Folders (Favorites/Moods/Recently Played) read as a list; station logos read well
-            // as a grid, similar to most radio/podcast apps on Android Auto.
-            val rootExtras = Bundle().apply {
-                putInt(
-                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM,
-                )
-                putInt(
-                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
-                )
-            }
-            val rootParams = LibraryParams.Builder().setExtras(rootExtras).build()
-            return Futures.immediateFuture(LibraryResult.ofItem(mediaBrowseTree.rootItem(), rootParams))
-        }
+        ): ListenableFuture<LibraryResult<MediaItem>> =
+            Futures.immediateFuture(sessionCoordinator.libraryRoot())
 
         override fun onGetItem(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             mediaId: String,
         ): ListenableFuture<LibraryResult<MediaItem>> = serviceFuture {
-            mediaBrowseTree.resolve(mediaId)?.let { LibraryResult.ofItem(it, null) }
-                ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            sessionCoordinator.resolveItem(mediaId)
         }
 
         override fun onGetChildren(
@@ -405,22 +395,7 @@ class PlayerService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
-            val children = mediaBrowseTree.children(parentId)
-            if (children == null) {
-                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-            } else {
-                // Remembered per mediaId (not just "whichever folder was browsed last") so a tap
-                // on one of these (via onSetMediaItems) can queue the tapped item's whole folder,
-                // giving Android Auto skip next/previous and an Up Next queue between stations
-                // instead of a single-item timeline. Auto prefetches sibling folders' contents in
-                // the background (e.g. for artwork), so a single last-folder variable would get
-                // clobbered before the user actually taps play. Only the mediaId -> folder
-                // mapping is kept; the folder's contents are rebuilt fresh at play time.
-                if (children.isNotEmpty() && children.all { it.mediaMetadata.isPlayable == true }) {
-                    children.forEach { parentIdByMediaId[it.mediaId] = parentId }
-                }
-                LibraryResult.ofItemList(children.paginated(page, pageSize), params)
-            }
+            sessionCoordinator.children(parentId, page, pageSize, params)
         }
 
         override fun onSearch(
@@ -429,7 +404,7 @@ class PlayerService : MediaLibraryService() {
             query: String,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<Void>> = serviceFuture {
-            val resultCount = mediaBrowseTree.search(query).size
+            val resultCount = sessionCoordinator.searchCount(query)
             session.notifySearchResultChanged(browser, query, resultCount, params)
             LibraryResult.ofVoid()
         }
@@ -442,14 +417,9 @@ class PlayerService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
-            LibraryResult.ofItemList(mediaBrowseTree.search(query).paginated(page, pageSize), params)
+            sessionCoordinator.searchResults(query, page, pageSize, params)
         }
 
-        // Android Auto's legacy MediaBrowserCompat bridge plays a tapped browse item (or a voice
-        // search/resumption result) by dispatching a MediaItem carrying only a mediaId, not the
-        // fully resolved item the browse tree returned — so it must be looked up again here before
-        // ExoPlayer can play it. Falls back to the incoming item unchanged if it doesn't resolve
-        // (e.g. an ephemeral station the phone UI is already playing directly with a real URI).
         override fun onSetMediaItems(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -457,62 +427,20 @@ class PlayerService : MediaLibraryService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            expandControllerQueue(
-                mediaItems = mediaItems,
-                startIndex = startIndex,
-                startPositionMs = startPositionMs,
-                controllerPackage = controller.packageName,
-                appPackage = packageName,
-                parentIdForMediaId = { parentIdByMediaId[it] },
-                childrenForParent = { mediaBrowseTree.children(it) },
-                resolveMediaItem = { mediaBrowseTree.resolve(it) },
-            )
+            sessionCoordinator.setMediaItems(mediaItems, startIndex, startPositionMs, controller.packageName)
         }
 
-        // Called when a controller (lock-screen/notification, Bluetooth, Assistant) reconnects
-        // to a session whose player has no media item — e.g. the whole process was killed while
-        // the screen was off and the system is now restarting the service to handle a media
-        // button press. Without this, that reconnection carries only whatever single item the
-        // system cached, so Previous/Next on the lock screen have nothing to navigate — the same
-        // "queue collapses to one station" bug loadStationPaused fixes for the app-driven restore
-        // path, but for the case where the app itself never reopens.
         override fun onPlaybackResumption(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            val snapshot = playbackSnapshotStore.read()
-                ?: throw UnsupportedOperationException("No last-played station to resume")
-            val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
-                ?: repository.getByStreamUrl(snapshot.station.streamUrl)
-            val queue = queueForResumption(snapshot.queue, repository.getAll().first(), playbackSnapshotStore.favoriteSort())
-            val resumed = savedStation ?: snapshot.station.copy(id = 0)
-            val startIndex = resolveQueueStart(queue, resumed)
-            if (startIndex != null) {
-                MediaSession.MediaItemsWithStartPosition(
-                    queue.map { artworkResolver.recover(it).toSystemPlayableMediaItem(this@PlayerService) },
-                    startIndex,
-                    C.TIME_UNSET,
-                )
-            } else {
-                MediaSession.MediaItemsWithStartPosition(
-                    listOf(artworkResolver.recover(resumed).toSystemPlayableMediaItem(this@PlayerService)),
-                    0,
-                    C.TIME_UNSET,
-                )
-            }
+            sessionCoordinator.playbackResumption()
         }
     }
 
     private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> {
         return serviceScope.asServiceFuture(block)
-    }
-
-    private fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
-        if (pageSize <= 0) return this
-        val from = (page * pageSize).coerceIn(0, size)
-        val to = (from + pageSize).coerceIn(from, size)
-        return subList(from, to)
     }
 
     // Records a listen the moment audio actually starts (onIsPlayingChanged=true) — the single
@@ -662,7 +590,6 @@ class PlayerService : MediaLibraryService() {
 
     private companion object {
         const val TAG = "AerialPlayerService"
-        const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
         const val STALE_BUFFER_THRESHOLD_MS = 3_000L
         const val MIN_BUFFER_MS = 15_000
         const val MAX_BUFFER_MS = 30_000
