@@ -223,7 +223,13 @@ Proposed extractions (behavior, not arbitrary file fragments):
    class with four JVM tests (`StationArtworkResolverTest`). Also removed an
    unused local in the original. `PlayerService` now builds the resolver in
    `onCreate` and calls `artworkResolver.recover(...)`.
-2. `PlaybackStateSynchronizer` — metadata/identity reconciliation.
+2. **IN PROGRESS** — `PlaybackStateSynchronizer`. First step done: pure
+   `PlaybackStateSync.kt` helpers (`PlaybackStationIdentity.of`,
+   `playbackStationChanged`, `PlaybackUiState.clearedPerStationState`,
+   `stationNamesForMetadataFilter`) extracted from `MainViewModel` with 6 JVM
+   tests (`PlaybackStateSyncTest`). Still owned by `MainViewModel`: the
+   pending-metadata state machine (`handlePlaybackMetadata` /
+   `applyPlaybackMetadata`) and the `syncPlaybackState` reducer.
 3. `PlaybackSessionCoordinator` — service-side session/player wiring.
 4. `FavoritesOrdering` — remaining ordering/membership logic.
 5. Inject `NetworkMonitor` and a string/resource provider instead of casting
