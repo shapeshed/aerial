@@ -96,29 +96,15 @@ jobs:
           fail_ci_if_error: true
           token: ${{ env.CODECOV_TOKEN }}
 
-      # The emulator action installs the SDK packages itself, but a transient
-      # "Premature EOF" from the SDK download can fail the whole job before any
-      # test runs. Pre-install the same packages with retries so the action's
-      # install step is satisfied from the local SDK cache.
-      - name: Pre-install emulator and system image (retry on transient failures)
-        run: |
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          sdkmanager="$(find "$sdk_root/cmdline-tools" -name sdkmanager -type f 2>/dev/null | sort | tail -n 1)"
-          if [ -z "$sdkmanager" ]; then
-            echo "sdkmanager not found under $sdk_root/cmdline-tools" >&2
-            exit 1
-          fi
-          echo "Using $sdkmanager"
-          yes | "$sdkmanager" --licenses > /dev/null || true
-          for attempt in 1 2 3 4 5; do
-            if "$sdkmanager" --install emulator "system-images;android-34;default;x86_64"; then
-              exit 0
-            fi
-            echo "sdkmanager attempt ${attempt} failed; retrying in 20s"
-            sleep 20
-          done
-          echo "sdkmanager failed after retries" >&2
-          exit 1
+      # Sets up cmdline-tools, accepts licenses, and puts sdkmanager/adb on
+      # PATH. The emulator runner installs the emulator, platform-tools and
+      # system image itself; pre-installing them here (with the action's retry
+      # behaviour) avoids a transient SDK download EOF failing the job before
+      # any test runs.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools emulator'
 
       - name: Start Android emulator and run isolated device tests
         uses: reactivecircus/android-emulator-runner@v2
