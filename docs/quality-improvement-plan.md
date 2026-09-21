@@ -246,6 +246,23 @@ in, run `:app:ktlintCheck` (new files must be ktlint-clean), regenerate
 `app/config/ktlint/baseline.xml` because edited files shift line numbers, then
 run `quality`.
 
+### Coverage inventory for `PlaybackSessionCoordinator` (2026-09-21)
+
+Characterization tests must exist before moving service logic:
+
+- **Covered:** `expandControllerQueue` (`PlaybackQueuePlanTest`), resumption and
+  queue policy (`PlaybackResumptionPolicyTest`, `StationQueueTest`), browse tree
+  (`MediaBrowseTreeTest`), station resolution (`PlaybackStationResolverTest`),
+  and instrumented `MediaSessionQueueExpansionTest`,
+  `PlayerServiceQueueRecoveryTest`, `Media3QueueNavigationTest`.
+- **Newly characterized:** favorite toggle
+  (`data/FavoriteToggle.kt` + `FavoriteToggleTest`), extracted test-first and now
+  used by `PlayerService.onCustomCommand`.
+- **Still uncovered — add tests before moving:** the sleep timer
+  (`startSleepTimer` / `cancelSleepTimer` / `fadeOutAndPause`; needs an
+  injectable clock/volume/store seam) and the `onConnectAsync` advertised
+  command set. Do not move these into the coordinator until they have tests.
+
 Approach (required by repo policy):
 1. Write characterization tests that pin current observable behavior first.
 2. Extract one type at a time behind an interface with constructor injection.
