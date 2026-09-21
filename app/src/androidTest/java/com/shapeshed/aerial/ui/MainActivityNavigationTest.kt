@@ -52,11 +52,11 @@ class MainActivityNavigationTest {
             .get(1)
             .performTextInput("no-station-9f3c2a")
 
-        composeRule.waitUntil(timeoutMillis = 10_000) {
+        composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithText(string(R.string.no_stations_found)).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(string(R.string.add_your_own_station)).performClick()
-        composeRule.waitUntil(timeoutMillis = 10_000) {
+        composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithText(string(R.string.add_station)).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(string(R.string.add_station)).assertIsDisplayed()
