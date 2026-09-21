@@ -334,7 +334,11 @@ References: <https://developer.android.com/topic/performance/benchmarking/macrob
 - **DONE** — minified-release smoke (manual, on an API 36 emulator): install the
   R8-minified, debug-signed `benchmark` APK, launch, and confirm no crash and the
   Media3 `MediaLibrarySession` registers. Procedure recorded in `docs/testing.md`.
-- **TODO** — ~5% end-to-end journeys (UI Automator/Compose) for major flows.
+- **DONE (existing coverage)** — end-to-end journeys are already covered by the
+  Activity-level instrumented flows against the isolated `deviceTest` build
+  (`MainActivityNavigationTest`, `HomeTabContentTest`, `TagFilterFlowTest`,
+  `MiniPlayerNavigationTest`, `SettingsBackupManagerIntegrationTest`). No
+  redundant journey was added.
 - **DONE** — Edge-to-edge audit. `enableEdgeToEdge()` and `adjustResize` are
   present; `StationEditScreen` pads for the IME (`imePadding()` +
   `consumeWindowInsets`); `MainActivity` disables navigation-bar contrast on
