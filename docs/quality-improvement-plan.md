@@ -352,10 +352,20 @@ References: <https://developer.android.com/develop/ui/compose/testing>.
 - Raise the coverage threshold incrementally as behavior tests land.
 - Consider strengthening Android lint (currently only `fatal 'UnusedResources'`,
   `MissingTranslation` disabled).
-- Reduce the 1,115-entry ktlint baseline incrementally (inventory cleanup) rather
-  than with a one-shot `ktlintFormat`; see §2.3 for why the formatter is unsafe
-  here. The largest contributors are `StationEditScreen.kt` and
-  `SettingsScreen.kt`.
+- Reduce the ktlint baseline incrementally (inventory cleanup) rather than with a
+  one-shot `ktlintFormat`; see §2.3 for why the formatter is unsafe here. Progress:
+  **1,128 → 1,041**. Fully cleared: `import-ordering`, `no-consecutive-blank-lines`,
+  `no-blank-line-before-rbrace`, `no-multi-spaces`, `keyword-spacing`,
+  `string-template`, `filename`, `spacing-between-declarations-with-annotations`,
+  `spacing-between-declarations-with-comments`, `trailing-comma-on-call-site`.
+  Remaining work is dominated by formatter-owned rules — `indent` (~293),
+  `argument-list-wrapping` (~241), `function-signature` (~140), `max-line-length`
+  (~68), `wrapping` (~48), `blank-line-between-when-conditions` (~44),
+  `class-signature` (~42) — which need the ktlint non-convergence solved first
+  (the formatter oscillates on indent/class-signature/trailing-comma). Also
+  outstanding: `no-wildcard-imports` (needs per-symbol expansion),
+  `multiline-if-else`, `backing-property-naming`, and the Compose
+  `parameter-naming`/`lambda-param-in-effect`/`content-slot-reused` findings.
 
 ---
 
