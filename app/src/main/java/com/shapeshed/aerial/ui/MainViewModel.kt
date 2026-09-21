@@ -284,11 +284,6 @@ class MainViewModel @Inject constructor(
     private val _ephemeralStation = MutableStateFlow<Station?>(null)
     private val _playbackUiState = MutableStateFlow(PlaybackUiState())
     val playbackUiState: StateFlow<PlaybackUiState> = _playbackUiState.asStateFlow()
-    private data class PendingPlaybackMetadata(
-        val station: Station,
-        val title: String?,
-        val artist: String?,
-    )
     private var pendingPlaybackMetadata: PendingPlaybackMetadata? = null
     // Carries the last-played station to loadStationPaused() once the MediaController connects.
     // CompletableDeferred ensures the handoff is safe regardless of which side wins the race.
@@ -729,12 +724,14 @@ class MainViewModel @Inject constructor(
     @androidx.annotation.VisibleForTesting
     internal fun handlePlaybackMetadata(mediaItem: MediaItem?, title: String?, artist: String?) {
         val station = resolveStation(mediaItem)
-        val currentStation = _playbackUiState.value.station
-        if (station != null && (currentStation == null || !currentStation.matches(station))) {
-            pendingPlaybackMetadata = PendingPlaybackMetadata(station, title, artist)
-        } else {
-            pendingPlaybackMetadata = null
-            applyPlaybackMetadata(title, artist)
+        when (val arrival = metadataArrival(station, _playbackUiState.value.station)) {
+            is MetadataArrival.Defer ->
+                pendingPlaybackMetadata = PendingPlaybackMetadata(arrival.station, title, artist)
+
+            MetadataArrival.ApplyNow -> {
+                pendingPlaybackMetadata = null
+                applyPlaybackMetadata(title, artist)
+            }
         }
     }
 
@@ -782,21 +779,19 @@ class MainViewModel @Inject constructor(
             val changed = stationChanged(station)
             updateStationIdentity(station)
             clearPerStationStateIfChanged(changed)
-            pendingPlaybackMetadata
-                ?.takeIf { it.station.matches(station) }
-                ?.let { pending ->
-                    applyPlaybackMetadata(pending.title, pending.artist)
-                    pendingPlaybackMetadata = null
-                }
+            pendingPlaybackMetadata?.matching(station)?.let { pending ->
+                applyPlaybackMetadata(pending.title, pending.artist)
+                pendingPlaybackMetadata = null
+            }
             if (!suppressLastPlayedPersist) {
                 persistLastPlayedStation(station, queue)
             }
         }
-        _playbackUiState.value = _playbackUiState.value.copy(
-            station = station ?: _playbackUiState.value.station,
+        _playbackUiState.value = _playbackUiState.value.reducePlaybackSync(
+            station = station,
             isPlaying = isPlaying,
             isBuffering = playbackState == Player.STATE_BUFFERING && playWhenReady,
-            queue = queue.ifEmpty { _playbackUiState.value.queue },
+            queue = queue,
         )
     }
 
