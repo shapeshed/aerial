@@ -31,15 +31,7 @@
         <error line="32" column="45" source="standard:comment-wrapping" />
     </file>
     <file name="src/androidTest/java/com/shapeshed/aerial/ui/TagFilterFlowTest.kt">
-        <error line="48" column="20" source="standard:binary-expression-wrapping" />
-        <error line="48" column="35" source="standard:argument-list-wrapping" />
-        <error line="48" column="40" source="standard:argument-list-wrapping" />
-        <error line="48" column="56" source="standard:argument-list-wrapping" />
-        <error line="48" column="80" source="standard:argument-list-wrapping" />
-        <error line="48" column="103" source="standard:argument-list-wrapping" />
-        <error line="48" column="121" source="standard:argument-list-wrapping" />
-        <error line="48" column="121" source="standard:max-line-length" />
-        <error line="149" column="24" source="standard:string-template" />
+        <error line="156" column="24" source="standard:string-template" />
     </file>
     <file name="src/androidTest/java/com/shapeshed/aerial/widget/AerialWidgetRemoteViewsTest.kt">
         <error line="144" column="59" source="standard:function-signature" />
@@ -467,25 +459,25 @@
         <error line="678" column="28" source="standard:multiline-if-else" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/MainViewModel.kt">
-        <error line="111" column="17" source="standard:backing-property-naming" />
-        <error line="153" column="32" source="standard:multiline-if-else" />
-        <error line="207" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="224" column="17" source="standard:backing-property-naming" />
-        <error line="233" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="248" column="17" source="standard:backing-property-naming" />
-        <error line="279" column="54" source="standard:argument-list-wrapping" />
-        <error line="279" column="68" source="standard:argument-list-wrapping" />
-        <error line="279" column="84" source="standard:argument-list-wrapping" />
-        <error line="279" column="105" source="standard:argument-list-wrapping" />
-        <error line="279" column="109" source="standard:function-literal" />
-        <error line="279" column="115" source="standard:function-literal" />
-        <error line="279" column="120" source="standard:max-line-length" />
-        <error line="279" column="121" source="standard:function-literal" />
-        <error line="279" column="133" source="standard:function-literal" />
-        <error line="283" column="17" source="standard:backing-property-naming" />
+        <error line="112" column="17" source="standard:backing-property-naming" />
+        <error line="154" column="32" source="standard:multiline-if-else" />
+        <error line="208" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="225" column="17" source="standard:backing-property-naming" />
+        <error line="234" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="249" column="17" source="standard:backing-property-naming" />
+        <error line="280" column="54" source="standard:argument-list-wrapping" />
+        <error line="280" column="68" source="standard:argument-list-wrapping" />
+        <error line="280" column="84" source="standard:argument-list-wrapping" />
+        <error line="280" column="105" source="standard:argument-list-wrapping" />
+        <error line="280" column="109" source="standard:function-literal" />
+        <error line="280" column="115" source="standard:function-literal" />
+        <error line="280" column="120" source="standard:max-line-length" />
+        <error line="280" column="121" source="standard:function-literal" />
+        <error line="280" column="133" source="standard:function-literal" />
         <error line="284" column="17" source="standard:backing-property-naming" />
-        <error line="288" column="5" source="standard:spacing-between-declarations-with-comments" />
-        <error line="798" column="66" source="standard:function-signature" />
+        <error line="285" column="17" source="standard:backing-property-naming" />
+        <error line="289" column="5" source="standard:spacing-between-declarations-with-comments" />
+        <error line="799" column="66" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/MiniPlayer.kt">
         <error line="67" column="5" source="compose:parameter-naming" />
@@ -993,8 +985,8 @@
         <error line="22" column="80" source="standard:function-signature" />
         <error line="32" column="74" source="standard:function-signature" />
         <error line="37" column="72" source="standard:function-signature" />
-        <error line="42" column="66" source="standard:function-signature" />
-        <error line="47" column="85" source="standard:function-signature" />
+        <error line="47" column="66" source="standard:function-signature" />
+        <error line="52" column="85" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/theme/Theme.kt">
         <error line="28" column="1" source="standard:blank-line-between-when-conditions" />
@@ -1197,8 +1189,8 @@
         <error line="291" column="120" source="standard:argument-list-wrapping" />
         <error line="291" column="121" source="standard:argument-list-wrapping" />
         <error line="291" column="121" source="standard:max-line-length" />
-        <error line="697" column="28" source="standard:wrapping" />
-        <error line="700" column="17" source="standard:wrapping" />
+        <error line="704" column="28" source="standard:wrapping" />
+        <error line="707" column="17" source="standard:wrapping" />
     </file>
     <file name="src/test/java/com/shapeshed/aerial/ui/NowPlayingDisplayTest.kt">
         <error line="32" column="27" source="standard:argument-list-wrapping" />

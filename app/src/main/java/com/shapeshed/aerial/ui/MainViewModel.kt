@@ -80,6 +80,7 @@ class MainViewModel @Inject constructor(
     private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
     private val networkMonitor: NetworkMonitor,
+    private val strings: StringProvider,
     // Defaults below are test/preview-only; Hilt always supplies these.
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -355,7 +356,7 @@ class MainViewModel @Inject constructor(
 
     // Localized "Live Radio" — the placeholder shown in the notification / mini player when a
     // station has no track metadata, and the sentinel used to detect that placeholder below.
-    private fun liveRadio(): String = getApplication<Application>().getString(R.string.live_radio)
+    private fun liveRadio(): String = strings.get(R.string.live_radio)
 
     val sleepTimer: StateFlow<SleepTimerState?> = SleepTimerStore.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -688,7 +689,7 @@ class MainViewModel @Inject constructor(
                 isBuffering = false,
             )
             _playbackUiState.value = _playbackUiState.value.copy(
-                error = getApplication<Application>().getString(playbackErrorMessageRes(error.errorCode)),
+                error = strings.get(playbackErrorMessageRes(error.errorCode)),
             )
         }
 

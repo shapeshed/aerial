@@ -39,6 +39,11 @@ object UiModule {
 
     @Provides
     @Singleton
+    fun provideStringProvider(application: Application): StringProvider =
+        StringProvider { id -> application.getString(id) }
+
+    @Provides
+    @Singleton
     fun provideMediaControllerGateway(): MediaControllerGateway =
         DefaultMediaControllerGateway()
 
