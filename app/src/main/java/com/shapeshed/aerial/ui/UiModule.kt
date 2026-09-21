@@ -4,10 +4,10 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.shapeshed.aerial.AerialApp
-import com.shapeshed.aerial.dataStore
-import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.NetworkMonitor
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.dataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

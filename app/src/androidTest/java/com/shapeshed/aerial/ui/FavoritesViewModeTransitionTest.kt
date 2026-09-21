@@ -1,5 +1,6 @@
 package com.shapeshed.aerial.ui
 
+import android.content.Context
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +15,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
-import android.content.Context
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.Station

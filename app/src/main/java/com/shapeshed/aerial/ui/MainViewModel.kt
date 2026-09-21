@@ -2,12 +2,13 @@ package com.shapeshed.aerial.ui
 
 import android.app.Application
 import android.content.Context
+import android.os.Bundle
+import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
-import android.os.Bundle
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -21,33 +22,34 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
-import androidx.core.content.ContextCompat
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.stationFromMediaItem
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.SHOW_HOME_KEY
+import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
-import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.FavoritesQueueCoordinator
-import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.resolveQueueStart
-import com.shapeshed.aerial.data.queueForResumption
-import com.shapeshed.aerial.data.normalizeTrackMetadata
 import com.shapeshed.aerial.data.buildPlaybackQueuePlan
+import com.shapeshed.aerial.data.normalizeTrackMetadata
+import com.shapeshed.aerial.data.queueForResumption
+import com.shapeshed.aerial.data.resolveQueueStart
+import com.shapeshed.aerial.stationFromMediaItem
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
+import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -57,8 +59,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -66,8 +68,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")

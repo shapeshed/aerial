@@ -7,8 +7,8 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.datastore.preferences.core.edit
 import androidx.core.net.toUri
+import androidx.datastore.preferences.core.edit
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -20,14 +20,14 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.extractor.metadata.icy.IcyInfo
-import androidx.media3.extractor.metadata.id3.ApicFrame
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.session.CommandButton
+import androidx.media3.extractor.metadata.icy.IcyInfo
+import androidx.media3.extractor.metadata.id3.ApicFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.session.CacheBitmapLoader
+import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
@@ -41,17 +41,14 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlayHistoryEntry
-import com.shapeshed.aerial.data.RECENT_ID
-import com.shapeshed.aerial.data.httpGetText
-import com.shapeshed.aerial.data.resolveQueueStart
-import com.shapeshed.aerial.data.resolveStreamUrl
-import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
+import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
@@ -59,12 +56,16 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationArtworkResolver
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.httpGetText
 import com.shapeshed.aerial.data.parseTrackMetadata
+import com.shapeshed.aerial.data.queueForResumption
+import com.shapeshed.aerial.data.resolveQueueStart
+import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
+import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import com.shapeshed.aerial.widget.widgetNavigationAvailability
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -78,7 +79,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 @OptIn(UnstableApi::class)
 class PlayerService : MediaLibraryService() {

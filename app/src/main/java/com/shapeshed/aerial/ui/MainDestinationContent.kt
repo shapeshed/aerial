@@ -1,9 +1,9 @@
 package com.shapeshed.aerial.ui
 
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station

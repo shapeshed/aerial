@@ -34,11 +34,11 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.shapeshed.aerial.BuildConfig
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.data.RegistryStation
-import com.shapeshed.aerial.ui.theme.AerialTheme
 import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.ui.theme.AerialTheme
 
 @PreviewTest
 @PreviewAdaptiveFormFactors
