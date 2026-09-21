@@ -1,9 +1,6 @@
 package com.shapeshed.aerial.data
 
-data class NormalizedTrackMetadata(
-    val title: String?,
-    val artist: String?,
-)
+data class NormalizedTrackMetadata(val title: String?, val artist: String?)
 
 /** Removes station-name/live-radio echoes from metadata before displaying it. */
 fun normalizeTrackMetadata(

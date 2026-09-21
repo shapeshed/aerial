@@ -86,11 +86,7 @@ private fun presetLabel(ms: Long): String {
 /** Now Playing top-bar action: a plain icon when idle, a tonal icon with countdown when active. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SleepTimerAction(
-    active: SleepTimerState?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SleepTimerAction(active: SleepTimerState?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     if (active != null) {
         // Active state: a filled Material You accent pill (primaryContainer) holding the icon
         // and live countdown. The whole pill opens the picker, and it's inset to sit at the
@@ -174,7 +170,9 @@ fun SleepTimerSheet(
                 // (empty at the start, full when it's about to fire).
                 val fraction = if (active.totalMs > 0) {
                     (1f - active.remainingMs.toFloat() / active.totalMs.toFloat()).coerceIn(0f, 1f)
-                } else 0f
+                } else {
+                    0f
+                }
                 val animatedFraction by animateFloatAsState(
                     targetValue = fraction,
                     animationSpec = tween(500),
@@ -197,7 +195,10 @@ fun SleepTimerSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(
-                        onClick = { onCancel(); onDismiss() },
+                        onClick = {
+                            onCancel()
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(stringResource(R.string.action_cancel))
@@ -228,7 +229,10 @@ fun SleepTimerSheet(
                 SLEEP_TIMER_PRESETS_MS.forEach { ms ->
                     ToggleButton(
                         checked = active?.totalMs == ms,
-                        onCheckedChange = { onSet(ms); onDismiss() },
+                        onCheckedChange = {
+                            onSet(ms)
+                            onDismiss()
+                        },
                         // Visual hierarchy per applying-m-3-expressive: unselected siblings are
                         // squarer and the selected one rounds out to stand apart.
                         shapes = ToggleButtonShapes(

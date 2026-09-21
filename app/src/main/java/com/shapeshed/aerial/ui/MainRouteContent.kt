@@ -113,8 +113,11 @@ internal fun MainRouteContent(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(
-                if (mood == null) searchScrollBehavior.nestedScrollConnection
-                else moodScrollBehavior.nestedScrollConnection,
+                if (mood == null) {
+                    searchScrollBehavior.nestedScrollConnection
+                } else {
+                    moodScrollBehavior.nestedScrollConnection
+                },
             ),
     ) {
         renderDestination(destination, mood)
@@ -123,7 +126,13 @@ internal fun MainRouteContent(
             station = currentStation,
             stationName = miniPlayerDisplay.title,
             icyInfo = playbackError
-                ?: if (isBuffering) androidx.compose.ui.res.stringResource(R.string.buffering) else miniPlayerDisplay.artist,
+                ?: if (isBuffering) {
+                    androidx.compose.ui.res.stringResource(
+                        R.string.buffering,
+                    )
+                } else {
+                    miniPlayerDisplay.artist
+                },
             isPlaying = isPlaying,
             isBuffering = isBuffering,
             onHeightChanged = onHeightChanged,

@@ -28,11 +28,7 @@ class RegistryRepositoryTest {
         assertEquals(emptyList<RegistryStation>(), repository.search("   "))
     }
 
-    private fun registry(
-        name: String,
-        countryCode: String,
-        tags: String,
-    ) = RegistryStation(
+    private fun registry(name: String, countryCode: String, tags: String) = RegistryStation(
         name = name,
         streamUrl = "https://example.test/$name",
         countryCode = countryCode,

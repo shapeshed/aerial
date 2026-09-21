@@ -151,7 +151,9 @@ class MainViewModel @Inject constructor(
                         val artworkPath = recentlyPlayedLogoPath(localLogoPath, registryStation.logoUrl)
                         if (artworkPath != registryStation.logoUrl) {
                             registryStation.copy(logoUrl = artworkPath)
-                        } else registryStation
+                        } else {
+                            registryStation
+                        }
                     }
                 }
                 .collect {
@@ -205,6 +207,7 @@ class MainViewModel @Inject constructor(
             val registry = when {
                 station.provider.isNotBlank() && station.providerId.isNotBlank() ->
                     registryRepository.getByProviderId(station.provider, station.providerId)
+
                 else -> registryRepository.getByStreamUrl(station.streamUrl)
             }
             val registryLogo = registry?.logoUrl.orEmpty()
@@ -231,6 +234,7 @@ class MainViewModel @Inject constructor(
         val registry = when {
             station.provider.isNotBlank() && station.providerId.isNotBlank() ->
                 registryRepository.getByProviderId(station.provider, station.providerId)
+
             else -> registryRepository.getByStreamUrl(station.streamUrl)
         }
         val recoveredPath = recoverLogoPath(
@@ -277,7 +281,11 @@ class MainViewModel @Inject constructor(
         persistLastPlayedStation(currentStation, reorderedQueue)
     }
 
-    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort, _activeFavoritesOrder) { list, sort, activeOrder ->
+    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort, _activeFavoritesOrder) {
+            list,
+            sort,
+            activeOrder,
+        ->
         favoritesQueueCoordinator.sortForDisplay(list, sort, activeOrder)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -797,8 +805,7 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    private fun resolveStation(mediaItem: MediaItem?): Station? =
-        stationFromMediaItem(mediaItem, _allStations.value)
+    private fun resolveStation(mediaItem: MediaItem?): Station? = stationFromMediaItem(mediaItem, _allStations.value)
 
     private fun setCurrentStation(station: Station?) {
         val changed = stationChanged(station)

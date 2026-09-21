@@ -14,10 +14,7 @@ const val ACTION_WIDGET_NEXT = "com.shapeshed.aerial.action.WIDGET_NEXT"
 
 private val updateGeneration = AtomicLong()
 
-internal data class WidgetNavigationAvailability(
-    val previous: Boolean,
-    val next: Boolean,
-)
+internal data class WidgetNavigationAvailability(val previous: Boolean, val next: Boolean)
 
 internal fun widgetNavigationAvailability(index: Int, size: Int): WidgetNavigationAvailability =
     WidgetNavigationAvailability(

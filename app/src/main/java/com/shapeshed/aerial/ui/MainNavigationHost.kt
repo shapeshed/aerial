@@ -40,9 +40,18 @@ internal fun MainNavigationHost(
             entry<AerialRoute.Favorites> { renderMainRoute(TAB_FAVORITES, null) }
             entry<AerialRoute.Mood>(
                 metadata = metadata {
-                    put(NavDisplay.TransitionKey) { androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None }
-                    put(NavDisplay.PopTransitionKey) { androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None }
-                    put(NavDisplay.PredictivePopTransitionKey) { androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None }
+                    put(NavDisplay.TransitionKey) {
+                        androidx.compose.animation.EnterTransition.None togetherWith
+                            androidx.compose.animation.ExitTransition.None
+                    }
+                    put(NavDisplay.PopTransitionKey) {
+                        androidx.compose.animation.EnterTransition.None togetherWith
+                            androidx.compose.animation.ExitTransition.None
+                    }
+                    put(NavDisplay.PredictivePopTransitionKey) {
+                        androidx.compose.animation.EnterTransition.None togetherWith
+                            androidx.compose.animation.ExitTransition.None
+                    }
                 },
             ) { route ->
                 renderMainRoute(

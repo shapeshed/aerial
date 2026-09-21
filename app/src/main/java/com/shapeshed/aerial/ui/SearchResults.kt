@@ -100,9 +100,16 @@ internal fun RecentSearches(
                 trailingContent = {
                     IconButton(
                         onClick = { onRemove(query) },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_remove), modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.action_remove),
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                 },
             ) {
@@ -149,7 +156,10 @@ internal fun RegistrySearchResults(
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = androidx.compose.ui.Modifier.size(88.dp),
                     ) {
-                        Box(contentAlignment = Alignment.Center, modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Radio,
                                 contentDescription = null,
@@ -296,7 +306,9 @@ private fun FavoriteResultItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        } else null,
+        } else {
+            null
+        },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
@@ -309,6 +321,7 @@ private fun FavoriteResultItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                         )
+
                         isPlaying -> EqualizerBars(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -316,6 +329,7 @@ private fun FavoriteResultItem(
                                 .semantics { contentDescription = pauseLabel },
                             barCount = 3,
                         )
+
                         else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
                     }
                 }
@@ -379,43 +393,55 @@ private fun RegistryResultItem(
             }
         },
         supportingContent = if (countryLabel.isNotBlank()) {
-            { Text(countryLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        } else null,
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-            // Preview control (mood-row style): plays in place without closing the search
-            // sheet so the station can be auditioned before saving it.
-            IconButton(
-                onClick = if (isPlaying) onTogglePlayback else onPreviewPlay,
-                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-            ) {
-                when {
-                    isBuffering -> CircularWavyProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                    )
-                    isPlaying -> EqualizerBars(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(width = 28.dp, height = 22.dp)
-                            .semantics { contentDescription = pauseLabel },
-                        barCount = 3,
-                    )
-                    else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
-                }
-            }
-            IconButton(
-                onClick = if (alreadySaved) onRemove else onAdd,
-                shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
-            ) {
-                Icon(
-                    imageVector = if (alreadySaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = stringResource(if (alreadySaved) R.string.remove_from_favorites else R.string.save_to_favorites),
-                    tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+            {
+                Text(
+                    countryLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        } else {
+            null
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Preview control (mood-row style): plays in place without closing the search
+                // sheet so the station can be auditioned before saving it.
+                IconButton(
+                    onClick = if (isPlaying) onTogglePlayback else onPreviewPlay,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    when {
+                        isBuffering -> CircularWavyProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        )
+
+                        isPlaying -> EqualizerBars(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(width = 28.dp, height = 22.dp)
+                                .semantics { contentDescription = pauseLabel },
+                            barCount = 3,
+                        )
+
+                        else -> Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.play))
+                    }
+                }
+                IconButton(
+                    onClick = if (alreadySaved) onRemove else onAdd,
+                    shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                ) {
+                    Icon(
+                        imageVector = if (alreadySaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = stringResource(
+                            if (alreadySaved) R.string.remove_from_favorites else R.string.save_to_favorites,
+                        ),
+                        tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         },
     ) {

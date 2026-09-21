@@ -86,21 +86,19 @@ private fun sniffFormat(body: String): PlaylistFormat? {
 // FileN=<url>: capture N so the lowest-numbered entry (the primary stream) wins.
 private val PLS_FILE_REGEX = Regex("(?i)File(\\d+)\\s*=\\s*(.+)")
 
-private fun parsePls(body: String): String? =
-    body.lineSequence()
-        .mapNotNull { line ->
-            val match = PLS_FILE_REGEX.matchEntire(line.trim()) ?: return@mapNotNull null
-            val index = match.groupValues[1].toIntOrNull() ?: return@mapNotNull null
-            val url = match.groupValues[2].trim()
-            if (url.isEmpty()) null else index to url
-        }
-        .minByOrNull { it.first }
-        ?.second
+private fun parsePls(body: String): String? = body.lineSequence()
+    .mapNotNull { line ->
+        val match = PLS_FILE_REGEX.matchEntire(line.trim()) ?: return@mapNotNull null
+        val index = match.groupValues[1].toIntOrNull() ?: return@mapNotNull null
+        val url = match.groupValues[2].trim()
+        if (url.isEmpty()) null else index to url
+    }
+    .minByOrNull { it.first }
+    ?.second
 
-private fun parseM3u(body: String): String? =
-    body.lineSequence()
-        .map { it.trim() }
-        .firstOrNull { it.isNotEmpty() && !it.startsWith("#") }
+private fun parseM3u(body: String): String? = body.lineSequence()
+    .map { it.trim() }
+    .firstOrNull { it.isNotEmpty() && !it.startsWith("#") }
 
 // ASX is frequently not well-formed XML (uppercase tags, unquoted or unclosed elements), so a
 // tolerant match for the first <ref href="..."> beats a strict XML parser — and keeps this file

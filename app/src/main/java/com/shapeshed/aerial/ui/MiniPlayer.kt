@@ -157,33 +157,37 @@ internal fun MiniPlayer(
                                             onTogglePlayback()
                                         },
                                 ) {
-                                val motionScheme = MaterialTheme.motionScheme
-                                Box(contentAlignment = Alignment.Center) {
-                                    AnimatedContent(
-                                        targetState = isBuffering to isPlaying,
-                                        transitionSpec = {
-                                            (fadeIn(motionScheme.defaultEffectsSpec()) +
-                                                scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
-                                                .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
-                                        },
-                                        label = "playPauseIcon",
-                                    ) { (buffering, playing) ->
-                                        if (buffering) {
-                                            CircularWavyProgressIndicator(
-                                                modifier = Modifier.size(28.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                                contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(30.dp),
-                                            )
+                                    val motionScheme = MaterialTheme.motionScheme
+                                    Box(contentAlignment = Alignment.Center) {
+                                        AnimatedContent(
+                                            targetState = isBuffering to isPlaying,
+                                            transitionSpec = {
+                                                (
+                                                    fadeIn(motionScheme.defaultEffectsSpec()) +
+                                                        scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f)
+                                                    )
+                                                    .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                                            },
+                                            label = "playPauseIcon",
+                                        ) { (buffering, playing) ->
+                                            if (buffering) {
+                                                CircularWavyProgressIndicator(
+                                                    modifier = Modifier.size(28.dp),
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                                    contentDescription = stringResource(
+                                                        if (playing) R.string.pause else R.string.play,
+                                                    ),
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(30.dp),
+                                                )
+                                            }
                                         }
                                     }
-                                }
                                 }
                                 if (showNextStation) {
                                     Surface(

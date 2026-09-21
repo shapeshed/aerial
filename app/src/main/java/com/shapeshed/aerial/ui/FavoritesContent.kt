@@ -167,6 +167,7 @@ internal fun FavoritesTabContent(
                             modifier = Modifier
                                 .testTag("favorite-card-${station.id}"),
                         )
+
                         HomeViewMode.List -> StationListRow(
                             station = station,
                             isActive = isActive,
@@ -181,8 +182,8 @@ internal fun FavoritesTabContent(
                     }
                 }
             }
-}
-}
+        }
+    }
 }
 
 @Composable
@@ -216,11 +217,7 @@ private fun FavoritesHeader(
 // Google apps (list of radio rows under a small title).
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-private fun FavoritesSortSheet(
-    current: FavoritesSort,
-    onSelect: (FavoritesSort) -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun FavoritesSortSheet(current: FavoritesSort, onSelect: (FavoritesSort) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
@@ -332,6 +329,7 @@ private fun StationListRow(
     val swipeBackgroundColor by animateColorAsState(
         targetValue = when (dismissState.targetValue) {
             SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+
             SwipeToDismissBoxValue.StartToEnd,
             SwipeToDismissBoxValue.EndToStart,
             -> MaterialTheme.colorScheme.errorContainer
@@ -365,6 +363,7 @@ private fun StationListRow(
                             )
                             .padding(12.dp),
                     )
+
                     SwipeToDismissBoxValue.Settled -> Unit
                 }
             }
@@ -377,8 +376,11 @@ private fun StationListRow(
         },
     ) {
         Surface(
-            color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-            else MaterialTheme.colorScheme.surfaceContainer,
+            color = if (isActive) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
             shape = MaterialTheme.shapes.medium,
             modifier = modifier
                 .fillMaxWidth()
@@ -399,8 +401,11 @@ private fun StationListRow(
                         station = station,
                         isActive = isActive,
                         size = 50.dp,
-                        surfaceColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-                        else MaterialTheme.colorScheme.surfaceContainer,
+                        surfaceColor = if (isActive) {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        },
                         allowContrastPlate = false,
                     )
                 },
@@ -423,6 +428,7 @@ private fun StationListRow(
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                                 )
+
                                 isPlaying -> EqualizerBars(
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier
@@ -469,8 +475,11 @@ private fun StationTile(
         isPlaying = isPlaying,
         isBuffering = isBuffering,
     )
-    val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-    else MaterialTheme.colorScheme.surfaceContainerLow
+    val cardColor = if (isActive) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = cardColor,
@@ -505,42 +514,42 @@ private fun StationTile(
                     modifier = Modifier.size(48.dp),
                 )
             }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .then(if (isPlaying) Modifier.safeMarquee() else Modifier),
-            )
-            if (hasActivityIndicator) {
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(width = 24.dp, height = 20.dp),
-                ) {
-                    if (isBuffering) {
-                        CircularWavyProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
-                        )
-                    } else {
-                        EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(width = 24.dp, height = 20.dp),
-                            barCount = 3,
-                        )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (isPlaying) Modifier.safeMarquee() else Modifier),
+                )
+                if (hasActivityIndicator) {
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                    ) {
+                        if (isBuffering) {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                            )
+                        } else {
+                            EqualizerBars(
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                                barCount = 3,
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}
 }

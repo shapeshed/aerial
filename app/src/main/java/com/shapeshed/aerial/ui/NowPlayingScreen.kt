@@ -153,7 +153,10 @@ fun NowPlayingScreen(
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
         object : NestedScrollConnection {
-            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+            override fun onPreScroll(
+                available: androidx.compose.ui.geometry.Offset,
+                source: NestedScrollSource,
+            ): androidx.compose.ui.geometry.Offset {
                 if (available.y > 0f && contentScrollState.value == 0) {
                     dragOffsetY = (dragOffsetY + available.y).coerceAtLeast(0f)
                     return androidx.compose.ui.geometry.Offset(0f, available.y)
@@ -226,7 +229,10 @@ fun NowPlayingScreen(
                         onClick = onDismiss,
                         modifier = Modifier.semantics { traversalIndex = 0f },
                     ) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.close_player))
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.close_player),
+                        )
                     }
                 },
                 actions = {
@@ -414,7 +420,9 @@ fun NowPlayingScreen(
                         ) {
                             Icon(
                                 imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
+                                contentDescription = stringResource(
+                                    if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites,
+                                ),
                             )
                         }
                     }
@@ -539,14 +547,21 @@ fun NowPlayingScreen(
                                     onClick = {
                                         val copyText = buildString {
                                             if (!trackArtist.isNullOrBlank()) append(trackArtist)
-                                            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
+                                            if (!trackArtist.isNullOrBlank() &&
+                                                !trackTitle.isNullOrBlank()
+                                            ) {
+                                                append(" — ")
+                                            }
                                             if (!trackTitle.isNullOrBlank()) append(trackTitle)
                                         }
                                         clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
                                     },
                                     modifier = Modifier.semantics { traversalIndex = 10f },
                                 ) {
-                                    Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
+                                    Icon(
+                                        Icons.Rounded.ContentCopy,
+                                        contentDescription = stringResource(R.string.copy_track_info),
+                                    )
                                 }
                                 Column(
                                     modifier = Modifier
@@ -590,10 +605,7 @@ fun NowPlayingScreen(
 }
 
 @Composable
-private fun StationArtworkSurface(
-    artworkModel: Any?,
-    modifier: Modifier = Modifier,
-) {
+private fun StationArtworkSurface(artworkModel: Any?, modifier: Modifier = Modifier) {
     BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxSize(),
@@ -616,10 +628,7 @@ private fun StationArtworkSurface(
 }
 
 @Composable
-private fun StreamBitratePill(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
+private fun StreamBitratePill(text: String, modifier: Modifier = Modifier) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,

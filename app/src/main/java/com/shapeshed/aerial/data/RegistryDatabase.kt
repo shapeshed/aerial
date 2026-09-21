@@ -22,14 +22,13 @@ abstract class RegistryDatabase : RoomDatabase() {
 
         @Volatile private var instance: RegistryDatabase? = null
 
-        fun get(context: Context, assetVersion: Int): RegistryDatabase =
-            instance ?: synchronized(this) {
-                context.prepareRegistryDatabase(assetVersion)
-                Room.databaseBuilder(context, RegistryDatabase::class.java, DATABASE_NAME)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .build()
-                    .also { instance = it }
-            }
+        fun get(context: Context, assetVersion: Int): RegistryDatabase = instance ?: synchronized(this) {
+            context.prepareRegistryDatabase(assetVersion)
+            Room.databaseBuilder(context, RegistryDatabase::class.java, DATABASE_NAME)
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build()
+                .also { instance = it }
+        }
 
         private fun Context.prepareRegistryDatabase(assetVersion: Int) {
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

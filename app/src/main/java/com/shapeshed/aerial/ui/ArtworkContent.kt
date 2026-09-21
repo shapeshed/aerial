@@ -181,7 +181,7 @@ fun StationLogoSurface(
 @Composable
 internal fun StationLogoContent(
     logoModel: Any?,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     fallbackBackground: androidx.compose.ui.graphics.Color,
     opaqueArtworkBackground: androidx.compose.ui.graphics.Color,
     fallback: @Composable () -> Unit,
@@ -258,15 +258,21 @@ fun StationAvatar(
         logoModel = logoModel,
         size = size,
         modifier = modifier,
-        fallbackBackground = surfaceColor ?: if (isActive) MaterialTheme.colorScheme.secondaryContainer
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        fallbackBackground = surfaceColor ?: if (isActive) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
         allowContrastPlate = allowContrastPlate,
     ) {
         Icon(
             imageVector = Icons.Rounded.Radio,
             contentDescription = null,
-            tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isActive) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             modifier = Modifier.size(size * 0.55f),
         )
     }

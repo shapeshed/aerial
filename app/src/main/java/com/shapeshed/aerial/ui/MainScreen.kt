@@ -277,20 +277,15 @@ internal val CURATED_MOODS = listOf(
     ),
 )
 
-internal data class RegistryStationKey(
-    val provider: String,
-    val providerId: String,
-)
+internal data class RegistryStationKey(val provider: String, val providerId: String)
 
-internal fun RegistryStation.savedKey(): RegistryStationKey? =
-    RegistryStationKey(provider, providerId).takeIf {
-        it.provider.isNotBlank() && it.providerId.isNotBlank()
-    }
+internal fun RegistryStation.savedKey(): RegistryStationKey? = RegistryStationKey(provider, providerId).takeIf {
+    it.provider.isNotBlank() && it.providerId.isNotBlank()
+}
 
-internal fun Station.savedKey(): RegistryStationKey? =
-    RegistryStationKey(provider, providerId).takeIf {
-        it.provider.isNotBlank() && it.providerId.isNotBlank()
-    }
+internal fun Station.savedKey(): RegistryStationKey? = RegistryStationKey(provider, providerId).takeIf {
+    it.provider.isNotBlank() && it.providerId.isNotBlank()
+}
 
 private fun RegistryStation.toPlaybackStation(): Station = Station(
     name = name,
@@ -481,9 +476,15 @@ fun MainScreen(
                             textFieldState.edit { replace(0, length, "") }
                             scope.launch { searchBarState.animateToCollapsed() }
                         },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 } else {
                     Icon(Icons.Rounded.Search, contentDescription = null)
@@ -494,7 +495,10 @@ fun MainScreen(
                     isSearchExpanded && searchQueryText.isNotEmpty() -> {
                         IconButton(
                             onClick = { textFieldState.edit { replace(0, length, "") } },
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            shapes = IconButtonShapes(
+                                IconButtonDefaults.smallRoundShape,
+                                IconButtonDefaults.smallPressedShape,
+                            ),
                         ) {
                             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_search))
                         }
@@ -610,8 +614,12 @@ fun MainScreen(
 
         AnimatedVisibility(
             visible = showNowPlaying && isMainRoute,
-            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
-            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
+            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = {
+                it
+            }),
+            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = {
+                it
+            }),
             modifier = Modifier.fillMaxSize(),
         ) {
             val station = currentStation
@@ -651,66 +659,70 @@ fun MainScreen(
             }
         }
 
-        if (isSearchRoute) MainSearchOverlay(
-            searchBarState = searchBarState,
-            inputField = searchInputField,
-            textFieldState = textFieldState,
-            query = searchQueryText,
-            uiState = uiState,
-            savedStreamUrls = savedStreamUrls,
-            savedRegistryKeys = savedRegistryKeys,
-            onCountryFilter = { openFilterSheet { showCountrySheet = true } },
-            onGenreFilter = { openFilterSheet { showGenreSheet = true } },
-            onClearFilters = viewModel::clearAllFilters,
-            onSearch = viewModel::searchRegistry,
-            onSaveRecentSearch = viewModel::saveRecentSearch,
-            onRemoveRecentSearch = viewModel::removeRecentSearch,
-            onPlayFavorite = viewModel::play,
-            onPlayRegistry = viewModel::playFromRegistry,
-            onTogglePlayback = viewModel::togglePlayback,
-            onAddRegistry = viewModel::addFromRegistry,
-            onRemoveRegistry = viewModel::removeFromRegistry,
-            onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
-            onAddManually = { navigator.navigate(AerialRoute.AddStation) },
-        )
+        if (isSearchRoute) {
+            MainSearchOverlay(
+                searchBarState = searchBarState,
+                inputField = searchInputField,
+                textFieldState = textFieldState,
+                query = searchQueryText,
+                uiState = uiState,
+                savedStreamUrls = savedStreamUrls,
+                savedRegistryKeys = savedRegistryKeys,
+                onCountryFilter = { openFilterSheet { showCountrySheet = true } },
+                onGenreFilter = { openFilterSheet { showGenreSheet = true } },
+                onClearFilters = viewModel::clearAllFilters,
+                onSearch = viewModel::searchRegistry,
+                onSaveRecentSearch = viewModel::saveRecentSearch,
+                onRemoveRecentSearch = viewModel::removeRecentSearch,
+                onPlayFavorite = viewModel::play,
+                onPlayRegistry = viewModel::playFromRegistry,
+                onTogglePlayback = viewModel::togglePlayback,
+                onAddRegistry = viewModel::addFromRegistry,
+                onRemoveRegistry = viewModel::removeFromRegistry,
+                onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
+                onAddManually = { navigator.navigate(AerialRoute.AddStation) },
+            )
+        }
 
-        if (isSearchRoute) MainModalHost(
-            showCountrySheet = showCountrySheet,
-            showGenreSheet = showGenreSheet,
-            countrySheetState = countrySheetState,
-            genreSheetState = genreSheetState,
-            countryQuery = countryFilterQuery,
-            genreQuery = genreFilterQuery,
-            availableCountries = availableCountries,
-            selectedCountries = selectedCountries,
-            allTags = allTags,
-            selectedTags = selectedTags,
-            tagLabels = tagLabels,
-            appLocale = appLocale,
-            contextStation = contextStation,
-            stationToDelete = stationToDelete,
-            onDismissCountry = dismissCountrySheet,
-            onDismissGenre = dismissGenreSheet,
-            onCountryQueryChange = { countryFilterQuery = it },
-            onGenreQueryChange = { genreFilterQuery = it },
-            onToggleCountry = viewModel::toggleCountryFilter,
-            onClearCountry = viewModel::clearCountryFilter,
-            onToggleTag = viewModel::toggleTagFilter,
-            onClearTag = viewModel::clearTagFilter,
-            onDismissContext = { contextStation = null },
-            onEditStation = {
-                contextStation = null
-                navigator.navigate(AerialRoute.EditStation(it.id))
-            },
-            onRequestDelete = {
-                stationToDelete = it
-                contextStation = null
-            },
-            onDismissDelete = { stationToDelete = null },
-            onConfirmDelete = {
-                viewModel.deleteStation(it)
-                stationToDelete = null
-            },
-        )
+        if (isSearchRoute) {
+            MainModalHost(
+                showCountrySheet = showCountrySheet,
+                showGenreSheet = showGenreSheet,
+                countrySheetState = countrySheetState,
+                genreSheetState = genreSheetState,
+                countryQuery = countryFilterQuery,
+                genreQuery = genreFilterQuery,
+                availableCountries = availableCountries,
+                selectedCountries = selectedCountries,
+                allTags = allTags,
+                selectedTags = selectedTags,
+                tagLabels = tagLabels,
+                appLocale = appLocale,
+                contextStation = contextStation,
+                stationToDelete = stationToDelete,
+                onDismissCountry = dismissCountrySheet,
+                onDismissGenre = dismissGenreSheet,
+                onCountryQueryChange = { countryFilterQuery = it },
+                onGenreQueryChange = { genreFilterQuery = it },
+                onToggleCountry = viewModel::toggleCountryFilter,
+                onClearCountry = viewModel::clearCountryFilter,
+                onToggleTag = viewModel::toggleTagFilter,
+                onClearTag = viewModel::clearTagFilter,
+                onDismissContext = { contextStation = null },
+                onEditStation = {
+                    contextStation = null
+                    navigator.navigate(AerialRoute.EditStation(it.id))
+                },
+                onRequestDelete = {
+                    stationToDelete = it
+                    contextStation = null
+                },
+                onDismissDelete = { stationToDelete = null },
+                onConfirmDelete = {
+                    viewModel.deleteStation(it)
+                    stationToDelete = null
+                },
+            )
+        }
     }
 }

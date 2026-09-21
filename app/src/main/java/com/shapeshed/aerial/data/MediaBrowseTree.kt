@@ -81,20 +81,18 @@ class MediaBrowseTree(
         browsableFolder("$MOOD_ID_PREFIX$id", context.getString(titleRes))
     }
 
-    suspend fun moodStationChildren(moodId: String): List<MediaItem> =
-        registryRepository.curatedMoodStations()[moodId]
-            ?.mapConcurrently { it.toPlayableMediaItem(context) }
-            ?: emptyList()
+    suspend fun moodStationChildren(moodId: String): List<MediaItem> = registryRepository.curatedMoodStations()[moodId]
+        ?.mapConcurrently { it.toPlayableMediaItem(context) }
+        ?: emptyList()
 
     // Sourced from play_history (any station played, favorited or not) rather than favorited
     // stations' lastPlayedAt, so browsing a mood/search result shows up here even if it's never
     // been saved. Entries only resolve for registry-backed stations (provider+providerId); a
     // history row whose station has since vanished from the registry — or a curated mood
     // station without a real providerId — is silently skipped rather than shown broken.
-    suspend fun recentChildren(): List<MediaItem> =
-        stationRepository.recentlyPlayed(RECENT_LIMIT)
-            .mapNotNull { entry -> registryRepository.getByProviderId(entry.provider, entry.providerId) }
-            .mapConcurrently { it.toPlayableMediaItem(context) }
+    suspend fun recentChildren(): List<MediaItem> = stationRepository.recentlyPlayed(RECENT_LIMIT)
+        .mapNotNull { entry -> registryRepository.getByProviderId(entry.provider, entry.providerId) }
+        .mapConcurrently { it.toPlayableMediaItem(context) }
 
     /** Broad catalogue search (not just favorites) so voice search can find and play any station
      * in the registry, matching what "Hey Google, play X on Aerial" needs. */

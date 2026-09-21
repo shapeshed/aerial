@@ -37,10 +37,7 @@ class StationEditViewModel @AssistedInject internal constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(
-            stationId: Long?,
-            logoImporter: suspend (Context, Uri) -> File?,
-        ): StationEditViewModel
+        fun create(stationId: Long?, logoImporter: suspend (Context, Uri) -> File?): StationEditViewModel
     }
 
     private val _name = MutableStateFlow("")
@@ -76,6 +73,7 @@ class StationEditViewModel @AssistedInject internal constructor(
                         _registryLogoUrl.value = when {
                             station.provider.isNotBlank() && station.providerId.isNotBlank() ->
                                 registryRepository.getByProviderId(station.provider, station.providerId)?.logoUrl
+
                             else -> registryRepository.getByStreamUrl(station.streamUrl)?.logoUrl
                         }?.takeIf { it.isNotBlank() }
                     }
@@ -84,8 +82,12 @@ class StationEditViewModel @AssistedInject internal constructor(
         }
     }
 
-    fun onNameChange(value: String) { _name.value = value }
-    fun onStreamUrlChange(value: String) { _streamUrl.value = value }
+    fun onNameChange(value: String) {
+        _name.value = value
+    }
+    fun onStreamUrlChange(value: String) {
+        _streamUrl.value = value
+    }
 
     fun onLogoPicked(context: Context, uri: Uri): Job {
         val job = viewModelScope.launch {
@@ -111,11 +113,13 @@ class StationEditViewModel @AssistedInject internal constructor(
         if (_name.value.isBlank() || _streamUrl.value.isBlank()) return
         viewModelScope.launch {
             logoCopyJob?.join() // wait for any in-progress copy before reading the path
-            val station = (existingStation ?: Station(
-                name = "",
-                streamUrl = "",
-                isFavorite = true,
-            )).copy(
+            val station = (
+                existingStation ?: Station(
+                    name = "",
+                    streamUrl = "",
+                    isFavorite = true,
+                )
+                ).copy(
                 id = stationId ?: 0,
                 name = _name.value.trim(),
                 streamUrl = _streamUrl.value.trim(),

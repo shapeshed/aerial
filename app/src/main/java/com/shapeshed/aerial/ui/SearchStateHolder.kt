@@ -53,11 +53,7 @@ internal class SearchStateHolder(
         .map { preferences -> preferences.recentSearches() }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private data class SearchRequest(
-        val query: String,
-        val countries: Set<String>,
-        val tags: Set<String>,
-    )
+    private data class SearchRequest(val query: String, val countries: Set<String>, val tags: Set<String>)
 
     private val searchRequests = MutableStateFlow(SearchRequest("", emptySet(), emptySet()))
 
@@ -173,11 +169,9 @@ internal class SearchStateHolder(
     }
 }
 
-private fun Set<String>.toggle(value: String): Set<String> =
-    if (value in this) this - value else this + value
+private fun Set<String>.toggle(value: String): Set<String> = if (value in this) this - value else this + value
 
-private fun String?.toFilterSet(): Set<String> =
-    this?.split(',')?.filter(String::isNotBlank)?.toSet().orEmpty()
+private fun String?.toFilterSet(): Set<String> = this?.split(',')?.filter(String::isNotBlank)?.toSet().orEmpty()
 
 private fun Preferences.recentSearches(): List<String> {
     val json = this[RECENT_SEARCHES_KEY] ?: return emptyList()

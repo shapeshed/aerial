@@ -85,7 +85,11 @@ private val CURATED_MOOD_STATIONS = mapOf(
         MoodStationRef("A Strangely Isolated Place", "curated"),
         MoodStationRef("Box Lofi Radio", "radio-browser", "a5213a32-d614-47bc-8d52-70a2b6eed8e1"),
         MoodStationRef("SomaFM Groove Salad", "radio-browser", "960cf833-0601-11e8-ae97-52543be04c81"),
-        MoodStationRef("FluxFM Chillhop – Chill Beats and LoFi HipHop", "radio-browser", "58d3cce6-62b5-43f1-8f41-8d024998aabc"),
+        MoodStationRef(
+            "FluxFM Chillhop – Chill Beats and LoFi HipHop",
+            "radio-browser",
+            "58d3cce6-62b5-43f1-8f41-8d024998aabc",
+        ),
         MoodStationRef("Radio Swiss Jazz", "curated"),
     ),
     // Ordered so logo colours flow: dark blue/purple -> dark/orange -> teal/red -> lime green
@@ -191,11 +195,10 @@ private val CURATED_MOOD_STATIONS = mapOf(
 // Turn a normalised query into an FTS4 MATCH expression: split into tokens (which also drops FTS
 // operator characters, avoiding syntax errors) and prefix-match each so search-as-you-type works.
 // e.g. "radio jazz" -> "radio* jazz*". Accent folding is handled by the tokenizer, not here.
-internal fun toFtsMatchQuery(normalized: String): String =
-    normalized.lowercase()
-        .split(Regex("[^\\p{L}\\p{N}]+"))
-        .filter { it.isNotBlank() }
-        .joinToString(" ") { "$it*" }
+internal fun toFtsMatchQuery(normalized: String): String = normalized.lowercase()
+    .split(Regex("[^\\p{L}\\p{N}]+"))
+    .filter { it.isNotBlank() }
+    .joinToString(" ") { "$it*" }
 
 class RegistryRepository(private val dao: RegistryDao) {
 
@@ -299,10 +302,7 @@ class RegistryRepository(private val dao: RegistryDao) {
         }
     }
 
-    private fun resolveMoodStation(
-        target: MoodStationRef,
-        candidates: List<RegistryStation>,
-    ): RegistryStation? {
+    private fun resolveMoodStation(target: MoodStationRef, candidates: List<RegistryStation>): RegistryStation? {
         val match = if (!target.providerId.isNullOrBlank()) {
             candidates.firstOrNull { it.provider == target.provider && it.providerId == target.providerId }
         } else {

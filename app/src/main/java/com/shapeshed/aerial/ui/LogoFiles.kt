@@ -195,10 +195,11 @@ fun localLogoArtworkUri(context: Context, file: File): Uri? {
     return ArtworkProvider.uriFor(context, ArtworkProvider.LOCAL_LOGO_DIR, artworkFile.name)
 }
 
-internal fun mediaArtworkFileForSystem(file: File): File =
-    if (file.extension.lowercase(Locale.US) == "svg") {
-        File(file.parentFile, "${file.nameWithoutExtension}_media.png")
-    } else file
+internal fun mediaArtworkFileForSystem(file: File): File = if (file.extension.lowercase(Locale.US) == "svg") {
+    File(file.parentFile, "${file.nameWithoutExtension}_media.png")
+} else {
+    file
+}
 
 fun appIconBitmap(context: Context): ByteArray? {
     return try {
@@ -237,7 +238,9 @@ internal fun Image.toTransparentBitmap(): Bitmap {
         // support hardware bitmaps") — copy() does the GPU-to-software readback instead.
         this is BitmapImage && this.bitmap.config == Bitmap.Config.HARDWARE ->
             canvas.drawBitmap(this.bitmap.copy(Bitmap.Config.ARGB_8888, false), 0f, 0f, null)
+
         this is BitmapImage -> canvas.drawBitmap(this.bitmap, 0f, 0f, null)
+
         else -> draw(canvas)
     }
     return bitmap
@@ -372,7 +375,11 @@ internal fun Bitmap.hasCircularArtwork(): Boolean {
         this[insetX, height / 2],
     )
     val transparentCorners = corners.count { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
-    if (transparentCorners == corners.size) return edges.count { android.graphics.Color.alpha(it) >= MIN_OPAQUE_ALPHA } >= 2
+    if (transparentCorners ==
+        corners.size
+    ) {
+        return edges.count { android.graphics.Color.alpha(it) >= MIN_OPAQUE_ALPHA } >= 2
+    }
 
     val cornerColor = corners.map { color ->
         floatArrayOf(
@@ -407,21 +414,19 @@ internal fun Bitmap.hasCircularArtwork(): Boolean {
  * contrasting edges misclassifies full-bleed square artwork with a horizontal or vertical band
  * as circular, which causes its corners to be clipped in the grid.
  */
-internal fun looksLikeCircularArtwork(
-    transparentCorners: Int,
-    cornersMatch: Boolean,
-    contrastingEdges: Int,
-): Boolean = if (transparentCorners == 4) {
-    contrastingEdges >= 2
-} else {
-    cornersMatch && contrastingEdges >= 3
-}
+internal fun looksLikeCircularArtwork(transparentCorners: Int, cornersMatch: Boolean, contrastingEdges: Int): Boolean =
+    if (transparentCorners == 4) {
+        contrastingEdges >= 2
+    } else {
+        cornersMatch && contrastingEdges >= 3
+    }
 
-private fun colorDistance(first: FloatArray, second: FloatArray): Float =
-    kotlin.math.sqrt(first.indices.sumOf { index ->
+private fun colorDistance(first: FloatArray, second: FloatArray): Float = kotlin.math.sqrt(
+    first.indices.sumOf { index ->
         val difference = first[index] - second[index]
         (difference * difference).toDouble()
-    }).toFloat()
+    },
+).toFloat()
 
 // MD3 baseline Neutral-10 (on-surface dark tone) — pre-API-31 fallback for adaptiveNeutral(),
 // on devices with no dynamic color palette to draw from.

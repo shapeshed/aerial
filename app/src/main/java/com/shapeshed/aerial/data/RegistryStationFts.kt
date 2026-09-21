@@ -17,8 +17,4 @@ import androidx.room.Fts4
     tokenizerArgs = ["remove_diacritics=1"],
 )
 @Entity(tableName = "registry_stations_fts")
-data class RegistryStationFts(
-    val searchText: String,
-    val description: String,
-    val country: String,
-)
+data class RegistryStationFts(val searchText: String, val description: String, val country: String)

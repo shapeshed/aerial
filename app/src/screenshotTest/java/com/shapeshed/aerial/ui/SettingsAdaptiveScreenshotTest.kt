@@ -50,7 +50,11 @@ private fun SettingsAdaptiveScreenshot() {
 }
 
 @PreviewTest
-@Preview(name = "Phone dark", device = "spec:width=400dp,height=500dp,dpi=420", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Phone dark",
+    device = "spec:width=400dp,height=500dp,dpi=420",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
 private fun SettingsDarkScreenshot() {
     AerialTheme(dynamicColor = false) {
@@ -416,10 +420,28 @@ private val previewRegistryStations = listOf(
 )
 
 private val previewStations = listOf(
-    Station(id = 1, name = "Mango Radio", streamUrl = "https://example.test/mango", country = "United Kingdom", countryCode = "GB"),
+    Station(
+        id = 1,
+        name = "Mango Radio",
+        streamUrl = "https://example.test/mango",
+        country = "United Kingdom",
+        countryCode = "GB",
+    ),
     Station(id = 2, name = "Jazz FM", streamUrl = "https://example.test/jazz", country = "France", countryCode = "FR"),
-    Station(id = 3, name = "World Service", streamUrl = "https://example.test/world", country = "Germany", countryCode = "DE"),
-    Station(id = 4, name = "Night Radio", streamUrl = "https://example.test/night", country = "Spain", countryCode = "ES"),
+    Station(
+        id = 3,
+        name = "World Service",
+        streamUrl = "https://example.test/world",
+        country = "Germany",
+        countryCode = "DE",
+    ),
+    Station(
+        id = 4,
+        name = "Night Radio",
+        streamUrl = "https://example.test/night",
+        country = "Spain",
+        countryCode = "ES",
+    ),
     Station(id = 5, name = "Coast", streamUrl = "https://example.test/coast", country = "Portugal", countryCode = "PT"),
     Station(id = 6, name = "Pulse", streamUrl = "https://example.test/pulse", country = "Ireland", countryCode = "IE"),
 )

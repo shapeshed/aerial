@@ -58,11 +58,7 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun StationEditScreen(
-    viewModel: StationEditViewModel,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val name by viewModel.name.collectAsStateWithLifecycle()
     val streamUrl by viewModel.streamUrl.collectAsStateWithLifecycle()
@@ -81,13 +77,21 @@ fun StationEditScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (viewModel.isEditing) R.string.edit_station else R.string.add_station)) },
+                title = {
+                    Text(stringResource(if (viewModel.isEditing) R.string.edit_station else R.string.add_station))
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
@@ -118,35 +122,43 @@ fun StationEditScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-            // Hoisted: stringResource can't be called inside the semantics {} lambda.
-            val changeLogoLabel = stringResource(R.string.change_station_logo)
-            val chooseLogoLabel = stringResource(R.string.choose_station_logo)
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(120.dp),
-            ) {
+                // Hoisted: stringResource can't be called inside the semantics {} lambda.
+                val changeLogoLabel = stringResource(R.string.change_station_logo)
+                val chooseLogoLabel = stringResource(R.string.choose_station_logo)
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = changeLogoLabel
-                            onClick(chooseLogoLabel) { true }
-                        }
-                        .clickable { imagePicker.launch(arrayOf("image/*")) },
+                    modifier = Modifier.size(120.dp),
                 ) {
-                    if (logoModel != null) {
-                        StationLogoSurface(
-                            logoModel = logoModel,
-                            size = 120.dp,
-                            fallbackBackground = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = changeLogoLabel
+                                onClick(chooseLogoLabel) { true }
+                            }
+                            .clickable { imagePicker.launch(arrayOf("image/*")) },
+                    ) {
+                        if (logoModel != null) {
+                            StationLogoSurface(
+                                logoModel = logoModel,
+                                size = 120.dp,
+                                fallbackBackground = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Radio,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(60.dp),
+                                )
+                            }
+                        } else {
                             Icon(
                                 imageVector = Icons.Rounded.Radio,
                                 contentDescription = null,
@@ -154,74 +166,66 @@ fun StationEditScreen(
                                 modifier = Modifier.size(60.dp),
                             )
                         }
-                    } else {
+                    }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .align(Alignment.BottomEnd),
+                    ) {
                         Icon(
-                            imageVector = Icons.Rounded.Radio,
+                            imageVector = Icons.Rounded.Edit,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(60.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .align(Alignment.BottomEnd),
-                ) {
-	                    Icon(
-	                        imageVector = Icons.Rounded.Edit,
-	                        contentDescription = null,
-	                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-	                        modifier = Modifier.size(16.dp),
+
+                if (logoPath.isNotEmpty()) {
+                    TextButton(onClick = { showRemoveLogoConfirm = true }) {
+                        Text(stringResource(R.string.remove_icon))
+                    }
+                }
+
+                if (showRemoveLogoConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showRemoveLogoConfirm = false },
+                        title = { Text(stringResource(R.string.remove_icon_title)) },
+                        text = { Text(stringResource(R.string.remove_icon_message)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                viewModel.removeLogo()
+                                showRemoveLogoConfirm = false
+                            }) {
+                                Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRemoveLogoConfirm = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        },
                     )
                 }
-            }
 
-            if (logoPath.isNotEmpty()) {
-                TextButton(onClick = { showRemoveLogoConfirm = true }) {
-                    Text(stringResource(R.string.remove_icon))
-                }
-            }
-
-            if (showRemoveLogoConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showRemoveLogoConfirm = false },
-                    title = { Text(stringResource(R.string.remove_icon_title)) },
-                    text = { Text(stringResource(R.string.remove_icon_message)) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.removeLogo()
-                            showRemoveLogoConfirm = false
-                        }) {
-                            Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showRemoveLogoConfirm = false }) {
-                            Text(stringResource(R.string.action_cancel))
-                        }
-                    },
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { viewModel.onNameChange(it) },
+                    label = { Text(stringResource(R.string.field_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
-
-            OutlinedTextField(
-                value = name,
-                onValueChange = { viewModel.onNameChange(it) },
-                label = { Text(stringResource(R.string.field_name)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = streamUrl,
-                onValueChange = { viewModel.onStreamUrlChange(it) },
-                label = { Text(stringResource(R.string.field_stream_url)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = streamUrl,
+                    onValueChange = { viewModel.onStreamUrlChange(it) },
+                    label = { Text(stringResource(R.string.field_stream_url)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
