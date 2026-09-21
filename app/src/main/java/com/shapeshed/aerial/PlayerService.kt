@@ -57,6 +57,7 @@ import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.data.StationArtworkResolver
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.toSystemPlayableMediaItem
@@ -93,6 +94,7 @@ class PlayerService : MediaLibraryService() {
     private lateinit var mediaSession: MediaLibrarySession
     private lateinit var repository: StationRepository
     private lateinit var registryRepository: RegistryRepository
+    private lateinit var artworkResolver: StationArtworkResolver
     private lateinit var mediaBrowseTree: MediaBrowseTree
     private val playbackSnapshotStore by lazy { PlaybackSnapshotStore(dataStore) }
     private var stations: List<Station> = emptyList()
@@ -108,17 +110,6 @@ class PlayerService : MediaLibraryService() {
         Log.d(TAG, message)
     }
 
-    private suspend fun recoverArtwork(station: Station): Station {
-        val path = station.logoPath
-        val registry = when {
-            station.provider.isNotBlank() && station.providerId.isNotBlank() ->
-                registryRepository.getByProviderId(station.provider, station.providerId)
-            else -> registryRepository.getByStreamUrl(station.streamUrl)
-        }
-        return registry?.logoUrl?.takeIf { it.isNotBlank() }?.let { station.copy(logoPath = it) }
-            ?: station
-    }
-
     override fun onCreate() {
         super.onCreate()
         setMediaNotificationProvider(
@@ -128,6 +119,7 @@ class PlayerService : MediaLibraryService() {
         )
         repository = (application as AerialApp).repository
         registryRepository = (application as AerialApp).registryRepository
+        artworkResolver = StationArtworkResolver(registryRepository)
         mediaBrowseTree = MediaBrowseTree(this, repository, registryRepository)
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(AERIAL_USER_AGENT)
@@ -511,13 +503,13 @@ class PlayerService : MediaLibraryService() {
             val startIndex = resolveQueueStart(queue, resumed)
             if (startIndex != null) {
                 MediaSession.MediaItemsWithStartPosition(
-                    queue.map { recoverArtwork(it).toSystemPlayableMediaItem(this@PlayerService) },
+                    queue.map { artworkResolver.recover(it).toSystemPlayableMediaItem(this@PlayerService) },
                     startIndex,
                     C.TIME_UNSET,
                 )
             } else {
                 MediaSession.MediaItemsWithStartPosition(
-                    listOf(recoverArtwork(resumed).toSystemPlayableMediaItem(this@PlayerService)),
+                    listOf(artworkResolver.recover(resumed).toSystemPlayableMediaItem(this@PlayerService)),
                     0,
                     C.TIME_UNSET,
                 )
