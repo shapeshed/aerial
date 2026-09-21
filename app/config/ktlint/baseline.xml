@@ -76,25 +76,24 @@
     </file>
     <file name="src/main/java/com/shapeshed/aerial/PlayerService.kt">
         <error line="3" column="1" source="standard:import-ordering" />
-        <error line="116" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="127" column="14" source="standard:trailing-comma-on-call-site" />
-        <error line="258" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="262" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="263" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="333" column="60" source="standard:function-expression-body" />
-        <error line="342" column="37" source="standard:trailing-comma-on-call-site" />
-        <error line="359" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="363" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="387" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="509" column="24" source="standard:property-wrapping" />
-        <error line="509" column="44" source="standard:argument-list-wrapping" />
-        <error line="509" column="60" source="standard:argument-list-wrapping" />
-        <error line="509" column="89" source="standard:argument-list-wrapping" />
-        <error line="509" column="121" source="standard:max-line-length" />
-        <error line="509" column="125" source="standard:argument-list-wrapping" />
-        <error line="528" column="80" source="standard:function-expression-body" />
-        <error line="579" column="99" source="standard:trailing-comma-on-call-site" />
-        <error line="716" column="49" source="standard:function-signature" />
+        <error line="118" column="14" source="standard:trailing-comma-on-call-site" />
+        <error line="250" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="254" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="255" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="325" column="60" source="standard:function-expression-body" />
+        <error line="334" column="37" source="standard:trailing-comma-on-call-site" />
+        <error line="351" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="355" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="379" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="501" column="24" source="standard:property-wrapping" />
+        <error line="501" column="44" source="standard:argument-list-wrapping" />
+        <error line="501" column="60" source="standard:argument-list-wrapping" />
+        <error line="501" column="89" source="standard:argument-list-wrapping" />
+        <error line="501" column="121" source="standard:max-line-length" />
+        <error line="501" column="125" source="standard:argument-list-wrapping" />
+        <error line="520" column="80" source="standard:function-expression-body" />
+        <error line="571" column="99" source="standard:trailing-comma-on-call-site" />
+        <error line="708" column="49" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/StationMediaItems.kt">
         <error line="44" column="5" source="standard:function-signature" />
