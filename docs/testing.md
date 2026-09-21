@@ -100,3 +100,22 @@ dependencies, add `@HiltAndroidTest`, `HiltAndroidRule`, and switch the test
 runner application to `HiltTestApplication` for that test setup. Until then,
 the isolated runner remains intentionally simple and protects the developer's
 normal app installation.
+
+## Macrobenchmarks
+
+The `:benchmark` module holds Macrobenchmark tests. They measure the app's
+release-like `benchmark` build type, so they require a connected, unlocked device
+or emulator and are not part of CI:
+
+```sh
+# Cold-start timing (StartupBenchmark)
+./gradlew :benchmark:connectedBenchmarkAndroidTest
+```
+
+`BaselineProfileGenerator` records a baseline profile the same way. To wire it up,
+apply the `androidx.baselineprofile` plugin to `:app` as well, then run the
+generator task; the generated profile is committed under the app's baseline
+profile source set so release builds ship it.
+
+Benchmarks are a measurement tool, not a pass/fail gate. Record a baseline on a
+representative device before claiming a startup, scroll, or search improvement.
