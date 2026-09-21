@@ -197,7 +197,7 @@ validated by running the suite in the previously-failing dirty state.
 
 ---
 
-## 3. Phase 1 — decompose the orchestration hubs (NOT STARTED)
+## 3. Phase 1 — decompose the orchestration hubs (IN PROGRESS)
 
 Highest maintenance payoff. `MainViewModel.kt` is ~1,074 lines and
 `PlayerService.kt` ~746 lines. They combine independently changing
@@ -218,12 +218,21 @@ Known coupling to remove:
   large inline anonymous objects.
 
 Proposed extractions (behavior, not arbitrary file fragments):
-1. `StationArtworkResolver` — move `PlayerService.recoverArtwork` (`:111-120`).
+1. **DONE** — `StationArtworkResolver` (`data/StationArtworkResolver.kt`, commit
+   `2706680`). Moved `PlayerService.recoverArtwork` into a constructor-injected
+   class with four JVM tests (`StationArtworkResolverTest`). Also removed an
+   unused local in the original. `PlayerService` now builds the resolver in
+   `onCreate` and calls `artworkResolver.recover(...)`.
 2. `PlaybackStateSynchronizer` — metadata/identity reconciliation.
 3. `PlaybackSessionCoordinator` — service-side session/player wiring.
 4. `FavoritesOrdering` — remaining ordering/membership logic.
 5. Inject `NetworkMonitor` and a string/resource provider instead of casting
    `Application`.
+
+Per-step workflow that worked for (1): add the new class + tests first, wire it
+in, run `:app:ktlintCheck` (new files must be ktlint-clean), regenerate
+`app/config/ktlint/baseline.xml` because edited files shift line numbers, then
+run `quality`.
 
 Approach (required by repo policy):
 1. Write characterization tests that pin current observable behavior first.
