@@ -11,7 +11,8 @@ Jetpack Compose Material 3. The package/application id is:
 com.shapeshed.aerial
 ```
 
-Use JDK 17. The app currently compiles with Android SDK 37 and targets SDK 37.
+Use JDK 17 or newer; builds target Java 17 bytecode. CI builds with JDK 25. The
+app currently compiles with Android SDK 37 and targets SDK 37.
 
 ## Common Commands
 
