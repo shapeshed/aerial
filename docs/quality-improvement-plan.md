@@ -223,13 +223,19 @@ Proposed extractions (behavior, not arbitrary file fragments):
    class with four JVM tests (`StationArtworkResolverTest`). Also removed an
    unused local in the original. `PlayerService` now builds the resolver in
    `onCreate` and calls `artworkResolver.recover(...)`.
-2. **IN PROGRESS** — `PlaybackStateSynchronizer`. First step done: pure
-   `PlaybackStateSync.kt` helpers (`PlaybackStationIdentity.of`,
-   `playbackStationChanged`, `PlaybackUiState.clearedPerStationState`,
-   `stationNamesForMetadataFilter`) extracted from `MainViewModel` with 6 JVM
-   tests (`PlaybackStateSyncTest`). Still owned by `MainViewModel`: the
-   pending-metadata state machine (`handlePlaybackMetadata` /
-   `applyPlaybackMetadata`) and the `syncPlaybackState` reducer.
+2. **DONE (helpers)** — `PlaybackStateSynchronizer`. Pure `PlaybackStateSync.kt`
+   helpers extracted from `MainViewModel` and covered by JVM tests
+   (`PlaybackStateSyncTest`): `PlaybackStationIdentity.of`,
+   `playbackStationChanged`, `clearedPerStationState`,
+   `stationNamesForMetadataFilter`, `metadataArrival`,
+   `PendingPlaybackMetadata.matching`, and `reducePlaybackSync`. The
+   pending-metadata state machine and the sync reducer now delegate to them.
+   Existing `MainViewModelStateTest` characterization tests
+   (`metadataBeforeStationTransitionRemainsVisibleForNowPlaying`,
+   `previousStationLabelDeliveredAfterTransitionIsNotTrackMetadata`) pin the
+   behavior across station transitions. `MainViewModel` still owns the
+   orchestration and effects (identity slots, persistence, bitrate), which can
+   move next.
 3. `PlaybackSessionCoordinator` — service-side session/player wiring.
 4. `FavoritesOrdering` — remaining ordering/membership logic.
 5. Inject `NetworkMonitor` and a string/resource provider instead of casting
