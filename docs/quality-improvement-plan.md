@@ -238,7 +238,14 @@ Proposed extractions (behavior, not arbitrary file fragments):
    `PlayerService.onMetadata`, covered by `StreamMetadataTest`.
    `MainViewModel` still owns the orchestration and effects (identity slots,
    persistence, bitrate), which can move next.
-3. `PlaybackSessionCoordinator` — service-side session/player wiring.
+3. **DONE** — `PlaybackSessionCoordinator` (`PlaybackSessionCoordinator.kt`). The
+   browse/search/`onSetMediaItems`/`onPlaybackResumption` callbacks and the
+   `parentIdByMediaId` bookkeeping moved out of `PlayerService`, which now only
+   adapts results to `ListenableFuture`s via `serviceFuture`. Custom session
+   commands are advertised from the tested `AERIAL_CUSTOM_COMMAND_ACTIONS`
+   (`data/AerialSessionCommands.kt`, `AerialSessionCommandsTest`). `PlayerService`
+   now holds player lifecycle, listener wiring, widget/persistence and
+   custom-command dispatch.
 4. `FavoritesOrdering` — remaining ordering/membership logic.
 5. Inject `NetworkMonitor` and a string/resource provider instead of casting
    `Application`.
@@ -264,8 +271,9 @@ Characterization tests must exist before moving service logic:
   (`pollDelayMs`, `fadeVolumes`) and `data/SleepTimerController.kt` (injectable
   clock/volume/pause/state seams), covered by `SleepTimerPolicyTest` and
   `SleepTimerControllerTest`, and now used by `PlayerService`.
-- **Still uncovered — add tests before moving:** the `onConnectAsync` advertised
-  command set. Do not move it into the coordinator until it has a test.
+- **Newly characterized:** the advertised custom session commands
+  (`data/AerialSessionCommands.kt`, `AerialSessionCommandsTest`). All callback
+  behavior now has coverage; the coordinator extraction is complete.
 
 Approach (required by repo policy):
 1. Write characterization tests that pin current observable behavior first.
