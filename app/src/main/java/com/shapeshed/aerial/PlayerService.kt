@@ -23,9 +23,6 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.extractor.metadata.icy.IcyInfo
-import androidx.media3.extractor.metadata.id3.ApicFrame
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -47,8 +44,6 @@ import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.FavoriteToggleAction
 import com.shapeshed.aerial.data.MediaBrowseTree
-import com.shapeshed.aerial.data.applyFavoriteToggleLocally
-import com.shapeshed.aerial.data.favoriteToggleAction
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RECENT_ID
@@ -59,11 +54,14 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationArtworkResolver
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.applyFavoriteToggleLocally
+import com.shapeshed.aerial.data.favoriteToggleAction
 import com.shapeshed.aerial.data.httpGetText
 import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.data.resolveStreamUrl
+import com.shapeshed.aerial.data.streamMetadataFrames
 import com.shapeshed.aerial.toSystemPlayableMediaItem
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
@@ -244,29 +242,12 @@ class PlayerService : MediaLibraryService() {
             publishWidgetPlaybackState()
         }
 
-        @OptIn(UnstableApi::class)
         override fun onMetadata(metadata: Metadata) {
-            var icyInfo: IcyInfo? = null
-            var id3Title: String? = null
-            var id3Artist: String? = null
-            var id3Artwork: ByteArray? = null
+            val frames = streamMetadataFrames(metadata)
 
-            for (i in 0 until metadata.length()) {
-                val entry = metadata[i]
-                when (entry) {
-                    is IcyInfo -> icyInfo = entry
-                    is TextInformationFrame -> when (entry.id) {
-                        "TIT2" -> id3Title = entry.values.first().trim().takeIf { it.isNotEmpty() }
-                        "TPE1" -> id3Artist = entry.values.first().trim().takeIf { it.isNotEmpty() }
-                    }
-                    is ApicFrame -> id3Artwork = entry.pictureData
-                    else -> Unit
-                }
-            }
-
-            icyInfo?.let { icy ->
-                val title = icy.title?.trim()
-                if (title.isNullOrEmpty() || title == lastIcyTitle) return
+            frames.icyTitle?.let { rawTitle ->
+                val title = rawTitle.trim()
+                if (title.isEmpty() || title == lastIcyTitle) return
                 lastIcyTitle = title
                 val item = player.currentMediaItem ?: return
                 val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
@@ -292,6 +273,7 @@ class PlayerService : MediaLibraryService() {
                 )
             }
 
+            val id3Title = frames.id3Title
             if (id3Title != null) {
                 if (id3Title != lastId3Title) {
                     lastId3Title = id3Title
@@ -304,17 +286,17 @@ class PlayerService : MediaLibraryService() {
                         this@PlayerService,
                         item.mediaId,
                         id3Title,
-                        id3Artist,
+                        frames.id3Artist,
                     )
                     requestAerialWidgetUpdate(this@PlayerService)
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
                         stationName = stationName,
-                        artist = id3Artist,
+                        artist = frames.id3Artist,
                         title = id3Title,
-                        artworkData = id3Artwork ?: item.mediaMetadata.artworkData,
-                        artworkUri = if (id3Artwork != null) null else item.mediaMetadata.artworkUri,
+                        artworkData = frames.id3Artwork ?: item.mediaMetadata.artworkData,
+                        artworkUri = if (frames.id3Artwork != null) null else item.mediaMetadata.artworkUri,
                     )
                 }
             }
