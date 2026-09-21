@@ -56,6 +56,9 @@ class MainActivityNavigationTest {
             composeRule.onAllNodesWithText(string(R.string.no_stations_found)).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(string(R.string.add_your_own_station)).performClick()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText(string(R.string.add_station)).fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithText(string(R.string.add_station)).assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
