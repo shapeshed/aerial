@@ -60,7 +60,7 @@ class FavoritesViewModeTransitionTest {
                     onPlay = {},
                     onRemoveFavorite = {},
                     onHomeViewModeChange = { viewMode = it },
-                    onSortSelected = {},
+                    onSortSelect = {},
                     onStationLongPress = {},
                 )
             }
@@ -124,7 +124,7 @@ class FavoritesViewModeTransitionTest {
                     },
                     onRemoveFavorite = {},
                     onHomeViewModeChange = {},
-                    onSortSelected = {},
+                    onSortSelect = {},
                     onStationLongPress = {},
                 )
             }

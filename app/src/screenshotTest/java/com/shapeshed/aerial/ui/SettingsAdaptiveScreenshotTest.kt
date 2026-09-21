@@ -211,7 +211,7 @@ private fun MiniPlayerScreenshot() {
                 icyInfo = "Mango Groove",
                 isPlaying = true,
                 isBuffering = false,
-                onHeightChanged = {},
+                onHeightChange = {},
                 onStop = {},
                 onTogglePlayback = {},
                 showNextStation = true,
@@ -264,7 +264,7 @@ private fun FavoritesScreenshotContent() {
             onPlay = {},
             onRemoveFavorite = {},
             onHomeViewModeChange = {},
-            onSortSelected = {},
+            onSortSelect = {},
             onStationLongPress = {},
         )
     }
@@ -305,7 +305,7 @@ private fun HomeScreenshotContent(navigationSuiteType: NavigationSuiteType) {
         AdaptiveNavigationShell(
             selectedDestination = HOME_DESTINATION,
             showNavigation = true,
-            onDestinationSelected = {},
+            onDestinationSelect = {},
             navigationSuiteType = navigationSuiteType,
         ) {
             MainAppContent(
@@ -452,7 +452,7 @@ private fun NavigationScreenshotContent(type: NavigationSuiteType) {
         AdaptiveNavigationShell(
             selectedDestination = HOME_DESTINATION,
             showNavigation = true,
-            onDestinationSelected = {},
+            onDestinationSelect = {},
             navigationSuiteType = type,
         ) {
             Surface(modifier = Modifier.fillMaxSize()) {

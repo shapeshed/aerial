@@ -30,7 +30,7 @@ internal fun navigationSuiteType(widthDp: Int): NavigationSuiteType =
 internal fun AdaptiveNavigationShell(
     selectedDestination: Int,
     showNavigation: Boolean,
-    onDestinationSelected: (Int) -> Unit,
+    onDestinationSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     navigationSuiteType: NavigationSuiteType? = null,
     content: @Composable () -> Unit,
@@ -49,7 +49,7 @@ internal fun AdaptiveNavigationShell(
     val navigationItems: @Composable () -> Unit = {
         NavigationSuiteItem(
             selected = selectedDestination == HOME_DESTINATION,
-            onClick = { onDestinationSelected(HOME_DESTINATION) },
+            onClick = { onDestinationSelect(HOME_DESTINATION) },
             icon = {
                 Icon(
                     imageVector = if (selectedDestination ==
@@ -66,7 +66,7 @@ internal fun AdaptiveNavigationShell(
         )
         NavigationSuiteItem(
             selected = selectedDestination == FAVORITES_DESTINATION,
-            onClick = { onDestinationSelected(FAVORITES_DESTINATION) },
+            onClick = { onDestinationSelect(FAVORITES_DESTINATION) },
             icon = {
                 Icon(
                     imageVector = if (selectedDestination ==

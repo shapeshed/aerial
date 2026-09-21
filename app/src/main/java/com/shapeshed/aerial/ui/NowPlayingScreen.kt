@@ -64,6 +64,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -335,10 +336,11 @@ fun NowPlayingScreen(
                         }
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
                         var isSyncingToStation by remember { mutableStateOf(false) }
+                        val currentOnPlayStation by rememberUpdatedState(onPlayStation)
                         LaunchedEffect(pagerState.settledPage) {
                             if (isSyncingToStation) return@LaunchedEffect
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
-                            if (!target.matches(station)) onPlayStation(target)
+                            if (!target.matches(station)) currentOnPlayStation(target)
                         }
                         LaunchedEffect(swipeIndex) {
                             val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
@@ -419,9 +421,17 @@ fun NowPlayingScreen(
                                 .semantics { traversalIndex = 4f },
                         ) {
                             Icon(
-                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                imageVector = if (station.isFavorite) {
+                                    Icons.Rounded.Favorite
+                                } else {
+                                    Icons.Rounded.FavoriteBorder
+                                },
                                 contentDescription = stringResource(
-                                    if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites,
+                                    if (station.isFavorite) {
+                                        R.string.remove_from_favorites
+                                    } else {
+                                        R.string.add_to_favorites
+                                    },
                                 ),
                             )
                         }

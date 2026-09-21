@@ -436,8 +436,10 @@ fun MainScreen(
     val density = LocalDensity.current
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
     MainScreenEffects(
-        viewModel = viewModel,
-        context = context,
+        onConnect = { viewModel.connect(context) },
+        onSetShowNowPlaying = viewModel::setShowNowPlaying,
+        onSearchRegistry = viewModel::searchRegistry,
+        onClearRecentlyAddedStation = viewModel::clearRecentlyAddedStation,
         showNowPlaying = showNowPlaying,
         isSearchExpanded = isSearchExpanded,
         showCountrySheet = showCountrySheet,
@@ -524,7 +526,7 @@ fun MainScreen(
                 searchScrollBehavior.scrollState.scrollOffset = 0f
                 searchScrollBehavior.scrollState.contentOffset = 0f
             },
-            onMoodSelected = { navigator.navigate(AerialRoute.Mood(it.id)) },
+            onMoodSelect = { navigator.navigate(AerialRoute.Mood(it.id)) },
             onSetForYouCountry = viewModel::setForYouCountry,
             onOpenCountrySearch = ::openCountrySearch,
             onOpenRegistrySearch = ::openRegistrySearch,
@@ -547,7 +549,7 @@ fun MainScreen(
                 }
             },
             onHomeViewModeChange = viewModel::setHomeViewMode,
-            onSortSelected = viewModel::setFavoritesSort,
+            onSortSelect = viewModel::setFavoritesSort,
             onStationLongPress = { contextStation = it },
         )
     }
@@ -577,7 +579,7 @@ fun MainScreen(
             isBuffering = isBuffering,
             isPlaying = isPlaying,
             hasStationNavigation = hasStationNavigation,
-            onHeightChanged = { miniPlayerHeightPx = it },
+            onHeightChange = { miniPlayerHeightPx = it },
             onStop = viewModel::stopAndClear,
             onTogglePlayback = viewModel::togglePlayback,
             onPlayNext = { nextPlaybackStation?.let { viewModel.play(it, playbackQueue) } },
@@ -593,7 +595,7 @@ fun MainScreen(
         AdaptiveNavigationShell(
             selectedDestination = effectiveSelectedTab,
             showNavigation = showHome && isSearchRoute,
-            onDestinationSelected = { destination ->
+            onDestinationSelect = { destination ->
                 viewModel.setSelectedHomeTab(destination)
                 val route = if (destination == TAB_HOME && showHome) {
                     AerialRoute.Home
@@ -614,12 +616,14 @@ fun MainScreen(
 
         AnimatedVisibility(
             visible = showNowPlaying && isMainRoute,
-            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = {
-                it
-            }),
-            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = {
-                it
-            }),
+            enter = slideInVertically(
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                initialOffsetY = { it },
+            ),
+            exit = slideOutVertically(
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                targetOffsetY = { it },
+            ),
             modifier = Modifier.fillMaxSize(),
         ) {
             val station = currentStation
