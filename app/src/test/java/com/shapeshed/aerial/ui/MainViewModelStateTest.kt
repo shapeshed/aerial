@@ -658,11 +658,18 @@ class MainViewModelStateTest {
     ): MainViewModel {
         val app = mock<Application>()
         val network = mock<NetworkMonitor>()
-        whenever(app.getString(R.string.live_radio)).thenReturn("test-live-radio")
+        val strings = StringProvider { id -> if (id == R.string.live_radio) "test-live-radio" else "error" }
         whenever(network.isOnline).thenReturn(MutableStateFlow(true).asStateFlow())
         whenever(registryRepository.countAsFlow()).thenReturn(flowOf(0))
-        return MainViewModel(app, repository, registryRepository, dataStore, network, artworkLoader = artworkLoader)
-            .also(viewModels::add)
+        return MainViewModel(
+            application = app,
+            repository = repository,
+            registryRepository = registryRepository,
+            dataStore = dataStore,
+            networkMonitor = network,
+            strings = strings,
+            artworkLoader = artworkLoader,
+        ).also(viewModels::add)
     }
 
     private class RecordingArtworkLoader(private val path: String) : ArtworkLoader {
