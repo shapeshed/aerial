@@ -45,7 +45,10 @@ import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.FavoriteToggleAction
 import com.shapeshed.aerial.data.MediaBrowseTree
+import com.shapeshed.aerial.data.applyFavoriteToggleLocally
+import com.shapeshed.aerial.data.favoriteToggleAction
 import com.shapeshed.aerial.data.PlayHistoryEntry
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RECENT_ID
@@ -356,22 +359,19 @@ class PlayerService : MediaLibraryService() {
                     val station = currentStation()
                         ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
                     serviceScope.launch {
-                        // Mirrors MainViewModel.toggleFavorite: row existence means "favourited",
-                        // so unfavouriting deletes the row and favouriting (re-)saves one. The
-                        // repository flow refreshes `stations`; the local patch just avoids a
+                        // Mirrors MainViewModel.toggleFavorite: row existence means "favourited".
+                        // The repository flow refreshes `stations`; the local patch just avoids a
                         // stale heart until that lands.
                         withContext(Dispatchers.IO) {
-                            when {
-                                station.id == 0L -> repository.saveAsFavorite(station)
-                                !station.isFavorite -> repository.update(station.copy(isFavorite = true))
-                                else -> repository.delete(station)
+                            when (favoriteToggleAction(station)) {
+                                FavoriteToggleAction.Save -> repository.saveAsFavorite(station)
+                                FavoriteToggleAction.MarkFavorite ->
+                                    repository.update(station.copy(isFavorite = true))
+
+                                FavoriteToggleAction.Remove -> repository.delete(station)
                             }
                         }
-                        stations = if (station.isFavorite) {
-                            stations.filter { it.id != station.id }
-                        } else {
-                            stations.map { if (it.id == station.id) station.copy(isFavorite = true) else it }
-                        }
+                        stations = applyFavoriteToggleLocally(stations, station)
                         updateFavoriteButton()
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
