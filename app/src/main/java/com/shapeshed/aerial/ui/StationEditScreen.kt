@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shapeshed.aerial.R
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -73,12 +72,50 @@ fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, mo
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { viewModel.onLogoPicked(context, it) } }
 
+    StationEditContent(
+        isEditing = viewModel.isEditing,
+        name = name,
+        streamUrl = streamUrl,
+        logoModel = logoModel,
+        showRemoveLogo = logoPath.isNotEmpty(),
+        showRemoveLogoConfirm = showRemoveLogoConfirm,
+        onNameChange = viewModel::onNameChange,
+        onStreamUrlChange = viewModel::onStreamUrlChange,
+        onChangeLogo = { imagePicker.launch(arrayOf("image/*")) },
+        onRequestRemoveLogo = { showRemoveLogoConfirm = true },
+        onRemoveLogo = viewModel::removeLogo,
+        onDismissRemoveLogo = { showRemoveLogoConfirm = false },
+        onSave = { viewModel.save(onDismiss) },
+        onDismiss = onDismiss,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun StationEditContent(
+    isEditing: Boolean,
+    name: String,
+    streamUrl: String,
+    logoModel: Any?,
+    showRemoveLogo: Boolean,
+    showRemoveLogoConfirm: Boolean,
+    onNameChange: (String) -> Unit,
+    onStreamUrlChange: (String) -> Unit,
+    onChangeLogo: () -> Unit,
+    onRequestRemoveLogo: () -> Unit,
+    onRemoveLogo: () -> Unit,
+    onDismissRemoveLogo: () -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(if (viewModel.isEditing) R.string.edit_station else R.string.add_station))
+                    Text(stringResource(if (isEditing) R.string.edit_station else R.string.add_station))
                 },
                 navigationIcon = {
                     IconButton(
@@ -96,7 +133,7 @@ fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, mo
                 },
                 actions = {
                     TextButton(
-                        onClick = { viewModel.save(onDismiss) },
+                        onClick = onSave,
                         enabled = name.isNotBlank() && streamUrl.isNotBlank(),
                     ) {
                         Text(stringResource(R.string.action_save))
@@ -142,7 +179,7 @@ fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, mo
                                 contentDescription = changeLogoLabel
                                 onClick(chooseLogoLabel) { true }
                             }
-                            .clickable { imagePicker.launch(arrayOf("image/*")) },
+                            .clickable(onClick = onChangeLogo),
                     ) {
                         if (logoModel != null) {
                             StationLogoSurface(
@@ -184,27 +221,27 @@ fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, mo
                     }
                 }
 
-                if (logoPath.isNotEmpty()) {
-                    TextButton(onClick = { showRemoveLogoConfirm = true }) {
+                if (showRemoveLogo) {
+                    TextButton(onClick = onRequestRemoveLogo) {
                         Text(stringResource(R.string.remove_icon))
                     }
                 }
 
                 if (showRemoveLogoConfirm) {
                     AlertDialog(
-                        onDismissRequest = { showRemoveLogoConfirm = false },
+                        onDismissRequest = onDismissRemoveLogo,
                         title = { Text(stringResource(R.string.remove_icon_title)) },
                         text = { Text(stringResource(R.string.remove_icon_message)) },
                         confirmButton = {
                             TextButton(onClick = {
-                                viewModel.removeLogo()
-                                showRemoveLogoConfirm = false
+                                onRemoveLogo()
+                                onDismissRemoveLogo()
                             }) {
                                 Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showRemoveLogoConfirm = false }) {
+                            TextButton(onClick = onDismissRemoveLogo) {
                                 Text(stringResource(R.string.action_cancel))
                             }
                         },
@@ -213,14 +250,14 @@ fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, mo
 
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { viewModel.onNameChange(it) },
+                    onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.field_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = streamUrl,
-                    onValueChange = { viewModel.onStreamUrlChange(it) },
+                    onValueChange = onStreamUrlChange,
                     label = { Text(stringResource(R.string.field_stream_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
