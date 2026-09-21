@@ -44,6 +44,8 @@ espresso = "3.7.0"
 ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
 composeRules = "0.6.6"
+benchmark = "1.5.0"
+uiautomator = "2.4.0"
 
 [libraries]
 # Compose (most artifacts are version-managed by the Compose BOM).
@@ -116,8 +118,14 @@ screenshot-validation-api = { module = "com.android.tools.screenshot:screenshot-
 # Extra ktlint rulesets.
 compose-rules = { module = "io.nlopez.compose.rules:ktlint", version.ref = "composeRules" }
 
+# Macrobenchmark.
+androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }
+androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-test = { id = "com.android.test", version.ref = "agp" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
