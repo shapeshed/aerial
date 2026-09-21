@@ -233,9 +233,11 @@ Proposed extractions (behavior, not arbitrary file fragments):
    Existing `MainViewModelStateTest` characterization tests
    (`metadataBeforeStationTransitionRemainsVisibleForNowPlaying`,
    `previousStationLabelDeliveredAfterTransitionIsNotTrackMetadata`) pin the
-   behavior across station transitions. `MainViewModel` still owns the
-   orchestration and effects (identity slots, persistence, bitrate), which can
-   move next.
+   behavior across station transitions. Also extracted
+   `data/StreamMetadataFrames.kt` (`streamMetadataFrames`) from
+   `PlayerService.onMetadata`, covered by `StreamMetadataTest`.
+   `MainViewModel` still owns the orchestration and effects (identity slots,
+   persistence, bitrate), which can move next.
 3. `PlaybackSessionCoordinator` — service-side session/player wiring.
 4. `FavoritesOrdering` — remaining ordering/membership logic.
 5. Inject `NetworkMonitor` and a string/resource provider instead of casting
