@@ -30,7 +30,7 @@ class StationRepositoryTest {
             station(
                 name = "Duplicate",
                 logoPath = "/logos/new.png",
-            )
+            ),
         )
 
         assertEquals(7L, id)
@@ -67,7 +67,7 @@ class StationRepositoryTest {
                 streamUrl = "https://stream.example.com/registry",
                 provider = "aerial",
                 providerId = "mango",
-            )
+            ),
         )
 
         assertEquals(5L, id)
@@ -115,7 +115,7 @@ class StationRepositoryTest {
                 streamUrl = "https://stream.example.com/registry",
                 provider = "aerial",
                 providerId = "mango",
-            )
+            ),
         )
 
         assertEquals(providerMatch, result)
@@ -133,7 +133,7 @@ class StationRepositoryTest {
                 streamUrl = "https://stream.example.com/registry",
                 provider = "aerial",
                 providerId = "missing",
-            )
+            ),
         )
 
         assertEquals(existing, result)
@@ -160,7 +160,7 @@ class StationRepositoryTest {
                 logoPath = "/logos/registry.png",
                 provider = "aerial",
                 providerId = "mango",
-            )
+            ),
         )
 
         assertEquals(8L, id)
@@ -304,17 +304,13 @@ class StationRepositoryTest {
 
         override fun getAll(): Flow<List<Station>> = flowOf(stations)
 
-        override suspend fun getById(id: Long): Station? {
-            return stations.firstOrNull { it.id == id }
-        }
+        override suspend fun getById(id: Long): Station? = stations.firstOrNull { it.id == id }
 
-        override suspend fun getByStreamUrl(streamUrl: String): Station? {
-            return stations.firstOrNull { it.streamUrl == streamUrl }
-        }
+        override suspend fun getByStreamUrl(streamUrl: String): Station? =
+            stations.firstOrNull { it.streamUrl == streamUrl }
 
-        override suspend fun getByProviderId(provider: String, providerId: String): Station? {
-            return stations.firstOrNull { it.provider == provider && it.providerId == providerId }
-        }
+        override suspend fun getByProviderId(provider: String, providerId: String): Station? =
+            stations.firstOrNull { it.provider == provider && it.providerId == providerId }
 
         override suspend fun searchStationFts(match: String): List<Station> {
             val terms = match.split(" ").map { it.removeSuffix("*").lowercase() }

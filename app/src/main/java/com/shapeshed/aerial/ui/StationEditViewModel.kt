@@ -110,7 +110,7 @@ class StationEditViewModel @AssistedInject internal constructor(
     fun save(onDone: () -> Unit) {
         if (_name.value.isBlank() || _streamUrl.value.isBlank()) return
         viewModelScope.launch {
-            logoCopyJob?.join()  // wait for any in-progress copy before reading the path
+            logoCopyJob?.join() // wait for any in-progress copy before reading the path
             val station = (existingStation ?: Station(
                 name = "",
                 streamUrl = "",

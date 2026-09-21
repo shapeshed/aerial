@@ -165,7 +165,7 @@ internal fun FavoritesTabContent(
                             onClick = { onPlay(station) },
                             onLongClick = { onStationLongPress(station) },
                             modifier = Modifier
-                                .testTag("favorite-card-${station.id}")
+                                .testTag("favorite-card-${station.id}"),
                         )
                         HomeViewMode.List -> StationListRow(
                             station = station,
@@ -184,6 +184,7 @@ internal fun FavoritesTabContent(
 }
 }
 }
+
 @Composable
 private fun FavoritesHeader(
     favoritesSort: FavoritesSort,

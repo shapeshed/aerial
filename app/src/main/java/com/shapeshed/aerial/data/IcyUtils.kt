@@ -12,8 +12,7 @@ fun parseIcyTitle(raw: String): Pair<String?, String> {
     return if (separator != null) {
         val (idx, delimiter) = separator
         Pair(raw.substring(0, idx).trim(), raw.substring(idx + delimiter.length).trim())
-    }
-    else Pair(null, raw.trim())
+    } else Pair(null, raw.trim())
 }
 
 data class ParsedTrackMetadata(

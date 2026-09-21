@@ -109,7 +109,7 @@ class PlayerService : MediaLibraryService() {
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this).build().also {
                 it.setSmallIcon(R.drawable.ic_notification)
-            }
+            },
         )
         repository = (application as AerialApp).repository
         registryRepository = (application as AerialApp).registryRepository
@@ -326,7 +326,7 @@ class PlayerService : MediaLibraryService() {
                                     add(SessionCommand(it, Bundle.EMPTY))
                                 }
                             }
-                            .build()
+                            .build(),
                     )
                     .build(),
             )
@@ -439,9 +439,8 @@ class PlayerService : MediaLibraryService() {
         }
     }
 
-    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> {
-        return serviceScope.asServiceFuture(block)
-    }
+    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> =
+        serviceScope.asServiceFuture(block)
 
     // Records a listen the moment audio actually starts (onIsPlayingChanged=true) — the single
     // choke point every surface's playback passes through (phone, Android Auto, Google TV
@@ -483,7 +482,7 @@ class PlayerService : MediaLibraryService() {
     private fun favoriteButton(station: Station?): CommandButton {
         val isFavorite = station?.isFavorite == true
         return CommandButton.Builder(
-            if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED
+            if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED,
         )
             .setDisplayName(
                 getString(if (isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
