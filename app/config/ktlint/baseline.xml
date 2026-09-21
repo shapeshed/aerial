@@ -45,8 +45,8 @@
         <error line="30" column="34" source="standard:class-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ArtworkProvider.kt">
-        <error line="54" column="120" source="standard:max-line-length" />
-        <error line="54" column="121" source="standard:function-signature" />
+        <error line="55" column="120" source="standard:max-line-length" />
+        <error line="55" column="121" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/PlaybackQueuePolicy.kt">
         <error line="23" column="74" source="standard:function-signature" />
@@ -1070,9 +1070,9 @@
         <error line="422" column="122" source="standard:argument-list-wrapping" />
     </file>
     <file name="src/test/java/com/shapeshed/aerial/ArtworkProviderTest.kt">
-        <error line="24" column="22" source="standard:wrapping" />
-        <error line="24" column="44" source="standard:wrapping" />
-        <error line="28" column="24" source="standard:wrapping" />
+        <error line="25" column="22" source="standard:wrapping" />
+        <error line="25" column="44" source="standard:wrapping" />
+        <error line="29" column="24" source="standard:wrapping" />
     </file>
     <file name="src/test/java/com/shapeshed/aerial/data/RegistryRepositoryTest.kt">
         <error line="32" column="9" source="standard:function-signature" />
