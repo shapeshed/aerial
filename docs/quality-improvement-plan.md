@@ -197,7 +197,7 @@ validated by running the suite in the previously-failing dirty state.
 
 ---
 
-## 3. Phase 1 — decompose the orchestration hubs (IN PROGRESS)
+## 3. Phase 1 — decompose the orchestration hubs (DONE)
 
 Highest maintenance payoff. `MainViewModel.kt` is ~1,074 lines and
 `PlayerService.kt` ~746 lines. They combine independently changing
@@ -246,9 +246,15 @@ Proposed extractions (behavior, not arbitrary file fragments):
    (`data/AerialSessionCommands.kt`, `AerialSessionCommandsTest`). `PlayerService`
    now holds player lifecycle, listener wiring, widget/persistence and
    custom-command dispatch.
-4. `FavoritesOrdering` — remaining ordering/membership logic.
-5. Inject `NetworkMonitor` and a string/resource provider instead of casting
-   `Application`.
+4. **DONE (pre-existing)** — favorites ordering/membership already lives in the
+   pure `FavoritesQueueCoordinator` (`FavoritesQueueCoordinatorTest`).
+   `MainViewModel` keeps only the orchestration that mutates playback state and
+   the player queue.
+5. **DONE** — inject `NetworkMonitor` and a `StringProvider` instead of casting
+   `Application` and reaching into resources. `MainViewModel` no longer casts to
+   `AerialApp` or calls `getString`; `UiModule` provides both. It still uses
+   `getApplication()` for files, widget updates and media items, which is
+   legitimate `AndroidViewModel` usage.
 
 Per-step workflow that worked for (1): add the new class + tests first, wire it
 in, run `:app:ktlintCheck` (new files must be ktlint-clean), regenerate
