@@ -19,11 +19,7 @@ internal class FavoritesQueueCoordinator {
         return sortStations(favorites, sort)
     }
 
-    fun sortForDisplay(
-        stations: List<Station>,
-        sort: FavoritesSort,
-        activeOrder: List<Long>?,
-    ): List<Station> {
+    fun sortForDisplay(stations: List<Station>, sort: FavoritesSort, activeOrder: List<Long>?): List<Station> {
         val sorted = sortStations(stations.filter(Station::isFavorite), sort)
         if (activeOrder == null) return sorted
         val ranks = stationOrder(activeOrder)

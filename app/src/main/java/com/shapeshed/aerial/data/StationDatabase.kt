@@ -19,17 +19,16 @@ abstract class StationDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: StationDatabase? = null
 
-        fun get(context: Context): StationDatabase =
-            instance ?: synchronized(this) {
-                Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
-                    // Explicit migrations cover versions 6–9 → 10.
-                    // Any user still on v5 or below will have their data wiped by the fallback.
-                    // Future version bumps MUST add an explicit Migration before relying on this fallback.
-                    .addMigrations(*supportedMigrations)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .build()
-                    .also { instance = it }
-            }
+        fun get(context: Context): StationDatabase = instance ?: synchronized(this) {
+            Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
+                // Explicit migrations cover versions 6–9 → 10.
+                // Any user still on v5 or below will have their data wiped by the fallback.
+                // Future version bumps MUST add an explicit Migration before relying on this fallback.
+                .addMigrations(*supportedMigrations)
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build()
+                .also { instance = it }
+        }
 
         internal val supportedMigrations: Array<Migration>
             get() = arrayOf(

@@ -35,11 +35,7 @@ import com.shapeshed.aerial.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class FilterPickerItem(
-    val value: String,
-    val label: String,
-    val selected: Boolean,
-)
+data class FilterPickerItem(val value: String, val label: String, val selected: Boolean)
 
 internal fun filterPickerItems(
     items: List<String>,

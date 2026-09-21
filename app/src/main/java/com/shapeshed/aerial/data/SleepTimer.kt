@@ -11,10 +11,7 @@ const val ACTION_SLEEP_TIMER_CANCEL = "com.shapeshed.aerial.action.SLEEP_TIMER_C
 const val SLEEP_TIMER_DURATION_MS = "durationMs"
 
 /** Snapshot of a running sleep timer. Null in the store means no timer is active. */
-data class SleepTimerState(
-    val totalMs: Long,
-    val remainingMs: Long,
-)
+data class SleepTimerState(val totalMs: Long, val remainingMs: Long)
 
 /**
  * Process-wide holder for the active sleep-timer countdown.
@@ -23,5 +20,7 @@ data class SleepTimerState(
 object SleepTimerStore {
     private val _state = MutableStateFlow<SleepTimerState?>(null)
     val state: StateFlow<SleepTimerState?> = _state.asStateFlow()
-    fun set(state: SleepTimerState?) { _state.value = state }
+    fun set(state: SleepTimerState?) {
+        _state.value = state
+    }
 }

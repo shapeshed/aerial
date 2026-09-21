@@ -24,9 +24,7 @@ sealed interface AerialRoute : NavKey {
     data class EditStation(val stationId: Long) : AerialRoute
 }
 
-class AerialNavigator(
-    private val mutableBackStack: MutableList<NavKey> = mutableListOf(AerialRoute.Home),
-) {
+class AerialNavigator(private val mutableBackStack: MutableList<NavKey> = mutableListOf(AerialRoute.Home)) {
     init {
         require(mutableBackStack.isNotEmpty()) { "Navigation back stack must contain a top-level route" }
         require(mutableBackStack.first().isTopLevelRoute()) {
@@ -58,5 +56,4 @@ class AerialNavigator(
     }
 }
 
-private fun NavKey.isTopLevelRoute(): Boolean =
-    this == AerialRoute.Home || this == AerialRoute.Favorites
+private fun NavKey.isTopLevelRoute(): Boolean = this == AerialRoute.Home || this == AerialRoute.Favorites

@@ -29,11 +29,7 @@ import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.*
 
 @Composable
-internal fun HomeEmptyState(
-    text: String,
-    supportingText: String,
-    icon: ImageVector = Icons.Rounded.Radio,
-) {
+internal fun HomeEmptyState(text: String, supportingText: String, icon: ImageVector = Icons.Rounded.Radio) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -175,7 +171,10 @@ internal fun HomeTabContent(
                 ) {
                     IconButton(
                         onClick = onForYouViewAll,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
@@ -220,11 +219,7 @@ internal fun HomeTabContent(
 }
 
 @Composable
-private fun HomeSectionHeading(
-    text: String,
-    modifier: Modifier = Modifier,
-    action: (@Composable () -> Unit)? = null,
-) {
+private fun HomeSectionHeading(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -243,11 +238,7 @@ private fun HomeSectionHeading(
 }
 
 @Composable
-private fun MoodCard(
-    mood: CuratedMood,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun MoodCard(mood: CuratedMood, onClick: () -> Unit, modifier: Modifier = Modifier) {
     // Same neutral tonal surface as the favourites station tiles, rather than an accent
     // colour — text/icon pairing matches how every other neutral surface in the app reads
     // (onSurface for primary text, onSurfaceVariant for supporting text and icon glyphs).
@@ -343,17 +334,19 @@ internal fun MoodDetailScreen(
                 }
             }
         }
-                lazyItems(
+        lazyItems(
             items = stations,
             key = { "${it.provider}-${it.providerId}-${it.name}-${it.streamUrl}" },
             contentType = { "mood-station" },
         ) { station ->
             val isActive = currentStation?.let { active ->
                 active.streamUrl == station.streamUrl ||
-                    (active.provider.isNotBlank() &&
-                        active.providerId.isNotBlank() &&
-                        active.provider == station.provider &&
-                        active.providerId == station.providerId)
+                    (
+                        active.provider.isNotBlank() &&
+                            active.providerId.isNotBlank() &&
+                            active.provider == station.provider &&
+                            active.providerId == station.providerId
+                        )
             } ?: false
             val isSaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
             MoodStationRow(
@@ -387,8 +380,8 @@ private fun MoodStationRow(
         color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = if (isActive) 0.dp else 1.dp,
-            modifier = modifier
-                .fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .padding(horizontal = 16.dp),
     ) {
         ListItem(
@@ -398,8 +391,11 @@ private fun MoodStationRow(
                 StationLogoSurface(
                     logoModel = logoModelFor(station.logoUrl),
                     size = 50.dp,
-                    fallbackBackground = if (isActive) MaterialTheme.colorScheme.secondaryContainer
-                    else MaterialTheme.colorScheme.surface,
+                    fallbackBackground = if (isActive) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
                     allowContrastPlate = false,
                 ) {
                     Icon(
@@ -433,6 +429,7 @@ private fun MoodStationRow(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                             )
+
                             isPlaying -> EqualizerBars(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier
@@ -444,14 +441,19 @@ private fun MoodStationRow(
                     }
                     IconButton(
                         onClick = onToggleFavorite,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
                         Icon(
                             imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = stringResource(
                                 if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites,
                             ),
-                            tint = if (isSaved) MaterialTheme.colorScheme.primary else {
+                            tint = if (isSaved) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
                                 if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             },
                         )

@@ -36,8 +36,11 @@ internal fun AdaptiveNavigationShell(
     content: @Composable () -> Unit,
 ) {
     val scaffoldState = rememberNavigationSuiteScaffoldState(
-        if (showNavigation) NavigationSuiteScaffoldValue.Visible
-        else NavigationSuiteScaffoldValue.Hidden,
+        if (showNavigation) {
+            NavigationSuiteScaffoldValue.Visible
+        } else {
+            NavigationSuiteScaffoldValue.Hidden
+        },
     )
     LaunchedEffect(showNavigation) {
         if (showNavigation) scaffoldState.show() else scaffoldState.hide()
@@ -49,7 +52,13 @@ internal fun AdaptiveNavigationShell(
             onClick = { onDestinationSelected(HOME_DESTINATION) },
             icon = {
                 Icon(
-                    imageVector = if (selectedDestination == HOME_DESTINATION) Icons.Rounded.Home else Icons.Outlined.Home,
+                    imageVector = if (selectedDestination ==
+                        HOME_DESTINATION
+                    ) {
+                        Icons.Rounded.Home
+                    } else {
+                        Icons.Outlined.Home
+                    },
                     contentDescription = null,
                 )
             },
@@ -60,7 +69,13 @@ internal fun AdaptiveNavigationShell(
             onClick = { onDestinationSelected(FAVORITES_DESTINATION) },
             icon = {
                 Icon(
-                    imageVector = if (selectedDestination == FAVORITES_DESTINATION) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    imageVector = if (selectedDestination ==
+                        FAVORITES_DESTINATION
+                    ) {
+                        Icons.Rounded.Favorite
+                    } else {
+                        Icons.Rounded.FavoriteBorder
+                    },
                     contentDescription = null,
                 )
             },

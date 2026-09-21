@@ -12,13 +12,12 @@ fun parseIcyTitle(raw: String): Pair<String?, String> {
     return if (separator != null) {
         val (idx, delimiter) = separator
         Pair(raw.substring(0, idx).trim(), raw.substring(idx + delimiter.length).trim())
-    } else Pair(null, raw.trim())
+    } else {
+        Pair(null, raw.trim())
+    }
 }
 
-data class ParsedTrackMetadata(
-    val artist: String?,
-    val title: String?,
-)
+data class ParsedTrackMetadata(val artist: String?, val title: String?)
 
 /** Normalizes metadata whether the source supplies separate fields or a combined ICY title. */
 fun parseTrackMetadata(title: String?, artist: String? = null): ParsedTrackMetadata {

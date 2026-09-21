@@ -67,13 +67,12 @@ class StationRepository(
         }
     }
 
-    suspend fun findMatching(registryStation: RegistryStation): Station? {
-        return if (registryStation.provider.isNotBlank() && registryStation.providerId.isNotBlank()) {
+    suspend fun findMatching(registryStation: RegistryStation): Station? =
+        if (registryStation.provider.isNotBlank() && registryStation.providerId.isNotBlank()) {
             dao.getByProviderId(registryStation.provider, registryStation.providerId)
         } else {
             null
         } ?: dao.getByStreamUrl(registryStation.streamUrl)
-    }
 
     suspend fun saveAsFavorite(station: Station): Long = transactor.run {
         val existing = findExisting(station)
@@ -93,11 +92,10 @@ class StationRepository(
         }
     }
 
-    private suspend fun findExisting(station: Station): Station? {
-        return if (station.provider.isNotBlank() && station.providerId.isNotBlank()) {
+    private suspend fun findExisting(station: Station): Station? =
+        if (station.provider.isNotBlank() && station.providerId.isNotBlank()) {
             dao.getByProviderId(station.provider, station.providerId)
         } else {
             null
         } ?: dao.getByStreamUrl(station.streamUrl)
-    }
 }

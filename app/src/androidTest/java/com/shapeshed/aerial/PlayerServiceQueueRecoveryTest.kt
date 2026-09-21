@@ -28,8 +28,10 @@ class PlayerServiceQueueRecoveryTest {
                             .setUri("https://example.invalid/$id")
                             .build()
                     },
-                    /* startIndex = */ 0,
-                    /* startPositionMs = */ 0L,
+                    /* startIndex = */
+                    0,
+                    /* startPositionMs = */
+                    0L,
                 )
                 player.prepare()
 

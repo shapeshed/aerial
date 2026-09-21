@@ -47,10 +47,7 @@ internal fun stationsForWidget(stations: List<Station>): List<Station> = station
     .sortedBy { it.name.lowercase() }
     .toList()
 
-internal suspend fun updateAerialWidgets(
-    context: Context,
-    shouldPublish: () -> Boolean = { true },
-) {
+internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> Boolean = { true }) {
     val app = context.applicationContext as AerialApp
     val favorites = stationsForWidget(app.repository.getAll().first())
     val playback = WidgetPlaybackStore.read(app)
@@ -220,10 +217,7 @@ internal fun createWidgetViews(
     )
 }
 
-private fun AppWidgetManager.updateWidgetLayouts(
-    context: Context,
-    layouts: Map<SizeF, RemoteViews>,
-) {
+private fun AppWidgetManager.updateWidgetLayouts(context: Context, layouts: Map<SizeF, RemoteViews>) {
     val component = ComponentName(context, AerialWidgetReceiver::class.java)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         updateAppWidget(component, RemoteViews(layouts))
@@ -243,16 +237,23 @@ internal data class WidgetLayoutSize(val width: Int, val height: Int)
 internal fun widgetLayoutSize(width: Int, height: Int): WidgetLayoutSize = when {
     height >= WIDGET_PANE_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
         WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP)
+
     height >= WIDGET_PANE_HEIGHT_DP ->
         WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP)
+
     height >= WIDGET_TALL_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
         WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP)
+
     height >= WIDGET_TALL_HEIGHT_DP -> WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP)
+
     height >= WIDGET_WAFER_HEIGHT_DP && width >= WIDGET_WIDE_WIDTH_DP ->
         WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP)
+
     height >= WIDGET_WAFER_HEIGHT_DP ->
         WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP)
+
     width >= WIDGET_WIDE_WIDTH_DP -> WidgetLayoutSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP)
+
     else -> WidgetLayoutSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP)
 }
 
@@ -268,21 +269,17 @@ private fun widgetPendingIntent(context: Context, action: String, requestCode: I
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-private fun widgetOpenAppPendingIntent(context: Context): PendingIntent =
-    PendingIntent.getActivity(
-        context,
-        0,
-        Intent(context, MainActivity::class.java),
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
+private fun widgetOpenAppPendingIntent(context: Context): PendingIntent = PendingIntent.getActivity(
+    context,
+    0,
+    Intent(context, MainActivity::class.java),
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+)
 
-private suspend fun selectedStation(
-    app: AerialApp,
-    favorites: List<Station>,
-    mediaId: String?,
-): Station? = favorites.firstOrNull { it.id.toString() == mediaId }
-    ?: PlaybackSnapshotStore(app.settingsDataStore).read()?.station
-    ?: favorites.firstOrNull()
+private suspend fun selectedStation(app: AerialApp, favorites: List<Station>, mediaId: String?): Station? =
+    favorites.firstOrNull { it.id.toString() == mediaId }
+        ?: PlaybackSnapshotStore(app.settingsDataStore).read()?.station
+        ?: favorites.firstOrNull()
 
 private suspend fun stationArtwork(context: Context, station: Station): Bitmap? =
     withTimeoutOrNull(ARTWORK_TIMEOUT_MS) {
@@ -334,33 +331,26 @@ private fun Bitmap.maskedForWidget(context: Context): Bitmap {
     return result
 }
 
-private suspend fun withController(
-    context: Context,
-    block: suspend (MediaController) -> Unit,
-) = withContext(Dispatchers.Main.immediate) {
-    val appContext = context.applicationContext
-    val controller = MediaController.Builder(
-        appContext,
-        SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
-    ).buildAsync().await()
-    try {
-        block(controller)
-    } finally {
-        controller.release()
+private suspend fun withController(context: Context, block: suspend (MediaController) -> Unit) =
+    withContext(Dispatchers.Main.immediate) {
+        val appContext = context.applicationContext
+        val controller = MediaController.Builder(
+            appContext,
+            SessionToken(appContext, ComponentName(appContext, PlayerService::class.java)),
+        ).buildAsync().await()
+        try {
+            block(controller)
+        } finally {
+            controller.release()
+        }
     }
-}
 
 private suspend fun favorites(context: Context): List<Station> {
     val app = context.applicationContext as AerialApp
     return stationsForWidget(app.repository.getAll().first())
 }
 
-private fun setStationQueue(
-    context: Context,
-    controller: MediaController,
-    stations: List<Station>,
-    index: Int,
-) {
+private fun setStationQueue(context: Context, controller: MediaController, stations: List<Station>, index: Int) {
     controller.setMediaItems(
         stations.map { it.toPlayableMediaItem(context.applicationContext) },
         index,
@@ -377,10 +367,12 @@ private suspend fun handleWidgetPlaybackAction(context: Context, action: String?
                 controller.seekToPreviousMediaItem()
                 controller.play()
             }
+
             ACTION_WIDGET_NEXT -> if (controller.hasNextMediaItem()) {
                 controller.seekToNextMediaItem()
                 controller.play()
             }
+
             ACTION_WIDGET_TOGGLE -> when {
                 controller.playWhenReady -> controller.pause()
                 controller.currentMediaItem != null -> controller.play()
@@ -419,11 +411,7 @@ class AerialWidgetActionReceiver : BroadcastReceiver() {
 }
 
 class AerialWidgetReceiver : AppWidgetProvider() {
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray,
-    ) {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         requestAerialWidgetUpdate(context)
     }
 

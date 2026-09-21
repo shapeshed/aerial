@@ -22,11 +22,14 @@ class ArtworkProviderTest {
         val artworkDir = File(cacheDir, ArtworkProvider.REGISTRY_ARTWORK_DIR).apply { mkdirs() }
         val artwork = File(artworkDir, "station.png").apply { writeBytes(byteArrayOf(1, 2, 3)) }
 
-        assertEquals(artwork.canonicalFile, resolveArtworkFile(
-            context,
-            ArtworkProvider.REGISTRY_ARTWORK_DIR,
-            artwork.name,
-        )?.canonicalFile)
+        assertEquals(
+            artwork.canonicalFile,
+            resolveArtworkFile(
+                context,
+                ArtworkProvider.REGISTRY_ARTWORK_DIR,
+                artwork.name,
+            )?.canonicalFile,
+        )
         assertNull(resolveArtworkFile(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, "missing.png"))
         assertNull(resolveArtworkFile(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, "../outside.png"))
         assertNull(resolveArtworkFile(context, "other", artwork.name))

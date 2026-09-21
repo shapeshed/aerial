@@ -22,18 +22,30 @@ class MediaSessionQueueExpansionTest {
 
                 val sessionPlayer = createSessionPlayer(player)
 
-                assertEquals(false, sessionPlayer.isCommandAvailable(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
-                ))
-                assertEquals(false, sessionPlayer.isCommandAvailable(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
-                ))
-                assertEquals(false, sessionPlayer.availableCommands.contains(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
-                ))
-                assertEquals(false, sessionPlayer.availableCommands.contains(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
-                ))
+                assertEquals(
+                    false,
+                    sessionPlayer.isCommandAvailable(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
+                    ),
+                )
+                assertEquals(
+                    false,
+                    sessionPlayer.isCommandAvailable(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
+                    ),
+                )
+                assertEquals(
+                    false,
+                    sessionPlayer.availableCommands.contains(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
+                    ),
+                )
+                assertEquals(
+                    false,
+                    sessionPlayer.availableCommands.contains(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
+                    ),
+                )
             } finally {
                 player.release()
             }
@@ -51,18 +63,30 @@ class MediaSessionQueueExpansionTest {
 
                 val sessionPlayer = createSessionPlayer(player)
 
-                assertEquals(true, sessionPlayer.isCommandAvailable(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
-                ))
-                assertEquals(true, sessionPlayer.isCommandAvailable(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
-                ))
-                assertEquals(true, sessionPlayer.availableCommands.contains(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
-                ))
-                assertEquals(true, sessionPlayer.availableCommands.contains(
-                    androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
-                ))
+                assertEquals(
+                    true,
+                    sessionPlayer.isCommandAvailable(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
+                    ),
+                )
+                assertEquals(
+                    true,
+                    sessionPlayer.isCommandAvailable(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
+                    ),
+                )
+                assertEquals(
+                    true,
+                    sessionPlayer.availableCommands.contains(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS,
+                    ),
+                )
+                assertEquals(
+                    true,
+                    sessionPlayer.availableCommands.contains(
+                        androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT,
+                    ),
+                )
             } finally {
                 player.release()
             }

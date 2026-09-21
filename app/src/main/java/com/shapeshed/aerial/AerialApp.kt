@@ -28,7 +28,9 @@ val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
 @HiltAndroidApp
-class AerialApp : Application(), SingletonImageLoader.Factory {
+class AerialApp :
+    Application(),
+    SingletonImageLoader.Factory {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->

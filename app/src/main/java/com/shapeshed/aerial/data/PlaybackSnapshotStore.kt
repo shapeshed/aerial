@@ -33,8 +33,7 @@ class PlaybackSnapshotStore(private val dataStore: DataStore<Preferences>) {
         return true
     }
 
-    suspend fun favoriteSort(): FavoritesSort =
-        dataStore.data.first()[FAVORITES_SORT_KEY]
-            ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
-            ?: FavoritesSort.AZ
+    suspend fun favoriteSort(): FavoritesSort = dataStore.data.first()[FAVORITES_SORT_KEY]
+        ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
+        ?: FavoritesSort.AZ
 }

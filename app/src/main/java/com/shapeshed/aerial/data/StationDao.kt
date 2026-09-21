@@ -28,7 +28,9 @@ interface StationDao {
     )
     suspend fun searchStationFts(match: String): List<Station>
 
-    @Query("UPDATE stations SET streamUrl = :streamUrl WHERE provider = :provider AND providerId = :providerId AND streamUrl != :streamUrl")
+    @Query(
+        "UPDATE stations SET streamUrl = :streamUrl WHERE provider = :provider AND providerId = :providerId AND streamUrl != :streamUrl",
+    )
     suspend fun updateStreamUrlByProviderId(provider: String, providerId: String, streamUrl: String)
 
     @Query("UPDATE stations SET playCount = playCount + 1, lastPlayedAt = :playedAt WHERE id = :id")

@@ -62,10 +62,9 @@ object NumberNormalizer {
         "venti" to "20", "vinte" to "20",
     )
 
-    fun normalize(text: String): String =
-        text.split(" ").joinToString(" ") { word ->
-            val stripped = word.trimEnd(',', '.', '-', ';', ':', '!')
-            val punctuation = word.substring(stripped.length)
-            wordToDigit[stripped.lowercase()] ?.let { it + punctuation } ?: word
-        }
+    fun normalize(text: String): String = text.split(" ").joinToString(" ") { word ->
+        val stripped = word.trimEnd(',', '.', '-', ';', ':', '!')
+        val punctuation = word.substring(stripped.length)
+        wordToDigit[stripped.lowercase()] ?.let { it + punctuation } ?: word
+    }
 }

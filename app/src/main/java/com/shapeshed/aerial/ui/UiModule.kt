@@ -19,8 +19,7 @@ import javax.inject.Singleton
 object UiModule {
     @Provides
     @Singleton
-    fun provideStationRepository(application: Application): StationRepository =
-        (application as AerialApp).repository
+    fun provideStationRepository(application: Application): StationRepository = (application as AerialApp).repository
 
     @Provides
     @Singleton
@@ -29,13 +28,11 @@ object UiModule {
 
     @Provides
     @Singleton
-    fun provideNetworkMonitor(application: Application): NetworkMonitor =
-        NetworkMonitor(application)
+    fun provideNetworkMonitor(application: Application): NetworkMonitor = NetworkMonitor(application)
 
     @Provides
     @Singleton
-    fun provideArtworkLoader(application: Application): ArtworkLoader =
-        CoilArtworkLoader(application)
+    fun provideArtworkLoader(application: Application): ArtworkLoader = CoilArtworkLoader(application)
 
     @Provides
     @Singleton
@@ -44,13 +41,11 @@ object UiModule {
 
     @Provides
     @Singleton
-    fun provideMediaControllerGateway(): MediaControllerGateway =
-        DefaultMediaControllerGateway()
+    fun provideMediaControllerGateway(): MediaControllerGateway = DefaultMediaControllerGateway()
 
     @Provides
     @Singleton
-    fun provideSettingsDataStore(application: Application): DataStore<Preferences> =
-        application.dataStore
+    fun provideSettingsDataStore(application: Application): DataStore<Preferences> = application.dataStore
 
     @Provides
     @Singleton

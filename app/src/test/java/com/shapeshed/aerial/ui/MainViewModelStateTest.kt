@@ -284,11 +284,21 @@ class MainViewModelStateTest {
 
         viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
         runCurrent()
-        assertEquals(listOf(2L, 1L), viewModel.stations.first { it.map(Station::id) == listOf(2L, 1L) }.map(Station::id))
+        assertEquals(
+            listOf(2L, 1L),
+            viewModel.stations.first {
+                it.map(Station::id) == listOf(2L, 1L)
+            }.map(Station::id),
+        )
 
         viewModel.setFavoritesSort(FavoritesSort.MOST_PLAYED)
         runCurrent()
-        assertEquals(listOf(1L, 2L), viewModel.stations.first { it.map(Station::id) == listOf(1L, 2L) }.map(Station::id))
+        assertEquals(
+            listOf(1L, 2L),
+            viewModel.stations.first {
+                it.map(Station::id) == listOf(1L, 2L)
+            }.map(Station::id),
+        )
     }
 
     @Test
@@ -701,10 +711,12 @@ class MainViewModelStateTest {
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(stationName)
-                .setExtras(Bundle().apply {
-                    putString("streamUrl", "https://example.test/$id")
-                    putString("stationName", stationName)
-                })
+                .setExtras(
+                    Bundle().apply {
+                        putString("streamUrl", "https://example.test/$id")
+                        putString("stationName", stationName)
+                    },
+                )
                 .build(),
         )
         .build()

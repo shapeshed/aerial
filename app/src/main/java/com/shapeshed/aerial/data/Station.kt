@@ -21,13 +21,14 @@ data class Station(
 ) {
     /** Same station by identity, not by value: a saved row and an ephemeral/registry copy of
      * it (id 0, no db row) should still match by provider+providerId or stream URL. */
-    fun matches(other: Station): Boolean =
-        (id != 0L && id == other.id) ||
-            streamUrl == other.streamUrl ||
-            (provider.isNotBlank() &&
+    fun matches(other: Station): Boolean = (id != 0L && id == other.id) ||
+        streamUrl == other.streamUrl ||
+        (
+            provider.isNotBlank() &&
                 providerId.isNotBlank() &&
                 provider == other.provider &&
-                providerId == other.providerId)
+                providerId == other.providerId
+            )
 }
 
 /** Resolves where [target] sits in [queue] for queueing playback — null if it isn't a member,

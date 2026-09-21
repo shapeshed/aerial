@@ -29,7 +29,9 @@ class NowPlayingDisplayTest {
     @Test
     fun icyArtistAndTitleShown() {
         val display = computeNowPlayingDisplay(
-            "KISS Dance", icyTitle = "Slow Burner", icyArtist = "Interplanetary Criminal",
+            "KISS Dance",
+            icyTitle = "Slow Burner",
+            icyArtist = "Interplanetary Criminal",
         )
         assertEquals(NowPlayingDisplay("KISS Dance", "Interplanetary Criminal — Slow Burner"), display)
     }

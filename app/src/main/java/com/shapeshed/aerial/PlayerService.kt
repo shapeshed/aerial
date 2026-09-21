@@ -315,22 +315,20 @@ class PlayerService : MediaLibraryService() {
         override fun onConnectAsync(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
-        ): ListenableFuture<MediaSession.ConnectionResult> {
-            return Futures.immediateFuture(
-                MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
-                    .setAvailableSessionCommands(
-                        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                            .buildUpon()
-                            .apply {
-                                AERIAL_CUSTOM_COMMAND_ACTIONS.forEach {
-                                    add(SessionCommand(it, Bundle.EMPTY))
-                                }
+        ): ListenableFuture<MediaSession.ConnectionResult> = Futures.immediateFuture(
+            MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                        .buildUpon()
+                        .apply {
+                            AERIAL_CUSTOM_COMMAND_ACTIONS.forEach {
+                                add(SessionCommand(it, Bundle.EMPTY))
                             }
-                            .build(),
-                    )
-                    .build(),
-            )
-        }
+                        }
+                        .build(),
+                )
+                .build(),
+        )
 
         override fun onCustomCommand(
             session: MediaSession,
@@ -343,10 +341,12 @@ class PlayerService : MediaLibraryService() {
                     sleepTimerController.start(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 ACTION_SLEEP_TIMER_CANCEL -> {
                     sleepTimerController.cancel()
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 ACTION_TOGGLE_FAVORITE -> {
                     val station = currentStation()
                         ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
@@ -357,6 +357,7 @@ class PlayerService : MediaLibraryService() {
                         withContext(Dispatchers.IO) {
                             when (favoriteToggleAction(station)) {
                                 FavoriteToggleAction.Save -> repository.saveAsFavorite(station)
+
                                 FavoriteToggleAction.MarkFavorite ->
                                     repository.update(station.copy(isFavorite = true))
 
@@ -368,6 +369,7 @@ class PlayerService : MediaLibraryService() {
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
         }
@@ -376,8 +378,7 @@ class PlayerService : MediaLibraryService() {
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(sessionCoordinator.libraryRoot())
+        ): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(sessionCoordinator.libraryRoot())
 
         override fun onGetItem(
             session: MediaLibrarySession,
@@ -439,8 +440,7 @@ class PlayerService : MediaLibraryService() {
         }
     }
 
-    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> =
-        serviceScope.asServiceFuture(block)
+    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> = serviceScope.asServiceFuture(block)
 
     // Records a listen the moment audio actually starts (onIsPlayingChanged=true) — the single
     // choke point every surface's playback passes through (phone, Android Auto, Google TV
@@ -577,15 +577,14 @@ class PlayerService : MediaLibraryService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
-    private fun pendingIntent(): PendingIntent =
-        PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
+    private fun pendingIntent(): PendingIntent = PendingIntent.getActivity(
+        this,
+        0,
+        Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        },
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private companion object {
         const val TAG = "AerialPlayerService"

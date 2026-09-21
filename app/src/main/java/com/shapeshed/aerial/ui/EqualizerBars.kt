@@ -19,11 +19,7 @@ private val BAR_DURATIONS = listOf(380, 440, 310, 500)
 private val BAR_OFFSETS = listOf(0, 120, 60, 200)
 
 @Composable
-fun EqualizerBars(
-    color: Color,
-    modifier: Modifier = Modifier,
-    barCount: Int = 4,
-) {
+fun EqualizerBars(color: Color, modifier: Modifier = Modifier, barCount: Int = 4) {
     val count = barCount.coerceIn(1, BAR_DURATIONS.size)
     val infiniteTransition = rememberInfiniteTransition(label = "eq")
     // Keep the State objects unread here and read .value inside the Canvas lambda, so each

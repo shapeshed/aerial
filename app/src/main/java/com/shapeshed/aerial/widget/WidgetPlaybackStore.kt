@@ -32,13 +32,7 @@ internal object WidgetPlaybackStore {
         )
     }
 
-    fun write(
-        context: Context,
-        mediaId: String?,
-        isPlaying: Boolean,
-        canSkipPrevious: Boolean,
-        canSkipNext: Boolean,
-    ) {
+    fun write(context: Context, mediaId: String?, isPlaying: Boolean, canSkipPrevious: Boolean, canSkipNext: Boolean) {
         val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
         val stationChanged = preferences.getString(MEDIA_ID, null) != mediaId
         preferences

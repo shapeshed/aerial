@@ -141,8 +141,7 @@ class AerialWidgetRemoteViewsTest {
         return inflated
     }
 
-    private fun cornerRadius(button: ImageButton): Float =
-        (button.background as GradientDrawable).cornerRadius
+    private fun cornerRadius(button: ImageButton): Float = (button.background as GradientDrawable).cornerRadius
 
     private fun playback(isPlaying: Boolean, hasNavigation: Boolean) = WidgetPlaybackState(
         mediaId = station.id.toString(),
@@ -160,9 +159,5 @@ class AerialWidgetRemoteViewsTest {
         isFavorite = true,
     )
 
-    private data class LayoutCase(
-        val id: Int,
-        val hasArtwork: Boolean,
-        val hasText: Boolean,
-    )
+    private data class LayoutCase(val id: Int, val hasArtwork: Boolean, val hasText: Boolean)
 }
