@@ -41,3 +41,38 @@ internal fun PlaybackUiState.stationNamesForMetadataFilter(allStations: List<Sta
     addAll(queue.map(Station::name))
     addAll(allStations.map(Station::name))
 }
+
+/** Track metadata that arrived for a station the player has not switched to yet. */
+internal data class PendingPlaybackMetadata(val station: Station, val title: String?, val artist: String?)
+
+/**
+ * Whether incoming track metadata belongs to the current station (apply now) or
+ * arrived ahead of a station transition and must wait for it.
+ */
+internal sealed interface MetadataArrival {
+    data class Defer(val station: Station) : MetadataArrival
+
+    data object ApplyNow : MetadataArrival
+}
+
+internal fun metadataArrival(incoming: Station?, current: Station?): MetadataArrival = when {
+    incoming != null && (current == null || !current.matches(incoming)) -> MetadataArrival.Defer(incoming)
+    else -> MetadataArrival.ApplyNow
+}
+
+/** The pending metadata when it belongs to [station], otherwise null. */
+internal fun PendingPlaybackMetadata?.matching(station: Station): PendingPlaybackMetadata? =
+    this?.takeIf { it.station.matches(station) }
+
+/** Applies a player sync to the playback UI state (station, playing, buffering, queue). */
+internal fun PlaybackUiState.reducePlaybackSync(
+    station: Station?,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    queue: List<Station>,
+): PlaybackUiState = copy(
+    station = station ?: this.station,
+    isPlaying = isPlaying,
+    isBuffering = isBuffering,
+    queue = queue.ifEmpty { this.queue },
+)

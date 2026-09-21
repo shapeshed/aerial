@@ -83,6 +83,66 @@ class PlaybackStateSyncTest {
         assertEquals(listOf("Playing", "Queued", "Other", "Playing"), names)
     }
 
+    @Test
+    fun metadataForADifferentStationIsDeferred() {
+        val playing = station(id = 7, name = "Playing")
+        val incoming = station(id = 8, name = "Incoming")
+
+        assertEquals(MetadataArrival.ApplyNow, metadataArrival(null, playing))
+        assertEquals(MetadataArrival.ApplyNow, metadataArrival(null, null))
+        assertEquals(MetadataArrival.Defer(incoming), metadataArrival(incoming, null))
+        assertEquals(MetadataArrival.Defer(incoming), metadataArrival(incoming, playing))
+        assertEquals(MetadataArrival.ApplyNow, metadataArrival(playing, playing))
+    }
+
+    @Test
+    fun pendingMetadataMatchesOnlyItsOwnStation() {
+        val pendingStation = station(id = 8, name = "Pending")
+        val pending = PendingPlaybackMetadata(pendingStation, "Title", "Artist")
+        val none: PendingPlaybackMetadata? = null
+
+        assertNull(none.matching(pendingStation))
+        assertEquals(pending, pending.matching(pendingStation))
+        assertNull(pending.matching(station(id = 9, name = "Other")))
+    }
+
+    @Test
+    fun reducePlaybackSyncKeepsCurrentValuesWhenNotProvided() {
+        val playing = station(id = 7, name = "Playing")
+        val queued = station(id = 8, name = "Queued")
+        val state = PlaybackUiState(station = playing, isPlaying = false, queue = listOf(queued))
+
+        val reduced = state.reducePlaybackSync(
+            station = null,
+            isPlaying = true,
+            isBuffering = true,
+            queue = emptyList(),
+        )
+
+        assertEquals(playing, reduced.station)
+        assertEquals(listOf(queued), reduced.queue)
+        assertTrue(reduced.isPlaying)
+        assertTrue(reduced.isBuffering)
+    }
+
+    @Test
+    fun reducePlaybackSyncReplacesStationAndQueueWhenProvided() {
+        val playing = station(id = 7, name = "Playing")
+        val next = station(id = 8, name = "Next")
+        val state = PlaybackUiState(station = playing, queue = listOf(playing))
+
+        val reduced = state.reducePlaybackSync(
+            station = next,
+            isPlaying = true,
+            isBuffering = false,
+            queue = listOf(next),
+        )
+
+        assertEquals(next, reduced.station)
+        assertEquals(listOf(next), reduced.queue)
+        assertFalse(reduced.isBuffering)
+    }
+
     private fun station(id: Long, name: String): Station = Station(
         id = id,
         name = name,
