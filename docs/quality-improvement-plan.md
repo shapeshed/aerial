@@ -95,21 +95,21 @@ In `app/build.gradle`:
   halved the baseline from **2,604 → 1,115 entries**.
 - Baseline generated with `./gradlew :app:ktlintGenerateBaseline`.
 - Root `quality` task now depends on `:app:ktlintCheck`.
-- Verified: `:app:ktlintCheck --rerun-tasks` passes with the 1,115-entry baseline;
+- Verified: `:app:ktlintCheck --rerun-tasks` passes with the checked-in baseline;
   a deliberately malformed file fails `:app:ktlintMainSourceSetCheck`.
-- **Mass-format evaluation (2026-09-21): do not run `ktlintFormat` as a one-shot.**
-  Two attempts on the whole project did not converge: ktlint reported "not able to
-  resolve all violations ... in 3 consecutive runs" and left ~2,231 remaining
-  violations in `main` (dominated by `standard:indent` and
-  `standard:function-signature`), i.e. **worse** than the 1,115-entry baseline. It
-  also rewrites `class MainViewModel @Inject constructor(...)` into a split
-  annotation form and collapses multi-line function signatures onto long single
-  lines. The reformat was reverted; the baseline remains the mechanism for
-  existing violations. The 1,115 baseline entries are spread across 76 files
-  (largest: `StationEditScreen.kt` 127, `SettingsScreen.kt` 107). To reduce it,
-  either: adopt the [ktlint Compose Rules](https://mrmans0n.github.io/compose-rules/ktlint/)
-  ruleset, or format incrementally per package with review and regenerate the
-  baseline after each reviewed step.
+- **Working mass-format recipe (2026-09-21).** A plain `ktlintFormat` does not
+  converge: `standard:indent`, `standard:class-signature`,
+  `standard:function-signature`, `standard:trailing-comma-on-call-site` and
+  `standard:trailing-comma-on-declaration-site` oscillate against each other. Run
+  the formatter with those five temporarily disabled, then restore the config:
+  append `ktlint_standard_<rule> = disabled` for the five to `.editorconfig`, run
+  `./gradlew :app:ktlintFormat --rerun-tasks`, remove the overrides, and
+  regenerate the baseline. With them disabled the formatter converges (0–36
+  residual violations) and, once re-enabled, the output satisfies those rules too.
+  This cut the baseline from **1,041 to 72**. Two gotchas: `.editorconfig` is not a
+  ktlint-gradle task input, so `--rerun-tasks` is required or the format task is
+  skipped and its report is stale; and the recipe is formatting-only, so still run
+  `quality` and the screenshot goldens before committing.
 
 ### 2.4 Jetpack Compose Rules — DONE
 
@@ -354,18 +354,13 @@ References: <https://developer.android.com/develop/ui/compose/testing>.
   `MissingTranslation` disabled).
 - Reduce the ktlint baseline incrementally (inventory cleanup) rather than with a
   one-shot `ktlintFormat`; see §2.3 for why the formatter is unsafe here. Progress:
-  **1,128 → 1,041**. Fully cleared: `import-ordering`, `no-consecutive-blank-lines`,
-  `no-blank-line-before-rbrace`, `no-multi-spaces`, `keyword-spacing`,
-  `string-template`, `filename`, `spacing-between-declarations-with-annotations`,
-  `spacing-between-declarations-with-comments`, `trailing-comma-on-call-site`.
-  Remaining work is dominated by formatter-owned rules — `indent` (~293),
-  `argument-list-wrapping` (~241), `function-signature` (~140), `max-line-length`
-  (~68), `wrapping` (~48), `blank-line-between-when-conditions` (~44),
-  `class-signature` (~42) — which need the ktlint non-convergence solved first
-  (the formatter oscillates on indent/class-signature/trailing-comma). Also
-  outstanding: `no-wildcard-imports` (needs per-symbol expansion),
-  `multiline-if-else`, `backing-property-naming`, and the Compose
-  `parameter-naming`/`lambda-param-in-effect`/`content-slot-reused` findings.
+  **1,128 → 72**. Manual batches cleared the small rules; the §2.3
+  non-convergent-rule formatter recipe then cleared all formatting/wrapping/
+  signature/indent/trailing-comma violations at once. The remaining 72 are not
+  auto-fixable: `no-wildcard-imports` (36; needs per-symbol expansion),
+  `max-line-length` (15), Compose `parameter-naming` (7),
+  `lambda-param-in-effect` (4), `content-slot-reused` (3), `param-order-check`
+  (1), `vm-forwarding-check` (1), and `backing-property-naming` (5).
 
 ---
 
