@@ -1,5 +1,6 @@
 package com.shapeshed.aerial.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -15,7 +16,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.activity.ComponentActivity
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.testing.AerialTestEnvironment
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule

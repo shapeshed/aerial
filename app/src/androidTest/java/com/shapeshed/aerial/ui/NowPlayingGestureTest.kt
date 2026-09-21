@@ -2,23 +2,23 @@ package com.shapeshed.aerial.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.ui.theme.AerialTheme
+import kotlin.math.abs
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import kotlin.math.abs
 
 class NowPlayingGestureTest {
     @get:Rule

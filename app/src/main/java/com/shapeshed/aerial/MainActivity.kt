@@ -1,13 +1,13 @@
 package com.shapeshed.aerial
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.shapeshed.aerial.ui.MainScreen
 import com.shapeshed.aerial.ui.MainViewModel
 import com.shapeshed.aerial.ui.SettingsScreen

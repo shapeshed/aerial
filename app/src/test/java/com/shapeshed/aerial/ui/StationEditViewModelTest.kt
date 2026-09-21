@@ -5,10 +5,10 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import java.util.concurrent.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain

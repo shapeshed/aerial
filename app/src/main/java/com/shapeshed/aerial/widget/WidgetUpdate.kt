@@ -3,10 +3,10 @@ package com.shapeshed.aerial.widget
 import android.content.Context
 import android.util.Log
 import com.shapeshed.aerial.AerialApp
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicLong
 
 const val ACTION_WIDGET_PREVIOUS = "com.shapeshed.aerial.action.WIDGET_PREVIOUS"
 const val ACTION_WIDGET_TOGGLE = "com.shapeshed.aerial.action.WIDGET_TOGGLE"

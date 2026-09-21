@@ -6,8 +6,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.Build
-import com.shapeshed.aerial.ArtworkProvider
-import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
@@ -18,10 +16,12 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.svg.SvgDecoder
+import com.shapeshed.aerial.ArtworkProvider
+import com.shapeshed.aerial.R
 import java.io.File
 import java.net.URL
-import java.util.Locale
 import java.util.LinkedHashMap
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
