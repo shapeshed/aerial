@@ -97,10 +97,18 @@ fun SettingsScreen(
         viewModel.onBackupResultShown(result)
     }
 
+    // The dirty/nightly build label is a developer aid. It is hoisted out of
+    // SettingsContent so deterministic previews can supply a stable label; see
+    // docs/quality-improvement-plan.md.
+    val versionLabel = BuildConfig.BUILD_LABEL.takeIf { it.isNotBlank() }?.let { label ->
+        stringResource(R.string.build_label_format, label)
+    } ?: stringResource(R.string.version_format, BuildConfig.VERSION_NAME)
+
     SettingsContent(
         showStreamBitrate = loadedSettings.showStreamBitrate,
         showHome = loadedSettings.showHome,
         snackbarHostState = snackbarHostState,
+        versionLabel = versionLabel,
         onShowStreamBitrateChange = viewModel::setShowStreamBitrate,
         onShowHomeChange = viewModel::setShowHome,
         onExport = { exportLauncher.launch("aerial-backup.zip") },
@@ -116,6 +124,7 @@ internal fun SettingsContent(
     showStreamBitrate: Boolean,
     showHome: Boolean,
     snackbarHostState: SnackbarHostState,
+    versionLabel: String,
     onShowStreamBitrateChange: (Boolean) -> Unit,
     onShowHomeChange: (Boolean) -> Unit,
     onExport: () -> Unit,
@@ -123,9 +132,6 @@ internal fun SettingsContent(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val versionLabel = BuildConfig.BUILD_LABEL.takeIf { it.isNotBlank() }?.let { label ->
-        stringResource(R.string.build_label_format, label)
-    } ?: stringResource(R.string.version_format, BuildConfig.VERSION_NAME)
     val context = LocalContext.current
     Scaffold(
         modifier = modifier,
