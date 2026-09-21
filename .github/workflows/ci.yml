@@ -96,16 +96,6 @@ jobs:
           fail_ci_if_error: true
           token: ${{ env.CODECOV_TOKEN }}
 
-      # Sets up cmdline-tools, accepts licenses, and puts sdkmanager/adb on
-      # PATH. The emulator runner installs the emulator, platform-tools and
-      # system image itself; pre-installing them here (with the action's retry
-      # behaviour) avoids a transient SDK download EOF failing the job before
-      # any test runs.
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools emulator'
-
       - name: Start Android emulator and run isolated device tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
