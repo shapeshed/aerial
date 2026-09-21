@@ -53,5 +53,4 @@ class NowPlayingDisplayTest {
         val display = computeNowPlayingDisplay("Radio X", icyTitle = "Some Show", icyArtist = "Radio X")
         assertEquals(NowPlayingDisplay("Radio X", "Some Show"), display)
     }
-
 }

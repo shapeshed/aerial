@@ -408,7 +408,6 @@ class MainViewModel @Inject constructor(
         .map { prefs -> prefs[SHOW_HOME_KEY] ?: true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-
     fun setHomeViewMode(mode: HomeViewMode) {
         viewModelScope.launch {
             dataStore.edit { prefs ->

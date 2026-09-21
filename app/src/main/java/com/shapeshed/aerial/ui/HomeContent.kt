@@ -74,8 +74,6 @@ internal fun HomeEmptyState(
     }
 }
 
-
-
 internal fun shouldFocusRecentlyPlayedItem(previousKeys: List<String>, currentKeys: List<String>): Boolean =
     previousKeys.isNotEmpty() && currentKeys.firstOrNull() != previousKeys.firstOrNull()
 

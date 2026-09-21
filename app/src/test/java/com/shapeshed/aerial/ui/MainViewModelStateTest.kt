@@ -117,7 +117,6 @@ class MainViewModelStateTest {
         verify(registryRepository).search("mango", emptySet(), emptySet())
     }
 
-
     @Test
     fun countryFilterReissuesSearchAndPropagatesSelectedCountry() = runTest {
         val registryStation = registry("Mango Radio")

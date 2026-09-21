@@ -587,7 +587,6 @@ fun NowPlayingScreen(
             onDismiss = { showSleepTimer = false },
         )
     }
-
 }
 
 @Composable

@@ -714,5 +714,4 @@ fun MainScreen(
             },
         )
     }
-
 }
