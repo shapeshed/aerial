@@ -5,12 +5,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import android.app.Application
 import android.os.Bundle
 import java.io.File
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
@@ -657,13 +657,13 @@ class MainViewModelStateTest {
         dataStore: DataStore<Preferences> = MemoryDataStore(),
         artworkLoader: ArtworkLoader = CoilArtworkLoader(mock()),
     ): MainViewModel {
-        val app = mock<AerialApp>()
+        val app = mock<Application>()
         val network = mock<NetworkMonitor>()
-        whenever(app.networkMonitor).thenReturn(network)
         whenever(app.getString(R.string.live_radio)).thenReturn("test-live-radio")
         whenever(network.isOnline).thenReturn(MutableStateFlow(true).asStateFlow())
         whenever(registryRepository.countAsFlow()).thenReturn(flowOf(0))
-        return MainViewModel(app, repository, registryRepository, dataStore, SavedStateHandle(), artworkLoader).also(viewModels::add)
+        return MainViewModel(app, repository, registryRepository, dataStore, network, artworkLoader = artworkLoader)
+            .also(viewModels::add)
     }
 
     private class RecordingArtworkLoader(private val path: String) : ArtworkLoader {

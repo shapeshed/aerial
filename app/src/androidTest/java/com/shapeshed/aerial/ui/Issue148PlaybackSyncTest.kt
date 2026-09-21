@@ -34,7 +34,7 @@ class Issue148PlaybackSyncTest {
         val left = station("Metadata left", "metadata-left")
         val right = station("Metadata right", "metadata-right")
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore, app.networkMonitor)
         }
 
         withContext(Dispatchers.Main) {
@@ -62,7 +62,7 @@ class Issue148PlaybackSyncTest {
             preferences.remove(LAST_PLAYED_STATION_KEY)
         }
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore, app.networkMonitor)
         }
         withTimeout(5_000) {
             viewModel.stations.first { stations -> stations.count { it.id in setOf(leftId, rightId) } == 2 }
@@ -113,7 +113,7 @@ class Issue148PlaybackSyncTest {
         }
 
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore, app.networkMonitor)
         }
         val collection = launch(Dispatchers.Main) { viewModel.playbackUiState.collect {} }
         withTimeout(5_000) {
