@@ -1,5 +1,6 @@
 package com.shapeshed.aerial
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,6 +31,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         splashScreen.setKeepOnScreenCondition { !mainViewModel.isInitialized.value }
         enableEdgeToEdge()
+        // The nav bar sits over a Material surface; do not let the system scrim it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         setContent {
             AerialTheme {
                 MainScreen(
