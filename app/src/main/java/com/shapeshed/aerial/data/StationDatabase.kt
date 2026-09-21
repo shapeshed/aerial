@@ -105,12 +105,14 @@ abstract class StationDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE " +
-                        "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`) " +
+                        "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, " +
+                        "`streamUrl`, `provider`, `providerId`) " +
                         "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`); END",
                 )
                 db.execSQL(
                     "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT " +
-                        "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`) " +
+                        "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, " +
+                        "`streamUrl`, `provider`, `providerId`) " +
                         "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`); END",
                 )
                 db.execSQL("INSERT INTO `stations_fts`(`stations_fts`) VALUES('rebuild')")
@@ -278,12 +280,16 @@ abstract class StationDatabase : RoomDatabase() {
             )
             db.execSQL(
                 "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_UPDATE " +
-                    "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`, `tags`, `description`, `country`) " +
+                    "AFTER UPDATE ON `stations` BEGIN INSERT INTO `stations_fts`(" +
+                    "`docid`, `name`, `streamUrl`, `provider`, `providerId`, " +
+                    "`tags`, `description`, `country`) " +
                     "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`, NEW.`tags`, NEW.`description`, NEW.`country`); END",
             )
             db.execSQL(
                 "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_stations_fts_AFTER_INSERT " +
-                    "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(`docid`, `name`, `streamUrl`, `provider`, `providerId`, `tags`, `description`, `country`) " +
+                    "AFTER INSERT ON `stations` BEGIN INSERT INTO `stations_fts`(" +
+                    "`docid`, `name`, `streamUrl`, `provider`, `providerId`, " +
+                    "`tags`, `description`, `country`) " +
                     "VALUES (NEW.`rowid`, NEW.`name`, NEW.`streamUrl`, NEW.`provider`, NEW.`providerId`, NEW.`tags`, NEW.`description`, NEW.`country`); END",
             )
             db.execSQL("INSERT INTO `stations_fts`(`stations_fts`) VALUES('rebuild')")

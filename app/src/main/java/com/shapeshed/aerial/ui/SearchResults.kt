@@ -1,16 +1,46 @@
 package com.shapeshed.aerial.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -22,7 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.request.ImageRequest
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.data.*
+import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.data.Station
 
 @Composable
 internal fun DefaultSearchResults(
@@ -120,6 +151,64 @@ internal fun RecentSearches(
 }
 
 @Composable
+private fun EmptySearchResults(header: @Composable () -> Unit, onAddManually: (() -> Unit)?) {
+    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+        header()
+        Box(
+            modifier = androidx.compose.ui.Modifier.fillMaxWidth().weight(1f).padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = androidx.compose.ui.Modifier.size(88.dp),
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Radio,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = androidx.compose.ui.Modifier.size(36.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.no_stations_found),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = stringResource(R.string.no_stations_found_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                if (onAddManually != null) {
+                    Spacer(androidx.compose.ui.Modifier.height(4.dp))
+                    Button(onClick = onAddManually) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = null,
+                            modifier = androidx.compose.ui.Modifier.size(18.dp),
+                        )
+                        Spacer(androidx.compose.ui.Modifier.width(8.dp))
+                        Text(stringResource(R.string.add_your_own_station))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun RegistrySearchResults(
     favoriteResults: List<Station>,
     results: List<RegistryStation>,
@@ -141,60 +230,7 @@ internal fun RegistrySearchResults(
     onAddManually: (() -> Unit)? = null,
 ) {
     if (favoriteResults.isEmpty() && results.isEmpty()) {
-        Column(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
-            header()
-            Box(
-                modifier = androidx.compose.ui.Modifier.fillMaxWidth().weight(1f).padding(32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = androidx.compose.ui.Modifier.size(88.dp),
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Radio,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = androidx.compose.ui.Modifier.size(36.dp),
-                            )
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.no_stations_found),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = stringResource(R.string.no_stations_found_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (onAddManually != null) {
-                        Spacer(androidx.compose.ui.Modifier.height(4.dp))
-                        Button(onClick = onAddManually) {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = null,
-                                modifier = androidx.compose.ui.Modifier.size(18.dp),
-                            )
-                            Spacer(androidx.compose.ui.Modifier.width(8.dp))
-                            Text(stringResource(R.string.add_your_own_station))
-                        }
-                    }
-                }
-            }
-        }
+        EmptySearchResults(header = header, onAddManually = onAddManually)
     } else {
         LazyVerticalGrid(
             state = state,
@@ -438,7 +474,11 @@ private fun RegistryResultItem(
                         contentDescription = stringResource(
                             if (alreadySaved) R.string.remove_from_favorites else R.string.save_to_favorites,
                         ),
-                        tint = if (alreadySaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (alreadySaved) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.size(20.dp),
                     )
                 }

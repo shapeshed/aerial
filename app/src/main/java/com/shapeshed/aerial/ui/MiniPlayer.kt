@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +65,7 @@ internal fun MiniPlayer(
     icyInfo: String,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    onHeightChanged: (Int) -> Unit,
+    onHeightChange: (Int) -> Unit,
     onStop: () -> Unit,
     onTogglePlayback: () -> Unit,
     showNextStation: Boolean,
@@ -85,14 +86,15 @@ internal fun MiniPlayer(
             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
             targetOffsetY = { it },
         ),
-        modifier = modifier.onSizeChanged { onHeightChanged(it.height) },
+        modifier = modifier.onSizeChanged { onHeightChange(it.height) },
     ) {
         station?.let { visibleStation ->
             val dismissState = rememberSwipeToDismissBoxState()
+            val currentOnStop by rememberUpdatedState(onStop)
             LaunchedEffect(dismissState.currentValue) {
                 if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onStop()
+                    currentOnStop()
                 }
             }
             SwipeToDismissBox(
@@ -178,7 +180,11 @@ internal fun MiniPlayer(
                                                 )
                                             } else {
                                                 Icon(
-                                                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                                    imageVector = if (playing) {
+                                                        Icons.Rounded.Pause
+                                                    } else {
+                                                        Icons.Rounded.PlayArrow
+                                                    },
                                                     contentDescription = stringResource(
                                                         if (playing) R.string.pause else R.string.play,
                                                     ),

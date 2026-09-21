@@ -109,12 +109,12 @@ class MainViewModel @Inject constructor(
     // For You is loaded for the device locale's country: a curated selection where one
     // exists, otherwise a random sample of that country's stations with artwork. Keyed by
     // country (distinctUntilChanged below) so the random pick stays stable for the session.
-    private val _forYouCountry = MutableStateFlow("GB")
+    private val forYouCountryState = MutableStateFlow("GB")
     private val _forYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val forYouStations: StateFlow<List<RegistryStation>> = _forYouStations.asStateFlow()
 
     fun setForYouCountry(countryCode: String) {
-        if (countryCode.isNotBlank()) _forYouCountry.value = countryCode
+        if (countryCode.isNotBlank()) forYouCountryState.value = countryCode
     }
 
     private val _defaultStations = MutableStateFlow<List<RegistryStation>>(emptyList())
@@ -184,7 +184,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 registryRepository.countAsFlow().filter { it > 0 }.distinctUntilChanged(),
-                _forYouCountry,
+                forYouCountryState,
             ) { _, country -> country }
                 .distinctUntilChanged()
                 .collect { country ->
@@ -225,7 +225,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private val _allStations: StateFlow<List<Station>> = repository.getAll()
+    private val allStationsState: StateFlow<List<Station>> = repository.getAll()
         .map { stations -> stations.map { recoverStationArtwork(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -250,11 +250,11 @@ class MainViewModel @Inject constructor(
     private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
-    private val _activeFavoritesOrder = MutableStateFlow<List<Long>?>(null)
+    private val activeFavoritesOrderState = MutableStateFlow<List<Long>?>(null)
     private val favoritesQueueCoordinator = FavoritesQueueCoordinator()
 
     private fun favoritesOrder(queue: List<Station>): List<Long>? {
-        val favorites = _allStations.value.filter(Station::isFavorite)
+        val favorites = allStationsState.value.filter(Station::isFavorite)
         return favoritesQueueCoordinator.persistedOrder(queue, favorites)
     }
 
@@ -271,17 +271,17 @@ class MainViewModel @Inject constructor(
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
 
-        val favorites = _allStations.value.filter(Station::isFavorite)
+        val favorites = allStationsState.value.filter(Station::isFavorite)
         val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
             ?: return
-        _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
+        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
         controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
         val currentStation = _playbackUiState.value.station ?: return
         persistLastPlayedStation(currentStation, reorderedQueue)
     }
 
-    val stations: StateFlow<List<Station>> = combine(_allStations, _favoritesSort, _activeFavoritesOrder) {
+    val stations: StateFlow<List<Station>> = combine(allStationsState, _favoritesSort, activeFavoritesOrderState) {
             list,
             sort,
             activeOrder,
@@ -289,8 +289,8 @@ class MainViewModel @Inject constructor(
         favoritesQueueCoordinator.sortForDisplay(list, sort, activeOrder)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _currentStationId = MutableStateFlow<Long?>(null)
-    private val _ephemeralStation = MutableStateFlow<Station?>(null)
+    private val currentStationIdState = MutableStateFlow<Long?>(null)
+    private val ephemeralStationState = MutableStateFlow<Station?>(null)
     private val _playbackUiState = MutableStateFlow(PlaybackUiState())
     val playbackUiState: StateFlow<PlaybackUiState> = _playbackUiState.asStateFlow()
     private var pendingPlaybackMetadata: PendingPlaybackMetadata? = null
@@ -302,13 +302,13 @@ class MainViewModel @Inject constructor(
     init {
         // If the current station's row is deleted outside this ViewModel (e.g. unfavourited
         // from the media notification), hand it off to the ephemeral slot so playback and the
-        // Now Playing UI survive. In-app delete paths clear _currentStationId before deleting,
+        // Now Playing UI survive. In-app delete paths clear currentStationIdState before deleting,
         // so they never trigger this. The previous-list guard stops the initial empty emission
         // from being mistaken for a deletion.
         viewModelScope.launch {
             var previous: List<Station> = emptyList()
-            _allStations.collect { list ->
-                val id = _currentStationId.value
+            allStationsState.collect { list ->
+                val id = currentStationIdState.value
                 if (id != null && list.none { it.id == id }) {
                     previous.firstOrNull { it.id == id }?.let { removed ->
                         setCurrentStation(removed.copy(id = 0, isFavorite = false))
@@ -320,7 +320,7 @@ class MainViewModel @Inject constructor(
                     // until it is saved. When that save happens in another scope (including the
                     // media service handling a notification/lock-screen action), promote the
                     // matching persisted row so Favorites and Now Playing share its identity.
-                    val ephemeral = _ephemeralStation.value
+                    val ephemeral = ephemeralStationState.value
                     list.firstOrNull { it.isFavorite && ephemeral?.matches(it) == true }
                         ?.let(::setCurrentStation)
                 }
@@ -344,7 +344,7 @@ class MainViewModel @Inject constructor(
         val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
             ?: return
         if (reorderedQueue.map(Station::id) == activeQueue.map(Station::id)) return
-        _activeFavoritesOrder.value = reorderedQueue.map(Station::id)
+        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
         _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
         controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
         _playbackUiState.value.station?.let { persistLastPlayedStation(it, reorderedQueue) }
@@ -395,7 +395,7 @@ class MainViewModel @Inject constructor(
 
     fun setSelectedHomeTab(tab: Int) {
         _selectedHomeTab.value = tab
-        if (tab != 1) _activeFavoritesOrder.value = null
+        if (tab != 1) activeFavoritesOrderState.value = null
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[LAST_HOME_TAB_KEY] = tab }
         }
@@ -601,7 +601,7 @@ class MainViewModel @Inject constructor(
             controller = controllerFuture?.get()
             controller?.addListener(playerListener)
             controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
-                val station = _allStations.value.firstOrNull { it.id == id }
+                val station = allStationsState.value.firstOrNull { it.id == id }
                 if (station != null) {
                     syncPlaybackState(controller, station)
                     controller?.mediaMetadata?.let { metadata ->
@@ -611,7 +611,7 @@ class MainViewModel @Inject constructor(
                             artist = metadata.artist?.toString(),
                         )
                     }
-                } else if (_currentStationId.value == null) {
+                } else if (currentStationIdState.value == null) {
                     syncPlaybackState(controller)
                 }
             }
@@ -627,11 +627,11 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             if (station.id == 0L) {
                 // Ephemeral station (played without saving) — persist it as a favourite.
-                // Set currentStationId first, then wait for _allStations to contain the new
+                // Set currentStationId first, then wait for allStationsState to contain the new
                 // row before clearing ephemeral, so currentStation never drops to null.
                 val id = repository.saveAsFavorite(ensureLocalLogo(station))
-                _currentStationId.value = id
-                _allStations.first { list -> list.any { it.id == id } }
+                currentStationIdState.value = id
+                allStationsState.first { list -> list.any { it.id == id } }
                 setCurrentStation(repository.getById(id) ?: station.copy(id = id, isFavorite = true))
                 requestAerialWidgetUpdate(getApplication())
                 return@launch
@@ -646,7 +646,7 @@ class MainViewModel @Inject constructor(
             // existence as "favourited". If it's the active station, hand it off to the
             // ephemeral slot first so playback and the Now Playing UI carry on, and keep
             // its logo files so re-favouriting restores the same artwork.
-            val isCurrent = _currentStationId.value == station.id
+            val isCurrent = currentStationIdState.value == station.id
             if (isCurrent) {
                 setCurrentStation(station.copy(id = 0, isFavorite = false))
             } else {
@@ -663,9 +663,9 @@ class MainViewModel @Inject constructor(
     fun restoreFavorite(station: Station) {
         viewModelScope.launch {
             val id = repository.saveAsFavorite(station.copy(isFavorite = true))
-            if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
-                _currentStationId.value = id
-                _ephemeralStation.value = null
+            if (ephemeralStationState.value?.streamUrl == station.streamUrl) {
+                currentStationIdState.value = id
+                ephemeralStationState.value = null
             }
             requestAerialWidgetUpdate(getApplication())
         }
@@ -751,7 +751,7 @@ class MainViewModel @Inject constructor(
             title = title,
             artist = artist,
             liveRadioLabel = liveRadio(),
-            stationNames = playback.stationNamesForMetadataFilter(_allStations.value),
+            stationNames = playback.stationNamesForMetadataFilter(allStationsState.value),
         )
         _playbackUiState.value = _playbackUiState.value.copy(
             trackTitle = normalized.title,
@@ -783,7 +783,7 @@ class MainViewModel @Inject constructor(
     ) {
         val station = resolvedStation ?: resolveStation(mediaItem)
         if (queue.isNotEmpty()) {
-            _activeFavoritesOrder.value = favoritesOrder(queue)
+            activeFavoritesOrderState.value = favoritesOrder(queue)
         }
         if (station != null) {
             val changed = stationChanged(station)
@@ -805,7 +805,8 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    private fun resolveStation(mediaItem: MediaItem?): Station? = stationFromMediaItem(mediaItem, _allStations.value)
+    private fun resolveStation(mediaItem: MediaItem?): Station? =
+        stationFromMediaItem(mediaItem, allStationsState.value)
 
     private fun setCurrentStation(station: Station?) {
         val changed = stationChanged(station)
@@ -816,8 +817,8 @@ class MainViewModel @Inject constructor(
 
     private fun updateStationIdentity(station: Station?) {
         val identity = PlaybackStationIdentity.of(station)
-        _currentStationId.value = identity.stationId
-        _ephemeralStation.value = identity.ephemeralStation
+        currentStationIdState.value = identity.stationId
+        ephemeralStationState.value = identity.ephemeralStation
     }
 
     private fun stationChanged(station: Station?): Boolean =
@@ -860,8 +861,8 @@ class MainViewModel @Inject constructor(
         // Use the recovered station instance for every playback surface. This preserves a
         // user-edited logo while supplying the registry fallback for imported rows whose old
         // local artwork path no longer exists (including the mini-player).
-        val playbackPlan = buildPlaybackQueuePlan(station, queue, _allStations.value)
-        _activeFavoritesOrder.value = favoritesOrder(playbackPlan.requestedQueue)
+        val playbackPlan = buildPlaybackQueuePlan(station, queue, allStationsState.value)
+        activeFavoritesOrderState.value = favoritesOrder(playbackPlan.requestedQueue)
         setCurrentStation(playbackPlan.station)
         _playbackUiState.value = _playbackUiState.value.copy(
             queue = playbackPlan.playerQueue,
@@ -915,7 +916,7 @@ class MainViewModel @Inject constructor(
     // play() afterwards goes through the same path as starting a station with no player active.
     fun stopAndClear() {
         suppressLastPlayedPersist = true
-        _activeFavoritesOrder.value = null
+        activeFavoritesOrderState.value = null
         controller?.apply {
             stop()
             clearMediaItems()
@@ -952,11 +953,11 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun deleteStationRecord(station: Station) {
-        if (_currentStationId.value == station.id) {
+        if (currentStationIdState.value == station.id) {
             controller?.stop()
             setCurrentStation(null)
         }
-        if (_ephemeralStation.value?.streamUrl == station.streamUrl) {
+        if (ephemeralStationState.value?.streamUrl == station.streamUrl) {
             setCurrentStation(null)
         }
         clearLastPlayedStationIfMatching(station)
