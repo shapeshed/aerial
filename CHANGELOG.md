@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-21
+
+### Added
+
+- Home-screen widget with playback controls for favourited stations, adaptive layouts, and station artwork. (#230)
+- Estonian translation updated by Priit Jõerüüt, and English (United Kingdom) translation updated, via Weblate.
+
+### Fixed
+
+- Station album metadata is now preserved from media and stream metadata. (#238)
+- Newly favourited stations sync playback state immediately. (#225)
+- Improved station grid titles and artwork, and favourites list spacing. (#204, #224)
+
+### Changed
+
+- Updated Compose BOM, Material 3, Coil, Media3, Kotlin, Room, and Android Gradle Plugin dependencies.
+- Fixed Codecov upload gating in CI and enabled Renovate patch/minor automerge behind required status checks.
+
 ## [0.7.1] - 2026-09-06
 
 ### Added
