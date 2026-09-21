@@ -790,22 +790,16 @@
         <error line="88" column="1" source="standard:blank-line-between-when-conditions" />
         <error line="89" column="1" source="standard:blank-line-between-when-conditions" />
         <error line="90" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="139" column="51" source="standard:argument-list-wrapping" />
-        <error line="139" column="87" source="standard:argument-list-wrapping" />
-        <error line="139" column="121" source="standard:max-line-length" />
-        <error line="139" column="123" source="standard:argument-list-wrapping" />
-        <error line="141" column="30" source="standard:argument-list-wrapping" />
-        <error line="141" column="68" source="standard:argument-list-wrapping" />
-        <error line="141" column="104" source="standard:argument-list-wrapping" />
-        <error line="141" column="121" source="standard:max-line-length" />
-        <error line="141" column="124" source="standard:argument-list-wrapping" />
-        <error line="141" column="125" source="standard:argument-list-wrapping" />
-        <error line="156" column="1" source="standard:indent" />
-        <error line="157" column="1" source="standard:indent" />
-        <error line="158" column="1" source="standard:indent" />
-        <error line="159" column="1" source="standard:indent" />
-        <error line="160" column="1" source="standard:indent" />
-        <error line="161" column="1" source="standard:indent" />
+        <error line="145" column="51" source="standard:argument-list-wrapping" />
+        <error line="145" column="87" source="standard:argument-list-wrapping" />
+        <error line="145" column="121" source="standard:max-line-length" />
+        <error line="145" column="123" source="standard:argument-list-wrapping" />
+        <error line="147" column="30" source="standard:argument-list-wrapping" />
+        <error line="147" column="68" source="standard:argument-list-wrapping" />
+        <error line="147" column="104" source="standard:argument-list-wrapping" />
+        <error line="147" column="121" source="standard:max-line-length" />
+        <error line="147" column="124" source="standard:argument-list-wrapping" />
+        <error line="147" column="125" source="standard:argument-list-wrapping" />
         <error line="162" column="1" source="standard:indent" />
         <error line="163" column="1" source="standard:indent" />
         <error line="164" column="1" source="standard:indent" />
@@ -885,9 +879,15 @@
         <error line="238" column="1" source="standard:indent" />
         <error line="239" column="1" source="standard:indent" />
         <error line="240" column="1" source="standard:indent" />
-        <error line="248" column="5" source="standard:function-signature" />
-        <error line="249" column="5" source="standard:function-signature" />
-        <error line="249" column="35" source="standard:function-signature" />
+        <error line="241" column="1" source="standard:indent" />
+        <error line="242" column="1" source="standard:indent" />
+        <error line="243" column="1" source="standard:indent" />
+        <error line="244" column="1" source="standard:indent" />
+        <error line="245" column="1" source="standard:indent" />
+        <error line="246" column="1" source="standard:indent" />
+        <error line="254" column="5" source="standard:function-signature" />
+        <error line="255" column="5" source="standard:function-signature" />
+        <error line="255" column="35" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/SettingsViewModel.kt">
         <error line="3" column="1" source="standard:import-ordering" />
@@ -1113,32 +1113,32 @@
     </file>
     <file name="src/screenshotTest/java/com/shapeshed/aerial/ui/SettingsAdaptiveScreenshotTest.kt">
         <error line="3" column="1" source="standard:import-ordering" />
-        <error line="51" column="10" source="standard:argument-list-wrapping" />
-        <error line="51" column="31" source="standard:argument-list-wrapping" />
-        <error line="51" column="81" source="standard:argument-list-wrapping" />
-        <error line="51" column="121" source="standard:argument-list-wrapping" />
-        <error line="51" column="121" source="standard:max-line-length" />
-        <error line="417" column="13" source="standard:argument-list-wrapping" />
-        <error line="417" column="21" source="standard:argument-list-wrapping" />
-        <error line="417" column="43" source="standard:argument-list-wrapping" />
-        <error line="417" column="85" source="standard:argument-list-wrapping" />
-        <error line="417" column="113" source="standard:argument-list-wrapping" />
-        <error line="417" column="121" source="standard:max-line-length" />
-        <error line="417" column="131" source="standard:argument-list-wrapping" />
+        <error line="53" column="10" source="standard:argument-list-wrapping" />
+        <error line="53" column="31" source="standard:argument-list-wrapping" />
+        <error line="53" column="81" source="standard:argument-list-wrapping" />
+        <error line="53" column="121" source="standard:argument-list-wrapping" />
+        <error line="53" column="121" source="standard:max-line-length" />
         <error line="419" column="13" source="standard:argument-list-wrapping" />
         <error line="419" column="21" source="standard:argument-list-wrapping" />
-        <error line="419" column="45" source="standard:argument-list-wrapping" />
-        <error line="419" column="87" source="standard:argument-list-wrapping" />
-        <error line="419" column="108" source="standard:argument-list-wrapping" />
+        <error line="419" column="43" source="standard:argument-list-wrapping" />
+        <error line="419" column="85" source="standard:argument-list-wrapping" />
+        <error line="419" column="113" source="standard:argument-list-wrapping" />
         <error line="419" column="121" source="standard:max-line-length" />
-        <error line="419" column="126" source="standard:argument-list-wrapping" />
-        <error line="420" column="13" source="standard:argument-list-wrapping" />
-        <error line="420" column="21" source="standard:argument-list-wrapping" />
-        <error line="420" column="43" source="standard:argument-list-wrapping" />
-        <error line="420" column="85" source="standard:argument-list-wrapping" />
-        <error line="420" column="104" source="standard:argument-list-wrapping" />
-        <error line="420" column="121" source="standard:max-line-length" />
-        <error line="420" column="122" source="standard:argument-list-wrapping" />
+        <error line="419" column="131" source="standard:argument-list-wrapping" />
+        <error line="421" column="13" source="standard:argument-list-wrapping" />
+        <error line="421" column="21" source="standard:argument-list-wrapping" />
+        <error line="421" column="45" source="standard:argument-list-wrapping" />
+        <error line="421" column="87" source="standard:argument-list-wrapping" />
+        <error line="421" column="108" source="standard:argument-list-wrapping" />
+        <error line="421" column="121" source="standard:max-line-length" />
+        <error line="421" column="126" source="standard:argument-list-wrapping" />
+        <error line="422" column="13" source="standard:argument-list-wrapping" />
+        <error line="422" column="21" source="standard:argument-list-wrapping" />
+        <error line="422" column="43" source="standard:argument-list-wrapping" />
+        <error line="422" column="85" source="standard:argument-list-wrapping" />
+        <error line="422" column="104" source="standard:argument-list-wrapping" />
+        <error line="422" column="121" source="standard:max-line-length" />
+        <error line="422" column="122" source="standard:argument-list-wrapping" />
     </file>
     <file name="src/test/java/com/shapeshed/aerial/ArtworkProviderTest.kt">
         <error line="24" column="22" source="standard:wrapping" />
