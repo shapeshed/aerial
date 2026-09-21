@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Aerial is a Gradle/Android project: ignore build output so file watching and
+  // snapshots focus on source. Keep this list in sync with .gitignore essentials.
+  "watcher": {
+    "ignore": [
+      "**/build/**",
+      ".gradle/**",
+      ".kotlin/**",
+      "app/build/**",
+      "docs/screenshots/**"
+    ]
+  },
+
+  // This repo can publish to Google Play and carries release signing material.
+  // Require confirmation before anything irreversible or release-oriented, and
+  // never edit local secrets.
+  "permissions": [
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git tag *", "effect": "ask" },
+    { "action": "shell", "resource": "git reset --hard *", "effect": "ask" },
+    { "action": "shell", "resource": "./gradlew publish*", "effect": "ask" },
+    { "action": "shell", "resource": "./gradlew bundleRelease", "effect": "ask" },
+    { "action": "shell", "resource": "./gradlew assembleRelease", "effect": "ask" },
+    { "action": "shell", "resource": "rm -rf *", "effect": "ask" },
+    { "action": "shell", "resource": "rm -fr *", "effect": "ask" },
+    { "action": "edit", "resource": "local/**", "effect": "deny" },
+    { "action": "edit", "resource": "**/*.jks", "effect": "deny" },
+    { "action": "edit", "resource": "**/*.keystore", "effect": "deny" }
+  ],
+
+  "commands": {
+    "quality": {
+      "description": "Run the local quality gate and fix failures",
+      "template": "Run `./gradlew quality` (compilation, Android lint, ktlint, unit tests, and the JaCoCo coverage gate). Diagnose and fix any failures. Do not weaken, delete, or skip a test to make it pass; keep the ktlint baseline unchanged unless the reformat was intentional and reviewed."
+    },
+    "screenshots": {
+      "description": "Validate Compose screenshot goldens",
+      "template": "Run `./gradlew validateDebugScreenshotTest`. If a comparison fails, inspect the reference, rendered, and diff images under `app/build/outputs/screenshotTest-results/preview/debug/` before deciding whether the change is intended. Do NOT update references merely to make a comparison pass."
+    },
+    "release-gate": {
+      "description": "Run the full release verification",
+      "template": "Run `./gradlew test lint assembleRelease bundleRelease` and report the result. Do not tag, push, or publish."
+    },
+    "ktlint-baseline": {
+      "description": "Regenerate the ktlint baseline (reviewed reformats only)",
+      "template": "Run `./gradlew :app:ktlintGenerateBaseline`. Only do this for an intentional, reviewed reformat; do not use a one-shot `ktlintFormat` (it does not converge on this codebase). Explain why the baseline changed."
+    },
+    "plan": {
+      "description": "Continue the quality and maintenance plan",
+      "template": "Read `docs/quality-improvement-plan.md`, pick up the next unfinished phase, and follow the repository testing policy in `docs/testing.md` (feature tests, and a regression test first for bug fixes)."
+    }
+  },
+
+  "agents": {
+    "android-reviewer": {
+      "description": "Reviews Android/Kotlin/Compose changes for correctness, tests, and project conventions",
+      "mode": "subagent",
+      "system": "You review the Aerial Android radio app. Check the change against AGENTS.md and docs/testing.md: features need tests for observable behavior; bug fixes need a regression test that fails against the old code. Prefer the existing Material 3 Expressive components and the app's minimal UI style. Flag hardcoded dependency versions (they belong in gradle/libs.versions.toml), unsafe changes to exported components (PlayerService, ArtworkProvider), and any weakening of tests or screenshot goldens. Do not edit files; report findings with file:line references.",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" }
+      ]
+    }
+  }
+}
