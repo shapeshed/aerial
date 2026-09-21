@@ -496,7 +496,7 @@
         <error line="290" column="9" source="standard:class-signature" />
         <error line="290" column="29" source="standard:class-signature" />
         <error line="293" column="5" source="standard:spacing-between-declarations-with-comments" />
-        <error line="807" column="66" source="standard:function-signature" />
+        <error line="803" column="66" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/MiniPlayer.kt">
         <error line="67" column="5" source="compose:parameter-naming" />
