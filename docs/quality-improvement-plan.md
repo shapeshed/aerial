@@ -352,15 +352,17 @@ References: <https://developer.android.com/develop/ui/compose/testing>.
 - Raise the coverage threshold incrementally as behavior tests land.
 - Consider strengthening Android lint (currently only `fatal 'UnusedResources'`,
   `MissingTranslation` disabled).
-- Reduce the ktlint baseline incrementally (inventory cleanup) rather than with a
-  one-shot `ktlintFormat`; see §2.3 for why the formatter is unsafe here. Progress:
-  **1,128 → 72**. Manual batches cleared the small rules; the §2.3
-  non-convergent-rule formatter recipe then cleared all formatting/wrapping/
-  signature/indent/trailing-comma violations at once. The remaining 72 are not
-  auto-fixable: `no-wildcard-imports` (36; needs per-symbol expansion),
-  `max-line-length` (15), Compose `parameter-naming` (7),
-  `lambda-param-in-effect` (4), `content-slot-reused` (3), `param-order-check`
-  (1), `vm-forwarding-check` (1), and `backing-property-naming` (5).
+- **DONE — ktlint baseline is empty (1,128 → 0).** The §2.3 non-convergent-rule
+  formatter recipe cleared all formatting/wrapping/signature/indent/trailing-comma
+  violations; the remainder were fixed by hand with no suppressions:
+  `no-wildcard-imports` (expanded to explicit imports),
+  `max-line-length` (wrapped), Compose `parameter-naming` (renamed to present
+  tense at all call sites), `lambda-param-in-effect` (`rememberUpdatedState`),
+  `content-slot-reused` (extracted branch/entry composables so each slot is
+  emitted once), `param-order-check` (reordered modifier), `vm-forwarding-check`
+  (`MainScreenEffects` now takes callbacks, not the ViewModel), and
+  `backing-property-naming` (renamed private state). Keep
+  `app/config/ktlint/baseline.xml` empty so any new violation fails `quality`.
 
 ---
 
