@@ -45,7 +45,7 @@ class TagFilterFlowTest {
             registryStation("Jazz Station", "jazz"),
             registryStation("Pop Station", "pop"),
         )
-        viewModel = MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+        viewModel = MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore, app.networkMonitor)
     }
 
     @Test

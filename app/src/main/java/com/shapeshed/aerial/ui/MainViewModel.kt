@@ -22,7 +22,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.core.content.ContextCompat
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.stationFromMediaItem
 import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
@@ -80,11 +79,11 @@ class MainViewModel @Inject constructor(
     private val repository: StationRepository,
     private val registryRepository: RegistryRepository,
     private val dataStore: DataStore<Preferences>,
-    // Default is test/preview-only; Hilt supplies the production SavedStateHandle.
+    private val networkMonitor: NetworkMonitor,
+    // Defaults below are test/preview-only; Hilt always supplies these.
     @Suppress("VisibleForTests")
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
-    private val networkMonitor: NetworkMonitor = (application as AerialApp).networkMonitor,
     private val mediaControllerGateway: MediaControllerGateway = DefaultMediaControllerGateway(),
 ) : AndroidViewModel(application) {
 
