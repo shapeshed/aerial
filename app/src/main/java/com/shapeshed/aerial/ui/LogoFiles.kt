@@ -213,19 +213,15 @@ fun appIconBitmap(context: Context): ByteArray? {
     }
 }
 
-private fun extensionFromMimeType(mimeType: String?): String? {
-    return mimeType?.let {
-        MimeTypeMap.getSingleton()
-            .getExtensionFromMimeType(it)
-            ?.lowercase(Locale.US)
-    }
+private fun extensionFromMimeType(mimeType: String?): String? = mimeType?.let {
+    MimeTypeMap.getSingleton()
+        .getExtensionFromMimeType(it)
+        ?.lowercase(Locale.US)
 }
 
-private fun String.extensionOrNull(): String? {
-    return substringAfterLast('.', missingDelimiterValue = "")
-        .lowercase(Locale.US)
-        .takeIf { it.isNotBlank() && it.length <= 5 }
-}
+private fun String.extensionOrNull(): String? = substringAfterLast('.', missingDelimiterValue = "")
+    .lowercase(Locale.US)
+    .takeIf { it.isNotBlank() && it.length <= 5 }
 
 /**
  * Renders a Coil [Image] to a same-size ARGB bitmap, preserving its own transparency —

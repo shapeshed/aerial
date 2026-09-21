@@ -286,6 +286,7 @@ class MainViewModel @Inject constructor(
     private val _playbackUiState = MutableStateFlow(PlaybackUiState())
     val playbackUiState: StateFlow<PlaybackUiState> = _playbackUiState.asStateFlow()
     private var pendingPlaybackMetadata: PendingPlaybackMetadata? = null
+
     // Carries the last-played station to loadStationPaused() once the MediaController connects.
     // CompletableDeferred ensures the handoff is safe regardless of which side wins the race.
     private val pendingRestoreStation = CompletableDeferred<Station?>()

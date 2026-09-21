@@ -110,11 +110,9 @@ private val ASX_REF_REGEX = Regex("(?i)<ref\\b[^>]*\\bhref\\s*=\\s*[\"']([^\"']+
 private fun parseAsx(body: String): String? =
     ASX_REF_REGEX.find(body)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
 
-private fun absolutize(entry: String, baseUrl: String): String {
-    return try {
-        if (URI(entry).isAbsolute) entry else URI(baseUrl).resolve(entry).toString()
-    } catch (_: Exception) {
-        // Not parseable as a URI (unusual entry) — hand it back as-is and let ExoPlayer judge it.
-        entry
-    }
+private fun absolutize(entry: String, baseUrl: String): String = try {
+    if (URI(entry).isAbsolute) entry else URI(baseUrl).resolve(entry).toString()
+} catch (_: Exception) {
+    // Not parseable as a URI (unusual entry) — hand it back as-is and let ExoPlayer judge it.
+    entry
 }

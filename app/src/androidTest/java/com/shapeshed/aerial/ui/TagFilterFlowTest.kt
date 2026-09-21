@@ -153,7 +153,7 @@ class TagFilterFlowTest {
 
     private fun registryStation(name: String, tag: String) = RegistryStation(
         name = name,
-        streamUrl = "https://example.invalid/${tag}",
+        streamUrl = "https://example.invalid/$tag",
         tags = tag,
         provider = "tag-flow-test",
         providerId = tag,

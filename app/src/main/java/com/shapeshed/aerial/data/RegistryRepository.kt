@@ -9,9 +9,9 @@ private data class FeaturedStation(val provider: String, val providerId: String)
 
 private val FEATURED_STATIONS = listOf(
     FeaturedStation("bbc", "bbc_world_service"), // BBC World Service
-    FeaturedStation("radio-france", "2"),        // franceinfo
-    FeaturedStation("ard", "21818908"),          // Deutschlandfunk
-    FeaturedStation("bauer", "ki1"),             // KISS
+    FeaturedStation("radio-france", "2"), // franceinfo
+    FeaturedStation("ard", "21818908"), // Deutschlandfunk
+    FeaturedStation("bauer", "ki1"), // KISS
 )
 
 private const val FOR_YOU_RANDOM_COUNT = 10
@@ -30,7 +30,7 @@ private val UK_FOR_YOU_STATIONS = listOf(
 )
 
 private val CURATED_TAG_ORDER = listOf(
-    "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic"
+    "News", "Sport", "Pop", "Rock", "Jazz", "Classical", "Dance", "Soul", "Country", "Electronic",
 )
 
 // providerId pins a ref to one exact registry row so it survives a station being renamed
