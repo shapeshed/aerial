@@ -744,11 +744,7 @@ class MainViewModel @Inject constructor(
             title = title,
             artist = artist,
             liveRadioLabel = liveRadio(),
-            stationNames = buildList {
-                playback.station?.name?.let(::add)
-                addAll(playback.queue.map(Station::name))
-                addAll(_allStations.value.map(Station::name))
-            },
+            stationNames = playback.stationNamesForMetadataFilter(_allStations.value),
         )
         _playbackUiState.value = _playbackUiState.value.copy(
             trackTitle = normalized.title,
@@ -815,37 +811,17 @@ class MainViewModel @Inject constructor(
     }
 
     private fun updateStationIdentity(station: Station?) {
-        if (station == null) {
-            _currentStationId.value = null
-            _ephemeralStation.value = null
-        } else if (station.id == 0L) {
-            _currentStationId.value = null
-            _ephemeralStation.value = station
-        } else {
-            _currentStationId.value = station.id
-            _ephemeralStation.value = null
-        }
+        val identity = PlaybackStationIdentity.of(station)
+        _currentStationId.value = identity.stationId
+        _ephemeralStation.value = identity.ephemeralStation
     }
 
-    private fun stationChanged(station: Station?): Boolean {
-        val previous = _playbackUiState.value.station
-        return when {
-            previous == null -> station != null
-            station == null -> true
-            else -> !previous.matches(station)
-        }
-    }
+    private fun stationChanged(station: Station?): Boolean =
+        playbackStationChanged(_playbackUiState.value.station, station)
 
     private fun clearPerStationStateIfChanged(changed: Boolean) {
         if (!changed) return
-        // Per-track state belongs to the previous station; onMediaMetadataChanged
-        // repopulates it for the new one.
-        _playbackUiState.value = _playbackUiState.value.copy(
-            trackTitle = null,
-            trackArtist = null,
-            bitrateKbps = null,
-            error = null,
-        )
+        _playbackUiState.value = _playbackUiState.value.clearedPerStationState()
     }
 
     private fun refreshCurrentStation(station: Station) {
