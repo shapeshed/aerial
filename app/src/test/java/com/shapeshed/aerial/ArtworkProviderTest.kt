@@ -51,6 +51,29 @@ class ArtworkProviderTest {
     }
 
     @Test
+    fun rejectsAbsoluteAndTraversalFileNames() {
+        val cacheDir = temporaryDirectory()
+        val context = mock<Context>()
+        whenever(context.cacheDir).thenReturn(cacheDir)
+        File(cacheDir, ArtworkProvider.REGISTRY_ARTWORK_DIR).apply { mkdirs() }
+
+        assertNull(resolveArtworkFile(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, "/etc/passwd"))
+        assertNull(resolveArtworkFile(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, ".."))
+        assertNull(resolveArtworkFile(context, ArtworkProvider.REGISTRY_ARTWORK_DIR, "a/../../b.png"))
+    }
+
+    @Test
+    fun providerIsReadOnlyForWritesAndQueries() {
+        val provider = ArtworkProvider()
+        val uri = mock<android.net.Uri>()
+
+        assertNull(provider.insert(uri, null))
+        assertEquals(0, provider.update(uri, null, null, null))
+        assertEquals(0, provider.delete(uri, null, null))
+        assertNull(provider.query(uri, null, null, null, null))
+    }
+
+    @Test
     fun artworkCanOnlyBeOpenedReadOnly() {
         assertTrue(isReadOnlyArtworkMode("r"))
         assertTrue(isReadOnlyArtworkMode("rt"))
