@@ -325,10 +325,14 @@ References: <https://developer.android.com/topic/performance/benchmarking/macrob
   mode, missing files, writes) — it is exported read-only.
 - Add a minified-release smoke test for exported Media3 service behavior.
 - Add ~5% end-to-end journeys (UI Automator/Compose) for major flows.
-- Edge-to-edge audit: `enableEdgeToEdge()` and `adjustResize` are present, but
-  `NavigationSuiteScaffold` does not propagate `PaddingValues`. Verify each
-  destination applies insets (list `contentPadding`, IME on text fields) and add a
-  device screenshot with system bars + keyboard.
+- **IN PROGRESS** — Edge-to-edge audit. `enableEdgeToEdge()` and `adjustResize`
+  are present. Done: `StationEditScreen` now pads for the IME
+  (`imePadding()` + `consumeWindowInsets`) so the keyboard cannot cover the
+  stream URL field; `MainActivity` disables navigation-bar contrast on API 29+;
+  removed an unused `imePadding` import. Still to verify on a device:
+  `NavigationSuiteScaffold` does not propagate `PaddingValues`, so confirm each
+  destination's list `contentPadding` and the mini-player placement against a
+  real navigation bar, and capture a device screenshot with the keyboard open.
 - Consider adding `testTag("station-edit-screen")` and deterministic navigation
   waiters (also relevant to the PR #249 flake below).
 
