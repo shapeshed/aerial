@@ -278,4 +278,8 @@ For releases, use:
 chore(release): v0.1.1
 ```
 
+Keep the subject line to 50 characters or fewer, use the imperative mood, and
+wrap the body at 72 characters. Separate the body from the subject with a blank
+line.
+
 Reference: https://www.conventionalcommits.org/
