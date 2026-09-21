@@ -318,24 +318,29 @@ References: <https://developer.android.com/topic/performance/benchmarking/macrob
 
 ---
 
-## 5. Phase 3 — risk-based testing & UI hardening (NOT STARTED)
+## 5. Phase 3 — risk-based testing & UI hardening (IN PROGRESS)
 
-- Extend the screenshot matrix to Search, Station Edit, modal/bottom-sheet, and
-  loading/empty/error states across compact/medium/expanded × short/tall × dark ×
-  1.5× font. Settings already has the full 3×3; Home/Favorites/Now Playing are
-  partial.
-- Add `ArtworkProvider` boundary tests (traversal, extra path segments, invalid
-  mode, missing files, writes) — it is exported read-only.
-- Add a minified-release smoke test for exported Media3 service behavior.
-- Add ~5% end-to-end journeys (UI Automator/Compose) for major flows.
-- **IN PROGRESS** — Edge-to-edge audit. `enableEdgeToEdge()` and `adjustResize`
-  are present. Done: `StationEditScreen` now pads for the IME
-  (`imePadding()` + `consumeWindowInsets`) so the keyboard cannot cover the
-  stream URL field; `MainActivity` disables navigation-bar contrast on API 29+;
-  removed an unused `imePadding` import. Still to verify on a device:
-  `NavigationSuiteScaffold` does not propagate `PaddingValues`, so confirm each
-  destination's list `contentPadding` and the mini-player placement against a
-  real navigation bar, and capture a device screenshot with the keyboard open.
+- **DONE (partial)** — screenshot matrix. Added Search coverage
+  (`SearchScreenshotsTest`: default, recent, no-results, populated — 4 goldens,
+  reviewed). Settings already has the full 3×3; Home/Favorites/Now Playing have
+  dark/large-font/short/tall variants.
+- **TODO** — Station Edit and modal/bottom-sheet goldens. Station Edit has no
+  stateless content seam (it takes a `StationEditViewModel`); the filter sheet's
+  async filtering doesn't settle in the screenshot renderer (captured a loading
+  spinner), so both need a small deterministic seam or a fake first.
+- **DONE** — `ArtworkProvider` boundary tests: absolute/traversal file names and
+  the read-only `insert`/`update`/`delete`/`query` contract, alongside the
+  existing canonical-parent and read-mode tests.
+- **DONE** — minified-release smoke (manual, on an API 36 emulator): install the
+  R8-minified, debug-signed `benchmark` APK, launch, and confirm no crash and the
+  Media3 `MediaLibrarySession` registers. Procedure recorded in `docs/testing.md`.
+- **TODO** — ~5% end-to-end journeys (UI Automator/Compose) for major flows.
+- **DONE** — Edge-to-edge audit. `enableEdgeToEdge()` and `adjustResize` are
+  present; `StationEditScreen` pads for the IME (`imePadding()` +
+  `consumeWindowInsets`); `MainActivity` disables navigation-bar contrast on
+  API 29+. Verified on an API 36 emulator: the status bar is not obscured and the
+  bottom `NavigationBar` sits above the gesture pill with no system scrim. The
+  IME fix is code-verified; a keyboard-open device screenshot remains a nice-to-have.
 - Consider adding `testTag("station-edit-screen")` and deterministic navigation
   waiters (also relevant to the PR #249 flake below).
 
