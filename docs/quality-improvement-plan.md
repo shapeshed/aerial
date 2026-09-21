@@ -42,6 +42,7 @@ New files:
 - `app/src/screenshotTest/.../PreviewAdaptiveFormFactors.kt` — extracted multi-preview
   annotation (see §2.4).
 - `docs/audits/README.md` — index for archived audits.
+- `opencode.jsonc` — project OpenCode configuration (see §2.8).
 
 Suggested commit split (Conventional Commits):
 1. `build(deps): add Gradle version catalog`
@@ -161,13 +162,38 @@ In `app/build.gradle`:
 | New ktlint violation rejected | PASS (fails as expected) |
 | Compose ruleset (`io.nlopez.compose.rules:ktlint:0.6.6`) loaded | PASS; caught 24 real findings, all fixed or tracked |
 | One-shot `:app:ktlintFormat` | REJECTED — does not converge; reverted |
-| `./gradlew validateDebugScreenshotTest` | 43 previews discovered; **3 pre-existing/environmental failures** |
+| `./gradlew validateDebugScreenshotTest` | PASS — 43 previews, now stable with a dirty tree (see §2.7) |
 
-Screenshot caveat: the 3 failures are `SettingsAdaptiveScreenshot_400x1000`,
-`_610x1000`, `_900x1000`. Re-running with the **original** build files produced
-the identical 43 tests / 3 failures, so this is a local rendering difference, not
-a regression. CI's `validateDebugScreenshotTest` passes. Do not update the
-references to "fix" local failures.
+### 2.7 Screenshot golden determinism — DONE
+
+**Root cause of the "local screenshot failures":** `SettingsScreen` rendered
+`BuildConfig.BUILD_LABEL`, which is `dirty-<sha>` whenever the git working tree is
+dirty. The Settings goldens were captured on a clean tree (`Aerial 0.7.2`), so any
+uncommitted change changed the footer text and failed
+`SettingsAdaptiveScreenshot_400x1000/_610x1000/_900x1000`. (Earlier this was
+misdiagnosed as environmental — re-running with the original build files still
+failed because the tree was still dirty.)
+
+**Fix:** hoist the label out of `SettingsContent` into a required `versionLabel`
+parameter. `SettingsScreen` computes the real dirty/nightly/version label, while
+the screenshot preview passes a fixed
+`stringResource(R.string.version_format, BuildConfig.VERSION_NAME)`. The build
+label stays a real developer aid in the app, and the goldens no longer depend on
+git state. Verified: `validateDebugScreenshotTest` passes with a dirty tree.
+Changing the app version (`VERSION_NAME`) still legitimately changes the golden,
+as with any visible UI change.
+
+This is a behavioural bug fix, so the repository policy applies: the fix was
+validated by running the suite in the previously-failing dirty state.
+
+### 2.8 Project OpenCode configuration — DONE
+
+- Added `opencode.jsonc` (V2 config shape): ignores build output for file
+  watching, asks before `git push`/`tag`/`reset --hard`/release/publish/`rm -rf`,
+  denies editing `local/**` and keystores, and defines `quality`, `screenshots`,
+  `release-gate`, `ktlint-baseline`, and `plan` commands plus an `android-reviewer`
+  subagent.
+- Validated with `opencode debug config` (the document is discovered and parsed).
 
 ---
 
@@ -318,10 +344,16 @@ Recommended next steps:
   its Gradle plugin is not compatible with this Kotlin version. Use ktlint
   (already wired) instead; revisit detekt only when a Kotlin-2.4-compatible
   release lands.
-- **Screenshot tests are environment-sensitive**: local 1000dp Settings failures
-  are pre-existing. Never update goldens to make a local failure pass; review
-  rendered images across all configurations and only update after an intentional
-  UI change.
+- **Screenshot goldens are deterministic now.** The old local 1000dp Settings
+  failures were caused by `BuildConfig.BUILD_LABEL` changing with the git dirty
+  state, not the environment; see §2.7. Never update goldens to make a failure
+  pass — inspect the reference/rendered/diff images under
+  `app/build/outputs/screenshotTest-results/preview/debug/` and only update after
+  an intentional UI change.
+- **The ktlint baseline is line-number sensitive.** Editing a file that has
+  baseline entries shifts line numbers and makes those entries stop matching, so
+  `ktlintCheck` fails until you re-run `:app:ktlintGenerateBaseline`. The baseline
+  count is unchanged by pure line shifts.
 - **Configuration cache is not enabled globally**: it races KSP sources with the
   combined release gate. It is fine for a narrow `compileDebugKotlin`.
 - **Do not run instrumentation against `com.shapeshed.aerial`**: tests use the
