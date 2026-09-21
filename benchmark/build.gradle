@@ -10,6 +10,11 @@ android {
         minSdk 26
         targetSdk 37
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        // Benchmarks are only trustworthy on physical devices. Allow an explicit
+        // emulator smoke run (indicative numbers only) via -PallowEmulatorBenchmarks.
+        if (project.hasProperty('allowEmulatorBenchmarks')) {
+            testInstrumentationRunnerArguments['androidx.benchmark.suppressErrors'] = 'EMULATOR'
+        }
     }
 
     compileOptions {
