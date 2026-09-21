@@ -54,7 +54,7 @@ import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
-import com.shapeshed.aerial.data.SleepTimerState
+import com.shapeshed.aerial.data.SleepTimerController
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationArtworkResolver
@@ -71,15 +71,12 @@ import com.shapeshed.aerial.widget.widgetNavigationAvailability
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -90,7 +87,7 @@ class PlayerService : MediaLibraryService() {
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
     private val sleepTimerSetCommand = SessionCommand(ACTION_SLEEP_TIMER_SET, Bundle.EMPTY)
     private val sleepTimerCancelCommand = SessionCommand(ACTION_SLEEP_TIMER_CANCEL, Bundle.EMPTY)
-    private var sleepTimerJob: Job? = null
+    private lateinit var sleepTimerController: SleepTimerController
 
     private lateinit var player: ExoPlayer
     private lateinit var sessionPlayer: Player
@@ -185,6 +182,14 @@ class PlayerService : MediaLibraryService() {
             // applies its own size limit; caching avoids repeating equivalent artwork requests.
             .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
             .build()
+        sleepTimerController = SleepTimerController(
+            scope = serviceScope,
+            nowMs = SystemClock::elapsedRealtime,
+            readVolume = { player.volume },
+            writeVolume = { player.volume = it },
+            pause = { player.pause() },
+            publishState = SleepTimerStore::set,
+        )
         log("onCreate")
         serviceScope.launch {
             repository.getAll().collectLatest { updatedStations ->
@@ -348,11 +353,11 @@ class PlayerService : MediaLibraryService() {
         ): ListenableFuture<SessionResult> {
             when (customCommand.customAction) {
                 ACTION_SLEEP_TIMER_SET -> {
-                    startSleepTimer(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
+                    sleepTimerController.start(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
                 ACTION_SLEEP_TIMER_CANCEL -> {
-                    cancelSleepTimer()
+                    sleepTimerController.cancel()
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
                 ACTION_TOGGLE_FAVORITE -> {
@@ -578,48 +583,6 @@ class PlayerService : MediaLibraryService() {
             .build()
     }
 
-    private fun startSleepTimer(durationMs: Long) {
-        sleepTimerJob?.cancel()
-        if (durationMs <= 0L) {
-            cancelSleepTimer()
-            return
-        }
-        player.volume = 1f // clear any leftover fade from a previous timer
-        val endAt = SystemClock.elapsedRealtime() + durationMs
-        sleepTimerJob = serviceScope.launch {
-            while (isActive) {
-                val remaining = endAt - SystemClock.elapsedRealtime()
-                if (remaining <= 0L) break
-                SleepTimerStore.set(SleepTimerState(totalMs = durationMs, remainingMs = remaining))
-                delay(remaining.coerceAtMost(1_000L))
-            }
-            fadeOutAndPause()
-        }
-    }
-
-    private fun cancelSleepTimer() {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
-        player.volume = 1f // undo any in-progress fade
-        SleepTimerStore.set(null)
-    }
-
-    // Ease the volume down over ~4s so the timer doesn't cut playback off abruptly, then pause.
-    // Volume is restored so the next play() isn't silent. Cancellation mid-fade is handled by
-    // cancelSleepTimer(), which resets the volume.
-    private suspend fun fadeOutAndPause() {
-        val startVolume = player.volume
-        val steps = 20
-        for (i in 1..steps) {
-            player.volume = startVolume * (1f - i / steps.toFloat())
-            delay(FADE_STEP_MS)
-        }
-        player.pause()
-        player.volume = 1f
-        sleepTimerJob = null
-        SleepTimerStore.set(null)
-    }
-
     private fun currentStation(): Station? = stationFromMediaItem(player.currentMediaItem, stations)
 
     private fun publishWidgetPlaybackState() {
@@ -718,7 +681,6 @@ class PlayerService : MediaLibraryService() {
     private companion object {
         const val TAG = "AerialPlayerService"
         const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
-        const val FADE_STEP_MS = 200L
         const val STALE_BUFFER_THRESHOLD_MS = 3_000L
         const val MIN_BUFFER_MS = 15_000
         const val MAX_BUFFER_MS = 30_000
