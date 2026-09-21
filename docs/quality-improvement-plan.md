@@ -258,10 +258,12 @@ Characterization tests must exist before moving service logic:
 - **Newly characterized:** favorite toggle
   (`data/FavoriteToggle.kt` + `FavoriteToggleTest`), extracted test-first and now
   used by `PlayerService.onCustomCommand`.
-- **Still uncovered — add tests before moving:** the sleep timer
-  (`startSleepTimer` / `cancelSleepTimer` / `fadeOutAndPause`; needs an
-  injectable clock/volume/store seam) and the `onConnectAsync` advertised
-  command set. Do not move these into the coordinator until they have tests.
+- **Newly characterized:** the sleep timer — `data/SleepTimerPolicy.kt`
+  (`pollDelayMs`, `fadeVolumes`) and `data/SleepTimerController.kt` (injectable
+  clock/volume/pause/state seams), covered by `SleepTimerPolicyTest` and
+  `SleepTimerControllerTest`, and now used by `PlayerService`.
+- **Still uncovered — add tests before moving:** the `onConnectAsync` advertised
+  command set. Do not move it into the coordinator until it has a test.
 
 Approach (required by repo policy):
 1. Write characterization tests that pin current observable behavior first.
