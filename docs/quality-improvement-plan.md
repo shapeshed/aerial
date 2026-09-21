@@ -299,16 +299,19 @@ References: <https://developer.android.com/topic/architecture/recommendations>,
 
 ---
 
-## 4. Phase 2 — make performance measurable (NOT STARTED)
+## 4. Phase 2 — make performance measurable (IN PROGRESS)
 
-- There is **no** `:benchmark` module or baseline profile; startup/scroll/search
-  performance is unmeasured. (A stale `benchmark/build/` dir was deleted.)
-- Add a Macrobenchmark module for: cold start, first Home content, search
-  typing/results, favorites scroll, Now Playing expansion.
-- Add a baseline profile once budgets exist. Add `ReportDrawnWhen` only when a
+- **DONE** — `:benchmark` Macrobenchmark module: `benchmark/build.gradle`,
+  `StartupBenchmark` (cold start) and `BaselineProfileGenerator`, plus a
+  release-like, debug-signed `benchmark` build type on `:app`. Verified it
+  assembles; **recording requires a connected device**.
+- **TODO** — add benchmarks for: first Home content, search typing/results,
+  favorites scroll, Now Playing expansion. Generate and commit the baseline
+  profile (apply the `androidx.baselineprofile` plugin to `:app` too, then run
+  `:app:generateBaselineProfile`). Add `ReportDrawnWhen` only when a
   meaningful-content condition is defined.
-- Profile artwork-heavy flows (Coil) on a representative low/mid-tier device
-  before changing bitmap/artwork code.
+- **TODO** — profile artwork-heavy flows (Coil) on a representative low/mid-tier
+  device before changing bitmap/artwork code.
 
 References: <https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview>,
 <https://developer.android.com/topic/performance/baselineprofiles/overview>.
