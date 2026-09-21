@@ -2,7 +2,11 @@ package com.shapeshed.aerial.data
 
 import kotlinx.coroutines.flow.Flow
 
-class StationRepository(private val dao: StationDao, private val playHistoryDao: PlayHistoryDao) {
+class StationRepository(
+    private val dao: StationDao,
+    private val playHistoryDao: PlayHistoryDao,
+    private val transactor: Transactor = InlineTransactor,
+) {
     fun getAll(): Flow<List<Station>> = dao.getAll()
     suspend fun getById(id: Long): Station? = dao.getById(id)
     suspend fun getByStreamUrl(streamUrl: String): Station? = dao.getByStreamUrl(streamUrl)
@@ -19,7 +23,7 @@ class StationRepository(private val dao: StationDao, private val playHistoryDao:
     suspend fun recentlyPlayed(limit: Int): List<PlayHistoryEntry> = playHistoryDao.recent(limit)
     fun recentlyPlayedAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> = playHistoryDao.recentAsFlow(limit)
 
-    suspend fun insertOrGetExisting(station: Station): Long {
+    suspend fun insertOrGetExisting(station: Station): Long = transactor.run {
         val existing = findExisting(station)
         if (existing != null) {
             val updated = existing.copy(
@@ -31,12 +35,13 @@ class StationRepository(private val dao: StationDao, private val playHistoryDao:
                 countryCode = existing.countryCode.ifBlank { station.countryCode },
             )
             if (updated != existing) dao.update(updated)
-            return existing.id
+            existing.id
+        } else {
+            dao.insert(station.copy(id = 0))
         }
-        return dao.insert(station.copy(id = 0))
     }
 
-    suspend fun upsertImported(station: Station) {
+    suspend fun upsertImported(station: Station) = transactor.run {
         val existing = findExisting(station)
 
         if (existing == null) {
@@ -54,7 +59,7 @@ class StationRepository(private val dao: StationDao, private val playHistoryDao:
         }
     }
 
-    suspend fun updateStreamUrlsFromRegistry(stations: List<RegistryStation>) {
+    suspend fun updateStreamUrlsFromRegistry(stations: List<RegistryStation>) = transactor.run {
         stations.forEach { s ->
             if (s.provider.isNotBlank() && s.providerId.isNotBlank()) {
                 dao.updateStreamUrlByProviderId(s.provider, s.providerId, s.streamUrl)
@@ -70,9 +75,9 @@ class StationRepository(private val dao: StationDao, private val playHistoryDao:
         } ?: dao.getByStreamUrl(registryStation.streamUrl)
     }
 
-    suspend fun saveAsFavorite(station: Station): Long {
+    suspend fun saveAsFavorite(station: Station): Long = transactor.run {
         val existing = findExisting(station)
-        return if (existing != null) {
+        if (existing != null) {
             val updated = existing.copy(
                 isFavorite = true,
                 logoPath = existing.logoPath.ifBlank { station.logoPath },

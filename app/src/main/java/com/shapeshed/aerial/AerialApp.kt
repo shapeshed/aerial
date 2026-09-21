@@ -14,6 +14,7 @@ import com.shapeshed.aerial.data.AERIAL_USER_AGENT
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RegistryDatabase
 import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.RoomTransactor
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
 import dagger.hilt.android.HiltAndroidApp
@@ -40,7 +41,7 @@ class AerialApp : Application(), SingletonImageLoader.Factory {
         .build()
     private val db by lazy { StationDatabase.get(this) }
     private val registryDb by lazy { RegistryDatabase.get(this, BuildConfig.VERSION_CODE) }
-    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao()) }
+    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao(), RoomTransactor(db)) }
     val registryRepository by lazy { RegistryRepository(registryDb.registryDao()) }
     val settingsDataStore get() = dataStore
     val networkMonitor by lazy { NetworkMonitor(this) }
