@@ -102,9 +102,16 @@ jobs:
       # install step is satisfied from the local SDK cache.
       - name: Pre-install emulator and system image (retry on transient failures)
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          sdkmanager="$(find "$sdk_root/cmdline-tools" -name sdkmanager -type f 2>/dev/null | sort | tail -n 1)"
+          if [ -z "$sdkmanager" ]; then
+            echo "sdkmanager not found under $sdk_root/cmdline-tools" >&2
+            exit 1
+          fi
+          echo "Using $sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
           for attempt in 1 2 3 4 5; do
-            if sdkmanager --install emulator "system-images;android-34;default;x86_64"; then
+            if "$sdkmanager" --install emulator "system-images;android-34;default;x86_64"; then
               exit 0
             fi
             echo "sdkmanager attempt ${attempt} failed; retrying in 20s"
