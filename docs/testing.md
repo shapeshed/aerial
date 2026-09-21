@@ -112,6 +112,13 @@ or emulator and are not part of CI:
 ./gradlew :benchmark:connectedBenchmarkAndroidTest
 ```
 
+The Macrobenchmark library refuses to run on emulators because their numbers are
+not representative. To do an indicative smoke run on an emulator anyway:
+
+```sh
+./gradlew :benchmark:connectedBenchmarkAndroidTest -PallowEmulatorBenchmarks
+```
+
 `BaselineProfileGenerator` records a baseline profile the same way. To wire it up,
 apply the `androidx.baselineprofile` plugin to `:app` as well, then run the
 generator task; the generated profile is committed under the app's baseline
@@ -119,3 +126,17 @@ profile source set so release builds ship it.
 
 Benchmarks are a measurement tool, not a pass/fail gate. Record a baseline on a
 representative device before claiming a startup, scroll, or search improvement.
+
+## Minified-release smoke
+
+The `benchmark` build type is R8-minified and debug-signed, so it can be installed
+without release keystore environment variables to smoke-test shrinking and the
+exported Media3 service:
+
+```sh
+./gradlew :app:assembleBenchmark
+adb install -r app/build/outputs/apk/benchmark/app-benchmark.apk
+adb shell am start -n com.shapeshed.aerial/.MainActivity
+# Expect no FATAL/AndroidRuntime crash in logcat and a registered media session:
+adb shell dumpsys media_session | grep -i aerial
+```
