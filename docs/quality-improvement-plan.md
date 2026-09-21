@@ -352,18 +352,23 @@ References: <https://developer.android.com/develop/ui/compose/testing>.
 
 ---
 
-## 6. Phase 4 — security & polish (NOT STARTED)
+## 6. Phase 4 — security & polish (DONE)
 
-- Re-evaluate `ArtworkProvider` exposure (exported, no permission, read-only,
-  canonical-parent guarded) and document the decision; keep
-  `grantUriPermissions="false"`.
-- Keep `PlayerService` authorization behavior covered by regression tests
-  (exported by design for Media3/Auto). `PendingIntent` is already explicit +
-  `FLAG_IMMUTABLE`.
-- No deep-link `VIEW` intent filters exist today; if added, use `IntentSanitizer`.
-- Raise the coverage threshold incrementally as behavior tests land.
-- Consider strengthening Android lint (currently only `fatal 'UnusedResources'`,
-  `MissingTranslation` disabled).
+- **DONE** — `ArtworkProvider` exposure re-evaluated: kept exported (external
+  media consumers cannot do a permission handshake), added explicit
+  `android:grantUriPermissions="false"`, boundary tests cover traversal/absolute
+  paths and the read-only contract. Decision documented in `AGENTS.md`
+  ("Security Posture").
+- **DONE** — `PlayerService` remains exported by design for Media3/Auto;
+  `PendingIntent` is explicit + `FLAG_IMMUTABLE`; connection behaviour covered by
+  the instrumented Media3 tests. Documented in `AGENTS.md`.
+- **DONE** — no deep-link `VIEW` intent filters; the guidance to use
+  `IntentSanitizer`/explicit component checks if one is added is documented.
+- **DONE** — coverage gate raised from 0.22 to **0.23** (measured 0.237).
+- **DEFERRED** — Android lint is intentionally incremental (only
+  `fatal 'UnusedResources'`, `MissingTranslation` disabled). Strengthening it is a
+  separate, noisier change; revisit when translation coverage and library lint
+  noise can be reviewed.
 - **DONE — ktlint baseline is empty (1,128 → 0).** The §2.3 non-convergent-rule
   formatter recipe cleared all formatting/wrapping/signature/indent/trailing-comma
   violations; the remainder were fixed by hand with no suppressions:
