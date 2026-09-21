@@ -423,40 +423,40 @@
         <error line="126" column="121" source="standard:max-line-length" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/MainScreen.kt">
+        <error line="281" column="5" source="standard:class-signature" />
         <error line="282" column="5" source="standard:class-signature" />
-        <error line="283" column="5" source="standard:class-signature" />
-        <error line="283" column="28" source="standard:class-signature" />
-        <error line="286" column="63" source="standard:function-signature" />
-        <error line="291" column="55" source="standard:function-signature" />
-        <error line="444" column="5" source="compose:vm-forwarding-check" />
-        <error line="485" column="51" source="standard:argument-list-wrapping" />
-        <error line="485" column="87" source="standard:argument-list-wrapping" />
-        <error line="485" column="121" source="standard:max-line-length" />
-        <error line="485" column="123" source="standard:argument-list-wrapping" />
-        <error line="487" column="30" source="standard:argument-list-wrapping" />
-        <error line="487" column="68" source="standard:argument-list-wrapping" />
-        <error line="487" column="104" source="standard:argument-list-wrapping" />
-        <error line="487" column="121" source="standard:max-line-length" />
-        <error line="487" column="124" source="standard:argument-list-wrapping" />
-        <error line="487" column="125" source="standard:argument-list-wrapping" />
-        <error line="498" column="55" source="standard:argument-list-wrapping" />
-        <error line="498" column="91" source="standard:argument-list-wrapping" />
-        <error line="498" column="121" source="standard:max-line-length" />
-        <error line="498" column="127" source="standard:argument-list-wrapping" />
+        <error line="282" column="28" source="standard:class-signature" />
+        <error line="285" column="63" source="standard:function-signature" />
+        <error line="290" column="55" source="standard:function-signature" />
+        <error line="443" column="5" source="compose:vm-forwarding-check" />
+        <error line="484" column="51" source="standard:argument-list-wrapping" />
+        <error line="484" column="87" source="standard:argument-list-wrapping" />
+        <error line="484" column="121" source="standard:max-line-length" />
+        <error line="484" column="123" source="standard:argument-list-wrapping" />
+        <error line="486" column="30" source="standard:argument-list-wrapping" />
+        <error line="486" column="68" source="standard:argument-list-wrapping" />
+        <error line="486" column="104" source="standard:argument-list-wrapping" />
+        <error line="486" column="121" source="standard:max-line-length" />
+        <error line="486" column="124" source="standard:argument-list-wrapping" />
+        <error line="486" column="125" source="standard:argument-list-wrapping" />
+        <error line="497" column="55" source="standard:argument-list-wrapping" />
+        <error line="497" column="91" source="standard:argument-list-wrapping" />
+        <error line="497" column="121" source="standard:max-line-length" />
+        <error line="497" column="127" source="standard:argument-list-wrapping" />
+        <error line="613" column="39" source="standard:argument-list-wrapping" />
+        <error line="613" column="104" source="standard:argument-list-wrapping" />
+        <error line="613" column="121" source="standard:function-literal" />
+        <error line="613" column="121" source="standard:max-line-length" />
+        <error line="613" column="126" source="standard:function-literal" />
+        <error line="613" column="127" source="standard:argument-list-wrapping" />
         <error line="614" column="39" source="standard:argument-list-wrapping" />
         <error line="614" column="104" source="standard:argument-list-wrapping" />
-        <error line="614" column="121" source="standard:function-literal" />
+        <error line="614" column="120" source="standard:function-literal" />
         <error line="614" column="121" source="standard:max-line-length" />
-        <error line="614" column="126" source="standard:function-literal" />
-        <error line="614" column="127" source="standard:argument-list-wrapping" />
-        <error line="615" column="39" source="standard:argument-list-wrapping" />
-        <error line="615" column="104" source="standard:argument-list-wrapping" />
-        <error line="615" column="120" source="standard:function-literal" />
-        <error line="615" column="121" source="standard:max-line-length" />
-        <error line="615" column="125" source="standard:function-literal" />
-        <error line="615" column="126" source="standard:argument-list-wrapping" />
-        <error line="655" column="28" source="standard:multiline-if-else" />
-        <error line="678" column="28" source="standard:multiline-if-else" />
+        <error line="614" column="125" source="standard:function-literal" />
+        <error line="614" column="126" source="standard:argument-list-wrapping" />
+        <error line="654" column="28" source="standard:multiline-if-else" />
+        <error line="677" column="28" source="standard:multiline-if-else" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/MainViewModel.kt">
         <error line="112" column="17" source="standard:backing-property-naming" />
@@ -841,36 +841,28 @@
         <error line="231" column="68" source="standard:statement-wrapping" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/StationEditScreen.kt">
-        <error line="60" column="5" source="standard:function-signature" />
-        <error line="61" column="5" source="standard:function-signature" />
         <error line="62" column="5" source="standard:function-signature" />
-        <error line="62" column="35" source="standard:function-signature" />
-        <error line="82" column="25" source="standard:function-literal" />
-        <error line="82" column="32" source="standard:argument-list-wrapping" />
-        <error line="82" column="47" source="standard:argument-list-wrapping" />
-        <error line="82" column="119" source="standard:argument-list-wrapping" />
-        <error line="82" column="120" source="standard:argument-list-wrapping" />
-        <error line="82" column="121" source="standard:max-line-length" />
-        <error line="82" column="122" source="standard:function-literal" />
-        <error line="86" column="51" source="standard:argument-list-wrapping" />
-        <error line="86" column="87" source="standard:argument-list-wrapping" />
-        <error line="86" column="121" source="standard:max-line-length" />
-        <error line="86" column="123" source="standard:argument-list-wrapping" />
-        <error line="88" column="30" source="standard:argument-list-wrapping" />
-        <error line="88" column="68" source="standard:argument-list-wrapping" />
-        <error line="88" column="104" source="standard:argument-list-wrapping" />
+        <error line="63" column="5" source="standard:function-signature" />
+        <error line="64" column="5" source="standard:function-signature" />
+        <error line="64" column="35" source="standard:function-signature" />
+        <error line="84" column="25" source="standard:function-literal" />
+        <error line="84" column="32" source="standard:argument-list-wrapping" />
+        <error line="84" column="47" source="standard:argument-list-wrapping" />
+        <error line="84" column="119" source="standard:argument-list-wrapping" />
+        <error line="84" column="120" source="standard:argument-list-wrapping" />
+        <error line="84" column="121" source="standard:max-line-length" />
+        <error line="84" column="122" source="standard:function-literal" />
+        <error line="88" column="51" source="standard:argument-list-wrapping" />
+        <error line="88" column="87" source="standard:argument-list-wrapping" />
         <error line="88" column="121" source="standard:max-line-length" />
-        <error line="88" column="124" source="standard:argument-list-wrapping" />
-        <error line="88" column="125" source="standard:argument-list-wrapping" />
-        <error line="113" column="1" source="standard:indent" />
-        <error line="115" column="1" source="standard:indent" />
-        <error line="116" column="1" source="standard:indent" />
-        <error line="117" column="1" source="standard:indent" />
-        <error line="118" column="1" source="standard:indent" />
-        <error line="119" column="1" source="standard:indent" />
-        <error line="120" column="1" source="standard:indent" />
+        <error line="88" column="123" source="standard:argument-list-wrapping" />
+        <error line="90" column="30" source="standard:argument-list-wrapping" />
+        <error line="90" column="68" source="standard:argument-list-wrapping" />
+        <error line="90" column="104" source="standard:argument-list-wrapping" />
+        <error line="90" column="121" source="standard:max-line-length" />
+        <error line="90" column="124" source="standard:argument-list-wrapping" />
+        <error line="90" column="125" source="standard:argument-list-wrapping" />
         <error line="121" column="1" source="standard:indent" />
-        <error line="122" column="1" source="standard:indent" />
         <error line="123" column="1" source="standard:indent" />
         <error line="124" column="1" source="standard:indent" />
         <error line="125" column="1" source="standard:indent" />
@@ -915,31 +907,31 @@
         <error line="164" column="1" source="standard:indent" />
         <error line="165" column="1" source="standard:indent" />
         <error line="166" column="1" source="standard:indent" />
-        <error line="166" column="1" source="standard:indent" />
-        <error line="167" column="1" source="standard:indent" />
         <error line="167" column="1" source="standard:indent" />
         <error line="168" column="1" source="standard:indent" />
-        <error line="168" column="1" source="standard:indent" />
         <error line="169" column="1" source="standard:indent" />
-        <error line="169" column="1" source="standard:indent" />
-        <error line="170" column="1" source="standard:indent" />
         <error line="170" column="1" source="standard:indent" />
         <error line="171" column="1" source="standard:indent" />
         <error line="172" column="1" source="standard:indent" />
         <error line="173" column="1" source="standard:indent" />
+        <error line="174" column="1" source="standard:indent" />
+        <error line="174" column="1" source="standard:indent" />
+        <error line="175" column="1" source="standard:indent" />
         <error line="175" column="1" source="standard:indent" />
         <error line="176" column="1" source="standard:indent" />
+        <error line="176" column="1" source="standard:indent" />
+        <error line="177" column="1" source="standard:indent" />
         <error line="177" column="1" source="standard:indent" />
         <error line="178" column="1" source="standard:indent" />
+        <error line="178" column="1" source="standard:indent" />
         <error line="179" column="1" source="standard:indent" />
+        <error line="180" column="1" source="standard:indent" />
         <error line="181" column="1" source="standard:indent" />
-        <error line="182" column="1" source="standard:indent" />
         <error line="183" column="1" source="standard:indent" />
         <error line="184" column="1" source="standard:indent" />
         <error line="185" column="1" source="standard:indent" />
         <error line="186" column="1" source="standard:indent" />
         <error line="187" column="1" source="standard:indent" />
-        <error line="188" column="1" source="standard:indent" />
         <error line="189" column="1" source="standard:indent" />
         <error line="190" column="1" source="standard:indent" />
         <error line="191" column="1" source="standard:indent" />
@@ -952,6 +944,7 @@
         <error line="198" column="1" source="standard:indent" />
         <error line="199" column="1" source="standard:indent" />
         <error line="200" column="1" source="standard:indent" />
+        <error line="201" column="1" source="standard:indent" />
         <error line="202" column="1" source="standard:indent" />
         <error line="203" column="1" source="standard:indent" />
         <error line="204" column="1" source="standard:indent" />
@@ -959,7 +952,6 @@
         <error line="206" column="1" source="standard:indent" />
         <error line="207" column="1" source="standard:indent" />
         <error line="208" column="1" source="standard:indent" />
-        <error line="209" column="1" source="standard:indent" />
         <error line="210" column="1" source="standard:indent" />
         <error line="211" column="1" source="standard:indent" />
         <error line="212" column="1" source="standard:indent" />
@@ -967,6 +959,14 @@
         <error line="214" column="1" source="standard:indent" />
         <error line="215" column="1" source="standard:indent" />
         <error line="216" column="1" source="standard:indent" />
+        <error line="217" column="1" source="standard:indent" />
+        <error line="218" column="1" source="standard:indent" />
+        <error line="219" column="1" source="standard:indent" />
+        <error line="220" column="1" source="standard:indent" />
+        <error line="221" column="1" source="standard:indent" />
+        <error line="222" column="1" source="standard:indent" />
+        <error line="223" column="1" source="standard:indent" />
+        <error line="224" column="1" source="standard:indent" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ui/StationEditViewModel.kt">
         <error line="41" column="13" source="standard:function-signature" />
