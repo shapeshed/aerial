@@ -378,4 +378,26 @@ class StationRepositoryTest {
         override fun recentAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> =
             flowOf(entries.sortedByDescending { it.playedAt }.take(limit))
     }
+
+    @Test
+    fun readModifyWriteOperationsRunInsideTheTransactor() = runBlocking {
+        val transactor = RecordingTransactor()
+        val repository = StationRepository(FakeStationDao(), FakePlayHistoryDao(), transactor)
+
+        repository.insertOrGetExisting(station())
+        repository.upsertImported(station(id = 3L))
+        repository.saveAsFavorite(station())
+        repository.updateStreamUrlsFromRegistry(emptyList())
+
+        assertEquals(4, transactor.count)
+    }
+
+    private class RecordingTransactor : Transactor {
+        var count = 0
+
+        override suspend fun <R> run(block: suspend () -> R): R {
+            count++
+            return block()
+        }
+    }
 }

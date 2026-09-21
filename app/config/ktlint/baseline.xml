@@ -41,8 +41,8 @@
         <error line="166" column="30" source="standard:class-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/AerialApp.kt">
-        <error line="30" column="19" source="standard:class-signature" />
-        <error line="30" column="34" source="standard:class-signature" />
+        <error line="31" column="19" source="standard:class-signature" />
+        <error line="31" column="34" source="standard:class-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/ArtworkProvider.kt">
         <error line="55" column="120" source="standard:max-line-length" />
@@ -181,8 +181,8 @@
         <error line="103" column="51" source="standard:function-signature" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/data/StationRepository.kt">
-        <error line="65" column="74" source="standard:function-expression-body" />
-        <error line="91" column="66" source="standard:function-expression-body" />
+        <error line="70" column="74" source="standard:function-expression-body" />
+        <error line="96" column="66" source="standard:function-expression-body" />
     </file>
     <file name="src/main/java/com/shapeshed/aerial/data/TrackMetadataPolicy.kt">
         <error line="1" column="1" source="standard:filename" />
