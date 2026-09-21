@@ -38,21 +38,10 @@ import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
 
-@Preview(name = "400x400", device = "spec:width=400dp,height=400dp,dpi=420")
-@Preview(name = "400x500", device = "spec:width=400dp,height=500dp,dpi=420")
-@Preview(name = "400x1000", device = "spec:width=400dp,height=1000dp,dpi=420")
-@Preview(name = "610x400", device = "spec:width=610dp,height=400dp,dpi=420")
-@Preview(name = "610x500", device = "spec:width=610dp,height=500dp,dpi=420")
-@Preview(name = "610x1000", device = "spec:width=610dp,height=1000dp,dpi=420")
-@Preview(name = "900x400", device = "spec:width=900dp,height=400dp,dpi=420")
-@Preview(name = "900x500", device = "spec:width=900dp,height=500dp,dpi=420")
-@Preview(name = "900x1000", device = "spec:width=900dp,height=1000dp,dpi=420")
-annotation class AdaptiveFormFactorPreviews
-
 @PreviewTest
-@AdaptiveFormFactorPreviews
+@PreviewAdaptiveFormFactors
 @Composable
-fun SettingsAdaptiveScreenshot() {
+private fun SettingsAdaptiveScreenshot() {
     AerialTheme(dynamicColor = false) {
         SettingsScreenshotContent()
     }
@@ -61,7 +50,7 @@ fun SettingsAdaptiveScreenshot() {
 @PreviewTest
 @Preview(name = "Phone dark", device = "spec:width=400dp,height=500dp,dpi=420", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun SettingsDarkScreenshot() {
+private fun SettingsDarkScreenshot() {
     AerialTheme(dynamicColor = false) {
         SettingsScreenshotContent()
     }
@@ -70,7 +59,7 @@ fun SettingsDarkScreenshot() {
 @PreviewTest
 @Preview(name = "Phone font 1.5", device = "spec:width=400dp,height=500dp,dpi=420", fontScale = 1.5f)
 @Composable
-fun SettingsLargeFontScreenshot() {
+private fun SettingsLargeFontScreenshot() {
     AerialTheme(dynamicColor = false) {
         SettingsScreenshotContent()
     }
@@ -79,21 +68,21 @@ fun SettingsLargeFontScreenshot() {
 @PreviewTest
 @Preview(name = "Navigation compact", device = "spec:width=400dp,height=500dp,dpi=420")
 @Composable
-fun CompactNavigationScreenshot() {
+private fun CompactNavigationScreenshot() {
     NavigationScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
 @PreviewTest
 @Preview(name = "Navigation expanded", device = "spec:width=900dp,height=500dp,dpi=420")
 @Composable
-fun ExpandedNavigationScreenshot() {
+private fun ExpandedNavigationScreenshot() {
     NavigationScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
-@AdaptiveFormFactorPreviews
+@PreviewAdaptiveFormFactors
 @Composable
-fun FavoritesAdaptiveScreenshot() {
+private fun FavoritesAdaptiveScreenshot() {
     FavoritesScreenshotContent()
 }
 
@@ -104,7 +93,7 @@ fun FavoritesAdaptiveScreenshot() {
     uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
-fun FavoritesDarkScreenshot() {
+private fun FavoritesDarkScreenshot() {
     FavoritesScreenshotContent()
 }
 
@@ -115,70 +104,70 @@ fun FavoritesDarkScreenshot() {
     fontScale = 1.5f,
 )
 @Composable
-fun FavoritesLargeFontScreenshot() {
+private fun FavoritesLargeFontScreenshot() {
     FavoritesScreenshotContent()
 }
 
 @PreviewTest
 @Preview(name = "Home compact", device = "spec:width=400dp,height=500dp,dpi=420")
 @Composable
-fun CompactHomeScreenshot() {
+private fun CompactHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
 @PreviewTest
 @Preview(name = "Home medium", device = "spec:width=610dp,height=500dp,dpi=420")
 @Composable
-fun MediumHomeScreenshot() {
+private fun MediumHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
 @Preview(name = "Home expanded", device = "spec:width=900dp,height=500dp,dpi=420")
 @Composable
-fun ExpandedHomeScreenshot() {
+private fun ExpandedHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
 @Preview(name = "Home compact short", device = "spec:width=400dp,height=400dp,dpi=420")
 @Composable
-fun CompactShortHomeScreenshot() {
+private fun CompactShortHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
 @PreviewTest
 @Preview(name = "Home compact tall", device = "spec:width=400dp,height=1000dp,dpi=420")
 @Composable
-fun CompactTallHomeScreenshot() {
+private fun CompactTallHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
 @PreviewTest
 @Preview(name = "Home medium short", device = "spec:width=610dp,height=400dp,dpi=420")
 @Composable
-fun MediumShortHomeScreenshot() {
+private fun MediumShortHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
 @Preview(name = "Home medium tall", device = "spec:width=610dp,height=1000dp,dpi=420")
 @Composable
-fun MediumTallHomeScreenshot() {
+private fun MediumTallHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
 @Preview(name = "Home expanded short", device = "spec:width=900dp,height=400dp,dpi=420")
 @Composable
-fun ExpandedShortHomeScreenshot() {
+private fun ExpandedShortHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
 @PreviewTest
 @Preview(name = "Home expanded tall", device = "spec:width=900dp,height=1000dp,dpi=420")
 @Composable
-fun ExpandedTallHomeScreenshot() {
+private fun ExpandedTallHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationRail)
 }
 
@@ -189,7 +178,7 @@ fun ExpandedTallHomeScreenshot() {
     uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
-fun DarkHomeScreenshot() {
+private fun DarkHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
@@ -200,14 +189,14 @@ fun DarkHomeScreenshot() {
     fontScale = 1.5f,
 )
 @Composable
-fun LargeFontHomeScreenshot() {
+private fun LargeFontHomeScreenshot() {
     HomeScreenshotContent(NavigationSuiteType.NavigationBar)
 }
 
 @PreviewTest
 @Preview(name = "Mini player", device = "spec:width=400dp,height=220dp,dpi=420")
 @Composable
-fun MiniPlayerScreenshot() {
+private fun MiniPlayerScreenshot() {
     AerialTheme(dynamicColor = false) {
         Box(modifier = Modifier.fillMaxSize()) {
             MiniPlayer(
@@ -231,14 +220,14 @@ fun MiniPlayerScreenshot() {
 @PreviewTest
 @Preview(name = "Now playing compact", device = "spec:width=400dp,height=500dp,dpi=420")
 @Composable
-fun CompactNowPlayingScreenshot() {
+private fun CompactNowPlayingScreenshot() {
     NowPlayingScreenshotContent()
 }
 
 @PreviewTest
 @Preview(name = "Now playing medium", device = "spec:width=610dp,height=500dp,dpi=420")
 @Composable
-fun MediumNowPlayingScreenshot() {
+private fun MediumNowPlayingScreenshot() {
     NowPlayingScreenshotContent()
 }
 
@@ -249,7 +238,7 @@ fun MediumNowPlayingScreenshot() {
     uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
-fun DarkNowPlayingScreenshot() {
+private fun DarkNowPlayingScreenshot() {
     NowPlayingScreenshotContent()
 }
 
