@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -44,6 +45,15 @@ class ArtworkProviderTest {
 
         assertTrue(resolveArtworkFile(context, ArtworkProvider.LOCAL_LOGO_DIR, "logo.webp")?.isFile == true)
         assertNull(resolveArtworkFile(context, ArtworkProvider.LOCAL_LOGO_DIR, "nested/logo.webp"))
+    }
+
+    @Test
+    fun artworkCanOnlyBeOpenedReadOnly() {
+        assertTrue(isReadOnlyArtworkMode("r"))
+        assertTrue(isReadOnlyArtworkMode("rt"))
+        assertFalse(isReadOnlyArtworkMode("w"))
+        assertFalse(isReadOnlyArtworkMode("rw"))
+        assertFalse(isReadOnlyArtworkMode("wa"))
     }
 
     private fun temporaryDirectory(): File = Files.createTempDirectory("artwork-provider-test-").toFile()
