@@ -34,6 +34,7 @@
             android:name=".ArtworkProvider"
             android:authorities="${applicationId}.artwork"
             android:exported="true"
+            android:grantUriPermissions="false"
             tools:ignore="ExportedContentProvider" />
 
         <!-- Persists the per-app locale on pre-Android-13 via AppCompat. -->
