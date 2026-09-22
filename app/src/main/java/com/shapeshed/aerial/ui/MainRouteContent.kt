@@ -16,12 +16,12 @@ import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SearchBarState
 import androidx.compose.material3.SearchBarScrollBehavior
+import androidx.compose.material3.SearchBarState
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +52,7 @@ internal fun MainRouteContent(
     isBuffering: Boolean,
     isPlaying: Boolean,
     hasStationNavigation: Boolean,
-    onHeightChanged: (Int) -> Unit,
+    onHeightChange: (Int) -> Unit,
     onStop: () -> Unit,
     onTogglePlayback: () -> Unit,
     onPlayNext: () -> Unit,
@@ -113,8 +113,11 @@ internal fun MainRouteContent(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(
-                if (mood == null) searchScrollBehavior.nestedScrollConnection
-                else moodScrollBehavior.nestedScrollConnection,
+                if (mood == null) {
+                    searchScrollBehavior.nestedScrollConnection
+                } else {
+                    moodScrollBehavior.nestedScrollConnection
+                },
             ),
     ) {
         renderDestination(destination, mood)
@@ -123,10 +126,16 @@ internal fun MainRouteContent(
             station = currentStation,
             stationName = miniPlayerDisplay.title,
             icyInfo = playbackError
-                ?: if (isBuffering) androidx.compose.ui.res.stringResource(R.string.buffering) else miniPlayerDisplay.artist,
+                ?: if (isBuffering) {
+                    androidx.compose.ui.res.stringResource(
+                        R.string.buffering,
+                    )
+                } else {
+                    miniPlayerDisplay.artist
+                },
             isPlaying = isPlaying,
             isBuffering = isBuffering,
-            onHeightChanged = onHeightChanged,
+            onHeightChange = onHeightChange,
             onStop = onStop,
             onTogglePlayback = onTogglePlayback,
             showNextStation = hasStationNavigation,

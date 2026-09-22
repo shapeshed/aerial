@@ -9,17 +9,17 @@ import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -53,11 +53,7 @@ internal class SearchStateHolder(
         .map { preferences -> preferences.recentSearches() }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private data class SearchRequest(
-        val query: String,
-        val countries: Set<String>,
-        val tags: Set<String>,
-    )
+    private data class SearchRequest(val query: String, val countries: Set<String>, val tags: Set<String>)
 
     private val searchRequests = MutableStateFlow(SearchRequest("", emptySet(), emptySet()))
 
@@ -173,11 +169,9 @@ internal class SearchStateHolder(
     }
 }
 
-private fun Set<String>.toggle(value: String): Set<String> =
-    if (value in this) this - value else this + value
+private fun Set<String>.toggle(value: String): Set<String> = if (value in this) this - value else this + value
 
-private fun String?.toFilterSet(): Set<String> =
-    this?.split(',')?.filter(String::isNotBlank)?.toSet().orEmpty()
+private fun String?.toFilterSet(): Set<String> = this?.split(',')?.filter(String::isNotBlank)?.toSet().orEmpty()
 
 private fun Preferences.recentSearches(): List<String> {
     val json = this[RECENT_SEARCHES_KEY] ?: return emptyList()

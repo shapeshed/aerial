@@ -11,8 +11,4 @@ import androidx.room.Entity
  * tracked separately via [Station.lastPlayedAt].
  */
 @Entity(tableName = "play_history", primaryKeys = ["provider", "providerId"])
-data class PlayHistoryEntry(
-    val provider: String,
-    val providerId: String,
-    val playedAt: Long,
-)
+data class PlayHistoryEntry(val provider: String, val providerId: String, val playedAt: Long)

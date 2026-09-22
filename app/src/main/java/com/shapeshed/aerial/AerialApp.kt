@@ -6,17 +6,21 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.shapeshed.aerial.data.AERIAL_USER_AGENT
-import com.shapeshed.aerial.data.NetworkMonitor
-import com.shapeshed.aerial.data.RegistryDatabase
-import com.shapeshed.aerial.data.RegistryRepository
-import com.shapeshed.aerial.data.StationDatabase
-import com.shapeshed.aerial.data.StationRepository
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.svg.SvgDecoder
+import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.NetworkMonitor
+import com.shapeshed.aerial.data.RegistryDatabase
+import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.RoomTransactor
+import com.shapeshed.aerial.data.StationDatabase
+import com.shapeshed.aerial.data.StationRepository
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -24,7 +28,10 @@ val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
 @HiltAndroidApp
-class AerialApp : Application(), SingletonImageLoader.Factory {
+class AerialApp :
+    Application(),
+    SingletonImageLoader.Factory {
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             chain.proceed(
@@ -36,7 +43,7 @@ class AerialApp : Application(), SingletonImageLoader.Factory {
         .build()
     private val db by lazy { StationDatabase.get(this) }
     private val registryDb by lazy { RegistryDatabase.get(this, BuildConfig.VERSION_CODE) }
-    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao()) }
+    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao(), RoomTransactor(db)) }
     val registryRepository by lazy { RegistryRepository(registryDb.registryDao()) }
     val settingsDataStore get() = dataStore
     val networkMonitor by lazy { NetworkMonitor(this) }

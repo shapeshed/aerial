@@ -1,16 +1,15 @@
 package com.shapeshed.aerial.ui
 
+import android.app.Application
+import android.os.Bundle
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import android.os.Bundle
-import java.io.File
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
-import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
@@ -19,18 +18,19 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -116,7 +116,6 @@ class MainViewModelStateTest {
         verify(repository).searchFavorites("mango")
         verify(registryRepository).search("mango", emptySet(), emptySet())
     }
-
 
     @Test
     fun countryFilterReissuesSearchAndPropagatesSelectedCountry() = runTest {
@@ -285,11 +284,21 @@ class MainViewModelStateTest {
 
         viewModel.setFavoritesSort(FavoritesSort.LAST_PLAYED)
         runCurrent()
-        assertEquals(listOf(2L, 1L), viewModel.stations.first { it.map(Station::id) == listOf(2L, 1L) }.map(Station::id))
+        assertEquals(
+            listOf(2L, 1L),
+            viewModel.stations.first {
+                it.map(Station::id) == listOf(2L, 1L)
+            }.map(Station::id),
+        )
 
         viewModel.setFavoritesSort(FavoritesSort.MOST_PLAYED)
         runCurrent()
-        assertEquals(listOf(1L, 2L), viewModel.stations.first { it.map(Station::id) == listOf(1L, 2L) }.map(Station::id))
+        assertEquals(
+            listOf(1L, 2L),
+            viewModel.stations.first {
+                it.map(Station::id) == listOf(1L, 2L)
+            }.map(Station::id),
+        )
     }
 
     @Test
@@ -657,13 +666,20 @@ class MainViewModelStateTest {
         dataStore: DataStore<Preferences> = MemoryDataStore(),
         artworkLoader: ArtworkLoader = CoilArtworkLoader(mock()),
     ): MainViewModel {
-        val app = mock<AerialApp>()
+        val app = mock<Application>()
         val network = mock<NetworkMonitor>()
-        whenever(app.networkMonitor).thenReturn(network)
-        whenever(app.getString(R.string.live_radio)).thenReturn("test-live-radio")
+        val strings = StringProvider { id -> if (id == R.string.live_radio) "test-live-radio" else "error" }
         whenever(network.isOnline).thenReturn(MutableStateFlow(true).asStateFlow())
         whenever(registryRepository.countAsFlow()).thenReturn(flowOf(0))
-        return MainViewModel(app, repository, registryRepository, dataStore, SavedStateHandle(), artworkLoader).also(viewModels::add)
+        return MainViewModel(
+            application = app,
+            repository = repository,
+            registryRepository = registryRepository,
+            dataStore = dataStore,
+            networkMonitor = network,
+            strings = strings,
+            artworkLoader = artworkLoader,
+        ).also(viewModels::add)
     }
 
     private class RecordingArtworkLoader(private val path: String) : ArtworkLoader {
@@ -695,10 +711,12 @@ class MainViewModelStateTest {
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(stationName)
-                .setExtras(Bundle().apply {
-                    putString("streamUrl", "https://example.test/$id")
-                    putString("stationName", stationName)
-                })
+                .setExtras(
+                    Bundle().apply {
+                        putString("streamUrl", "https://example.test/$id")
+                        putString("stationName", stationName)
+                    },
+                )
                 .build(),
         )
         .build()

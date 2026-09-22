@@ -40,11 +40,7 @@ fun RegistryStation.toEphemeralStation(): Station = Station(
  * that decode a MediaItem's artwork themselves and can't handle SVG, like Android Auto's
  * browse lists.
  */
-fun stationMediaMetadata(
-    context: Context,
-    station: Station,
-    artworkUriOverride: Uri? = null,
-): MediaMetadata {
+fun stationMediaMetadata(context: Context, station: Station, artworkUriOverride: Uri? = null): MediaMetadata {
     val artworkUri = station.logoPath
         .takeIf { it.startsWith("http") }
         ?.toUri()
@@ -55,8 +51,11 @@ fun stationMediaMetadata(
     return MediaMetadata.Builder().apply {
         when {
             artworkUriOverride != null -> setArtworkUri(artworkUriOverride)
+
             localArtworkUri != null -> setArtworkUri(localArtworkUri)
+
             artworkUri != null -> setArtworkUri(artworkUri)
+
             else -> appIconBitmap(context)?.let {
                 setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
             }
@@ -65,27 +64,29 @@ fun stationMediaMetadata(
         .setTitle(station.name)
         .setArtist(context.getString(R.string.live_radio))
         .setSubtitle(context.getString(R.string.live_radio))
+        .setAlbumTitle(station.name)
         .setIsBrowsable(false)
         .setIsPlayable(true)
         .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
-        .setExtras(Bundle().apply {
-            putString("stationName", station.name)
-            putString("provider", station.provider)
-            putString("providerId", station.providerId)
-            putString("streamUrl", station.streamUrl)
-            putString("logoPath", station.logoPath)
-        })
+        .setExtras(
+            Bundle().apply {
+                putString("stationName", station.name)
+                putString("provider", station.provider)
+                putString("providerId", station.providerId)
+                putString("streamUrl", station.streamUrl)
+                putString("logoPath", station.logoPath)
+            },
+        )
         .build()
 }
 
 /** A fully resolved, directly playable [MediaItem] — real stream URI included, no further
  * resolution needed by whatever surface (phone controller, Android Auto, Google TV) plays it. */
-fun Station.toPlayableMediaItem(context: Context, artworkUriOverride: Uri? = null): MediaItem =
-    MediaItem.Builder()
-        .setMediaId(id.toString())
-        .setUri(bauerStreamUrl(this))
-        .setMediaMetadata(stationMediaMetadata(context, this, artworkUriOverride))
-        .build()
+fun Station.toPlayableMediaItem(context: Context, artworkUriOverride: Uri? = null): MediaItem = MediaItem.Builder()
+    .setMediaId(id.toString())
+    .setUri(bauerStreamUrl(this))
+    .setMediaMetadata(stationMediaMetadata(context, this, artworkUriOverride))
+    .build()
 
 /** Builds a Media3 item with artwork normalized for system media consumers. */
 suspend fun Station.toSystemPlayableMediaItem(context: Context): MediaItem {
@@ -93,7 +94,9 @@ suspend fun Station.toSystemPlayableMediaItem(context: Context): MediaItem {
         // Media3 system consumers need a decodable content URI. The source remains the registry
         // URL, while Coil renders SVGs and exposes the resulting artwork through the provider.
         logoPath.startsWith("http") -> cachedRemoteArtworkUri(context, logoPath)
+
         logoPath.isNotBlank() -> localLogoArtworkUri(context, File(logoPath))
+
         else -> null
     }
     return toPlayableMediaItem(context, artworkUriOverride)

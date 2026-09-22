@@ -1,0 +1,4 @@
+- Home-screen widget with playback controls for favourited stations. (#230)
+- Preserved station album metadata and synced newly favourited station state. (#238, #225)
+- Improved station grid titles, artwork, and favourites spacing. (#204, #224)
+- Updated translations, dependencies, and CI release gates.

@@ -7,8 +7,8 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.datastore.preferences.core.edit
 import androidx.core.net.toUri
+import androidx.datastore.preferences.core.edit
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -20,17 +20,13 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.extractor.metadata.icy.IcyInfo
-import androidx.media3.extractor.metadata.id3.ApicFrame
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.session.CommandButton
 import androidx.media3.session.CacheBitmapLoader
+import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
-import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -41,59 +37,62 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.shapeshed.aerial.SHOW_HOME_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
+import com.shapeshed.aerial.data.ACTION_TOGGLE_FAVORITE
+import com.shapeshed.aerial.data.AERIAL_CUSTOM_COMMAND_ACTIONS
 import com.shapeshed.aerial.data.AERIAL_USER_AGENT
+import com.shapeshed.aerial.data.FavoriteToggleAction
 import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlayHistoryEntry
-import com.shapeshed.aerial.data.RECENT_ID
-import com.shapeshed.aerial.data.httpGetText
-import com.shapeshed.aerial.data.resolveQueueStart
-import com.shapeshed.aerial.data.resolveStreamUrl
-import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
+import com.shapeshed.aerial.data.RECENT_ID
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
-import com.shapeshed.aerial.data.SleepTimerState
+import com.shapeshed.aerial.data.SleepTimerController
 import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.data.StationArtworkResolver
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.data.applyFavoriteToggleLocally
+import com.shapeshed.aerial.data.favoriteToggleAction
+import com.shapeshed.aerial.data.httpGetText
 import com.shapeshed.aerial.data.parseTrackMetadata
-import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.resolveStreamUrl
+import com.shapeshed.aerial.data.streamMetadataFrames
+import com.shapeshed.aerial.widget.WidgetPlaybackStore
+import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import com.shapeshed.aerial.widget.widgetNavigationAvailability
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 @OptIn(UnstableApi::class)
 class PlayerService : MediaLibraryService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
-    private val sleepTimerSetCommand = SessionCommand(ACTION_SLEEP_TIMER_SET, Bundle.EMPTY)
-    private val sleepTimerCancelCommand = SessionCommand(ACTION_SLEEP_TIMER_CANCEL, Bundle.EMPTY)
-    private var sleepTimerJob: Job? = null
+    private lateinit var sleepTimerController: SleepTimerController
 
     private lateinit var player: ExoPlayer
     private lateinit var sessionPlayer: Player
     private lateinit var mediaSession: MediaLibrarySession
     private lateinit var repository: StationRepository
     private lateinit var registryRepository: RegistryRepository
+    private lateinit var artworkResolver: StationArtworkResolver
     private lateinit var mediaBrowseTree: MediaBrowseTree
+    private lateinit var sessionCoordinator: PlaybackSessionCoordinator
     private val playbackSnapshotStore by lazy { PlaybackSnapshotStore(dataStore) }
     private var stations: List<Station> = emptyList()
-    private val parentIdByMediaId = mutableMapOf<String, String>()
     private var lastRecordedStationKey: String? = null
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
@@ -105,27 +104,24 @@ class PlayerService : MediaLibraryService() {
         Log.d(TAG, message)
     }
 
-    private suspend fun recoverArtwork(station: Station): Station {
-        val path = station.logoPath
-        val registry = when {
-            station.provider.isNotBlank() && station.providerId.isNotBlank() ->
-                registryRepository.getByProviderId(station.provider, station.providerId)
-            else -> registryRepository.getByStreamUrl(station.streamUrl)
-        }
-        return registry?.logoUrl?.takeIf { it.isNotBlank() }?.let { station.copy(logoPath = it) }
-            ?: station
-    }
-
     override fun onCreate() {
         super.onCreate()
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this).build().also {
                 it.setSmallIcon(R.drawable.ic_notification)
-            }
+            },
         )
         repository = (application as AerialApp).repository
         registryRepository = (application as AerialApp).registryRepository
+        artworkResolver = StationArtworkResolver(registryRepository)
         mediaBrowseTree = MediaBrowseTree(this, repository, registryRepository)
+        sessionCoordinator = PlaybackSessionCoordinator(
+            context = this,
+            browseTree = mediaBrowseTree,
+            repository = repository,
+            snapshotStore = playbackSnapshotStore,
+            artworkResolver = artworkResolver,
+        )
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(AERIAL_USER_AGENT)
             .setAllowCrossProtocolRedirects(true)
@@ -187,11 +183,20 @@ class PlayerService : MediaLibraryService() {
             // applies its own size limit; caching avoids repeating equivalent artwork requests.
             .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
             .build()
+        sleepTimerController = SleepTimerController(
+            scope = serviceScope,
+            nowMs = SystemClock::elapsedRealtime,
+            readVolume = { player.volume },
+            writeVolume = { player.volume = it },
+            pause = { player.pause() },
+            publishState = SleepTimerStore::set,
+        )
         log("onCreate")
         serviceScope.launch {
             repository.getAll().collectLatest { updatedStations ->
                 stations = updatedStations
                 updateFavoriteButton()
+                requestAerialWidgetUpdate(this@PlayerService)
             }
         }
         serviceScope.launch {
@@ -205,6 +210,7 @@ class PlayerService : MediaLibraryService() {
     private val icyListener = object : Player.Listener {
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             log("onPlayWhenReadyChanged=$playWhenReady reason=$reason")
+            publishWidgetPlaybackState()
             if (!playWhenReady) {
                 pausedAtMs = SystemClock.elapsedRealtime()
                 return
@@ -219,6 +225,7 @@ class PlayerService : MediaLibraryService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             log("onIsPlayingChanged=$isPlaying")
+            publishWidgetPlaybackState()
             if (isPlaying) {
                 recordPlayOnce()
             }
@@ -226,6 +233,7 @@ class PlayerService : MediaLibraryService() {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             log("onMediaItemTransition reason=$reason mediaId=${mediaItem?.mediaId}")
+            publishWidgetPlaybackState()
             lastIcyTitle = null
             lastId3Title = null
             updateFavoriteButton()
@@ -234,31 +242,15 @@ class PlayerService : MediaLibraryService() {
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             persistPlaybackSnapshot()
+            publishWidgetPlaybackState()
         }
 
-        @OptIn(UnstableApi::class)
         override fun onMetadata(metadata: Metadata) {
-            var icyInfo: IcyInfo? = null
-            var id3Title: String? = null
-            var id3Artist: String? = null
-            var id3Artwork: ByteArray? = null
+            val frames = streamMetadataFrames(metadata)
 
-            for (i in 0 until metadata.length()) {
-                val entry = metadata[i]
-                when (entry) {
-                    is IcyInfo -> icyInfo = entry
-                    is TextInformationFrame -> when (entry.id) {
-                        "TIT2" -> id3Title = entry.values.first().trim().takeIf { it.isNotEmpty() }
-                        "TPE1" -> id3Artist = entry.values.first().trim().takeIf { it.isNotEmpty() }
-                    }
-                    is ApicFrame -> id3Artwork = entry.pictureData
-                    else -> Unit
-                }
-            }
-
-            icyInfo?.let { icy ->
-                val title = icy.title?.trim()
-                if (title.isNullOrEmpty() || title == lastIcyTitle) return
+            frames.icyTitle?.let { rawTitle ->
+                val title = rawTitle.trim()
+                if (title.isEmpty() || title == lastIcyTitle) return
                 lastIcyTitle = title
                 val item = player.currentMediaItem ?: return
                 val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
@@ -266,6 +258,13 @@ class PlayerService : MediaLibraryService() {
                     item.mediaMetadata.title,
                 )
                 val parsedTrack = parseTrackMetadata(title)
+                WidgetPlaybackStore.writeMetadata(
+                    this@PlayerService,
+                    item.mediaId,
+                    parsedTrack.title ?: title,
+                    parsedTrack.artist,
+                )
+                requestAerialWidgetUpdate(this@PlayerService)
                 replaceCurrentMediaItem(
                     item,
                     index = player.currentMediaItemIndex,
@@ -277,6 +276,7 @@ class PlayerService : MediaLibraryService() {
                 )
             }
 
+            val id3Title = frames.id3Title
             if (id3Title != null) {
                 if (id3Title != lastId3Title) {
                     lastId3Title = id3Title
@@ -285,14 +285,21 @@ class PlayerService : MediaLibraryService() {
                         item.mediaMetadata.extras?.getString("stationName"),
                         item.mediaMetadata.title,
                     )
+                    WidgetPlaybackStore.writeMetadata(
+                        this@PlayerService,
+                        item.mediaId,
+                        id3Title,
+                        frames.id3Artist,
+                    )
+                    requestAerialWidgetUpdate(this@PlayerService)
                     replaceCurrentMediaItem(
                         item,
                         index = player.currentMediaItemIndex,
                         stationName = stationName,
-                        artist = id3Artist,
+                        artist = frames.id3Artist,
                         title = id3Title,
-                        artworkData = id3Artwork ?: item.mediaMetadata.artworkData,
-                        artworkUri = if (id3Artwork != null) null else item.mediaMetadata.artworkUri,
+                        artworkData = frames.id3Artwork ?: item.mediaMetadata.artworkData,
+                        artworkUri = if (frames.id3Artwork != null) null else item.mediaMetadata.artworkUri,
                     )
                 }
             }
@@ -308,20 +315,20 @@ class PlayerService : MediaLibraryService() {
         override fun onConnectAsync(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
-        ): ListenableFuture<MediaSession.ConnectionResult> {
-            return Futures.immediateFuture(
-                MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
-                    .setAvailableSessionCommands(
-                        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                            .buildUpon()
-                            .add(favoriteCommand)
-                            .add(sleepTimerSetCommand)
-                            .add(sleepTimerCancelCommand)
-                            .build()
-                    )
-                    .build(),
-            )
-        }
+        ): ListenableFuture<MediaSession.ConnectionResult> = Futures.immediateFuture(
+            MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                        .buildUpon()
+                        .apply {
+                            AERIAL_CUSTOM_COMMAND_ACTIONS.forEach {
+                                add(SessionCommand(it, Bundle.EMPTY))
+                            }
+                        }
+                        .build(),
+                )
+                .build(),
+        )
 
         override fun onCustomCommand(
             session: MediaSession,
@@ -331,37 +338,38 @@ class PlayerService : MediaLibraryService() {
         ): ListenableFuture<SessionResult> {
             when (customCommand.customAction) {
                 ACTION_SLEEP_TIMER_SET -> {
-                    startSleepTimer(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
+                    sleepTimerController.start(args.getLong(SLEEP_TIMER_DURATION_MS, 0L))
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 ACTION_SLEEP_TIMER_CANCEL -> {
-                    cancelSleepTimer()
+                    sleepTimerController.cancel()
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 ACTION_TOGGLE_FAVORITE -> {
                     val station = currentStation()
                         ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
                     serviceScope.launch {
-                        // Mirrors MainViewModel.toggleFavorite: row existence means "favourited",
-                        // so unfavouriting deletes the row and favouriting (re-)saves one. The
-                        // repository flow refreshes `stations`; the local patch just avoids a
+                        // Mirrors MainViewModel.toggleFavorite: row existence means "favourited".
+                        // The repository flow refreshes `stations`; the local patch just avoids a
                         // stale heart until that lands.
                         withContext(Dispatchers.IO) {
-                            when {
-                                station.id == 0L -> repository.saveAsFavorite(station)
-                                !station.isFavorite -> repository.update(station.copy(isFavorite = true))
-                                else -> repository.delete(station)
+                            when (favoriteToggleAction(station)) {
+                                FavoriteToggleAction.Save -> repository.saveAsFavorite(station)
+
+                                FavoriteToggleAction.MarkFavorite ->
+                                    repository.update(station.copy(isFavorite = true))
+
+                                FavoriteToggleAction.Remove -> repository.delete(station)
                             }
                         }
-                        stations = if (station.isFavorite) {
-                            stations.filter { it.id != station.id }
-                        } else {
-                            stations.map { if (it.id == station.id) station.copy(isFavorite = true) else it }
-                        }
+                        stations = applyFavoriteToggleLocally(stations, station)
                         updateFavoriteButton()
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
+
                 else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
         }
@@ -370,30 +378,14 @@ class PlayerService : MediaLibraryService() {
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<MediaItem>> {
-            // Folders (Favorites/Moods/Recently Played) read as a list; station logos read well
-            // as a grid, similar to most radio/podcast apps on Android Auto.
-            val rootExtras = Bundle().apply {
-                putInt(
-                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM,
-                )
-                putInt(
-                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                    MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
-                )
-            }
-            val rootParams = LibraryParams.Builder().setExtras(rootExtras).build()
-            return Futures.immediateFuture(LibraryResult.ofItem(mediaBrowseTree.rootItem(), rootParams))
-        }
+        ): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(sessionCoordinator.libraryRoot())
 
         override fun onGetItem(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             mediaId: String,
         ): ListenableFuture<LibraryResult<MediaItem>> = serviceFuture {
-            mediaBrowseTree.resolve(mediaId)?.let { LibraryResult.ofItem(it, null) }
-                ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            sessionCoordinator.resolveItem(mediaId)
         }
 
         override fun onGetChildren(
@@ -404,22 +396,7 @@ class PlayerService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
-            val children = mediaBrowseTree.children(parentId)
-            if (children == null) {
-                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-            } else {
-                // Remembered per mediaId (not just "whichever folder was browsed last") so a tap
-                // on one of these (via onSetMediaItems) can queue the tapped item's whole folder,
-                // giving Android Auto skip next/previous and an Up Next queue between stations
-                // instead of a single-item timeline. Auto prefetches sibling folders' contents in
-                // the background (e.g. for artwork), so a single last-folder variable would get
-                // clobbered before the user actually taps play. Only the mediaId -> folder
-                // mapping is kept; the folder's contents are rebuilt fresh at play time.
-                if (children.isNotEmpty() && children.all { it.mediaMetadata.isPlayable == true }) {
-                    children.forEach { parentIdByMediaId[it.mediaId] = parentId }
-                }
-                LibraryResult.ofItemList(children.paginated(page, pageSize), params)
-            }
+            sessionCoordinator.children(parentId, page, pageSize, params)
         }
 
         override fun onSearch(
@@ -428,7 +405,7 @@ class PlayerService : MediaLibraryService() {
             query: String,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<Void>> = serviceFuture {
-            val resultCount = mediaBrowseTree.search(query).size
+            val resultCount = sessionCoordinator.searchCount(query)
             session.notifySearchResultChanged(browser, query, resultCount, params)
             LibraryResult.ofVoid()
         }
@@ -441,14 +418,9 @@ class PlayerService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceFuture {
-            LibraryResult.ofItemList(mediaBrowseTree.search(query).paginated(page, pageSize), params)
+            sessionCoordinator.searchResults(query, page, pageSize, params)
         }
 
-        // Android Auto's legacy MediaBrowserCompat bridge plays a tapped browse item (or a voice
-        // search/resumption result) by dispatching a MediaItem carrying only a mediaId, not the
-        // fully resolved item the browse tree returned — so it must be looked up again here before
-        // ExoPlayer can play it. Falls back to the incoming item unchanged if it doesn't resolve
-        // (e.g. an ephemeral station the phone UI is already playing directly with a real URI).
         override fun onSetMediaItems(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -456,63 +428,19 @@ class PlayerService : MediaLibraryService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            expandControllerQueue(
-                mediaItems = mediaItems,
-                startIndex = startIndex,
-                startPositionMs = startPositionMs,
-                controllerPackage = controller.packageName,
-                appPackage = packageName,
-                parentIdForMediaId = { parentIdByMediaId[it] },
-                childrenForParent = { mediaBrowseTree.children(it) },
-                resolveMediaItem = { mediaBrowseTree.resolve(it) },
-            )
+            sessionCoordinator.setMediaItems(mediaItems, startIndex, startPositionMs, controller.packageName)
         }
 
-        // Called when a controller (lock-screen/notification, Bluetooth, Assistant) reconnects
-        // to a session whose player has no media item — e.g. the whole process was killed while
-        // the screen was off and the system is now restarting the service to handle a media
-        // button press. Without this, that reconnection carries only whatever single item the
-        // system cached, so Previous/Next on the lock screen have nothing to navigate — the same
-        // "queue collapses to one station" bug loadStationPaused fixes for the app-driven restore
-        // path, but for the case where the app itself never reopens.
         override fun onPlaybackResumption(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceFuture {
-            val snapshot = playbackSnapshotStore.read()
-                ?: throw UnsupportedOperationException("No last-played station to resume")
-            val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
-                ?: repository.getByStreamUrl(snapshot.station.streamUrl)
-            val queue = queueForResumption(snapshot.queue, repository.getAll().first(), playbackSnapshotStore.favoriteSort())
-            val resumed = savedStation ?: snapshot.station.copy(id = 0)
-            val startIndex = resolveQueueStart(queue, resumed)
-            if (startIndex != null) {
-                MediaSession.MediaItemsWithStartPosition(
-                    queue.map { recoverArtwork(it).toSystemPlayableMediaItem(this@PlayerService) },
-                    startIndex,
-                    C.TIME_UNSET,
-                )
-            } else {
-                MediaSession.MediaItemsWithStartPosition(
-                    listOf(recoverArtwork(resumed).toSystemPlayableMediaItem(this@PlayerService)),
-                    0,
-                    C.TIME_UNSET,
-                )
-            }
+            sessionCoordinator.playbackResumption()
         }
     }
 
-    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> {
-        return serviceScope.asServiceFuture(block)
-    }
-
-    private fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
-        if (pageSize <= 0) return this
-        val from = (page * pageSize).coerceIn(0, size)
-        val to = (from + pageSize).coerceIn(from, size)
-        return subList(from, to)
-    }
+    private fun <T> serviceFuture(block: suspend () -> T): ListenableFuture<T> = serviceScope.asServiceFuture(block)
 
     // Records a listen the moment audio actually starts (onIsPlayingChanged=true) — the single
     // choke point every surface's playback passes through (phone, Android Auto, Google TV
@@ -554,7 +482,7 @@ class PlayerService : MediaLibraryService() {
     private fun favoriteButton(station: Station?): CommandButton {
         val isFavorite = station?.isFavorite == true
         return CommandButton.Builder(
-            if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED
+            if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED,
         )
             .setDisplayName(
                 getString(if (isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
@@ -564,49 +492,22 @@ class PlayerService : MediaLibraryService() {
             .build()
     }
 
-    private fun startSleepTimer(durationMs: Long) {
-        sleepTimerJob?.cancel()
-        if (durationMs <= 0L) {
-            cancelSleepTimer()
-            return
-        }
-        player.volume = 1f // clear any leftover fade from a previous timer
-        val endAt = SystemClock.elapsedRealtime() + durationMs
-        sleepTimerJob = serviceScope.launch {
-            while (isActive) {
-                val remaining = endAt - SystemClock.elapsedRealtime()
-                if (remaining <= 0L) break
-                SleepTimerStore.set(SleepTimerState(totalMs = durationMs, remainingMs = remaining))
-                delay(remaining.coerceAtMost(1_000L))
-            }
-            fadeOutAndPause()
-        }
-    }
-
-    private fun cancelSleepTimer() {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
-        player.volume = 1f // undo any in-progress fade
-        SleepTimerStore.set(null)
-    }
-
-    // Ease the volume down over ~4s so the timer doesn't cut playback off abruptly, then pause.
-    // Volume is restored so the next play() isn't silent. Cancellation mid-fade is handled by
-    // cancelSleepTimer(), which resets the volume.
-    private suspend fun fadeOutAndPause() {
-        val startVolume = player.volume
-        val steps = 20
-        for (i in 1..steps) {
-            player.volume = startVolume * (1f - i / steps.toFloat())
-            delay(FADE_STEP_MS)
-        }
-        player.pause()
-        player.volume = 1f
-        sleepTimerJob = null
-        SleepTimerStore.set(null)
-    }
-
     private fun currentStation(): Station? = stationFromMediaItem(player.currentMediaItem, stations)
+
+    private fun publishWidgetPlaybackState() {
+        val navigation = widgetNavigationAvailability(
+            index = player.currentMediaItemIndex,
+            size = player.mediaItemCount,
+        )
+        WidgetPlaybackStore.write(
+            this,
+            player.currentMediaItem?.mediaId,
+            player.playWhenReady,
+            navigation.previous,
+            navigation.next,
+        )
+        requestAerialWidgetUpdate(this)
+    }
 
     private fun persistPlaybackSnapshot() {
         val current = currentStation() ?: return
@@ -628,6 +529,7 @@ class PlayerService : MediaLibraryService() {
             .setTitle(title)
             .setArtist(artist ?: stationName)
             .setSubtitle(title)
+            .setAlbumTitle(stationName)
             .apply {
                 if (artworkData != null) {
                     setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
@@ -663,6 +565,8 @@ class PlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        WidgetPlaybackStore.markStopped(this)
+        requestAerialWidgetUpdate(this)
         serviceScope.cancel()
         SleepTimerStore.set(null)
         player.removeListener(icyListener)
@@ -673,20 +577,17 @@ class PlayerService : MediaLibraryService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
-    private fun pendingIntent(): PendingIntent =
-        PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
+    private fun pendingIntent(): PendingIntent = PendingIntent.getActivity(
+        this,
+        0,
+        Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        },
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private companion object {
         const val TAG = "AerialPlayerService"
-        const val ACTION_TOGGLE_FAVORITE = "com.shapeshed.aerial.action.TOGGLE_FAVORITE"
-        const val FADE_STEP_MS = 200L
         const val STALE_BUFFER_THRESHOLD_MS = 3_000L
         const val MIN_BUFFER_MS = 15_000
         const val MAX_BUFFER_MS = 30_000

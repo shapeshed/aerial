@@ -2,8 +2,8 @@ package com.shapeshed.aerial.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

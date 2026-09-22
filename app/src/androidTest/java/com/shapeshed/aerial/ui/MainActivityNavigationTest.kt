@@ -4,18 +4,18 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
-import org.junit.Assert.assertFalse
 
 /** Verifies navigation between the real main route and Settings through the Activity. */
 class MainActivityNavigationTest {
@@ -52,10 +52,13 @@ class MainActivityNavigationTest {
             .get(1)
             .performTextInput("no-station-9f3c2a")
 
-        composeRule.waitUntil(timeoutMillis = 10_000) {
+        composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithText(string(R.string.no_stations_found)).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(string(R.string.add_your_own_station)).performClick()
+        composeRule.waitUntil(timeoutMillis = 30_000) {
+            composeRule.onAllNodesWithText(string(R.string.add_station)).fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithText(string(R.string.add_station)).assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()

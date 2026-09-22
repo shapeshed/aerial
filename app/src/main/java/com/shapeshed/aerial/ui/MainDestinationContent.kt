@@ -1,9 +1,11 @@
 package com.shapeshed.aerial.ui
 
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
@@ -21,7 +23,7 @@ internal fun MainDestinationContent(
     homeListState: LazyGridState,
     favoritesGridState: LazyGridState,
     onScrollToTop: () -> Unit,
-    onMoodSelected: (CuratedMood) -> Unit,
+    onMoodSelect: (CuratedMood) -> Unit,
     onSetForYouCountry: (String) -> Unit,
     onOpenCountrySearch: (String) -> Unit,
     onOpenRegistrySearch: () -> Unit,
@@ -32,7 +34,7 @@ internal fun MainDestinationContent(
     onPlayFavorite: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
-    onSortSelected: (FavoritesSort) -> Unit,
+    onSortSelect: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
 ) {
     val playback = uiState.playback.playback
@@ -56,7 +58,8 @@ internal fun MainDestinationContent(
         )
     } else if (selectedTab == TAB_HOME) {
         val countryCode = appLocale.country.takeIf { it.isNotBlank() } ?: "GB"
-        LaunchedEffect(countryCode) { onSetForYouCountry(countryCode) }
+        val currentOnSetForYouCountry by rememberUpdatedState(onSetForYouCountry)
+        LaunchedEffect(countryCode) { currentOnSetForYouCountry(countryCode) }
         val hasCountrySelection = home.discovery.forYouStations.isNotEmpty()
         val forYouStations = home.discovery.forYouStations.ifEmpty { home.discovery.featuredStations }
         HomeTabContent(
@@ -65,7 +68,7 @@ internal fun MainDestinationContent(
             recentlyPlayedStations = home.discovery.recentlyPlayedStations,
             listState = homeListState,
             bottomPadding = bottomPadding,
-            onMoodTap = onMoodSelected,
+            onMoodTap = onMoodSelect,
             onRecentlyPlayedStationTap = onPlayRegistryStation,
             onFeaturedStationTap = onPlayRegistryStation,
             onForYouViewAll = {
@@ -86,7 +89,7 @@ internal fun MainDestinationContent(
             onPlay = onPlayFavorite,
             onRemoveFavorite = onRemoveFavorite,
             onHomeViewModeChange = onHomeViewModeChange,
-            onSortSelected = onSortSelected,
+            onSortSelect = onSortSelect,
             onStationLongPress = onStationLongPress,
         )
     }

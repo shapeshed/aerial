@@ -117,12 +117,14 @@ class ZipSettingsBackupManager(
             generateSequence { zip.nextEntry }.forEach { entry ->
                 when {
                     entry.isDirectory -> Unit
+
                     entry.name == BACKUP_MANIFEST -> {
                         manifestJson = ByteArrayOutputStream().use { output ->
                             zip.copyTo(output)
                             output.toString(Charsets.UTF_8.name())
                         }
                     }
+
                     entry.name.startsWith("logos/") -> {
                         val file = File(
                             logoDir,
@@ -182,17 +184,15 @@ class ZipSettingsBackupManager(
         return stations.length()
     }
 
-    private suspend fun <T> execute(block: suspend () -> T): BackupOperationResult<T> =
-        try {
-            BackupOperationResult.Success(withContext(ioDispatcher) { block() })
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            BackupOperationResult.Failure(error)
-        }
+    private suspend fun <T> execute(block: suspend () -> T): BackupOperationResult<T> = try {
+        BackupOperationResult.Success(withContext(ioDispatcher) { block() })
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        BackupOperationResult.Failure(error)
+    }
 
-    private fun safeFileName(name: String): String =
-        name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "logo" }
+    private fun safeFileName(name: String): String = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "logo" }
 
     private companion object {
         const val BACKUP_VERSION = 1

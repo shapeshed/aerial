@@ -56,7 +56,7 @@ normal application.
 Run the suites with:
 
 ```sh
-# Local business-logic tests, lint, and compilation
+# Local business-logic tests, lint, compilation, and coverage gate
 ./gradlew quality
 
 # Compose screenshot validation without a device
@@ -100,3 +100,43 @@ dependencies, add `@HiltAndroidTest`, `HiltAndroidRule`, and switch the test
 runner application to `HiltTestApplication` for that test setup. Until then,
 the isolated runner remains intentionally simple and protects the developer's
 normal app installation.
+
+## Macrobenchmarks
+
+The `:benchmark` module holds Macrobenchmark tests. They measure the app's
+release-like `benchmark` build type, so they require a connected, unlocked device
+or emulator and are not part of CI:
+
+```sh
+# Cold-start timing (StartupBenchmark)
+./gradlew :benchmark:connectedBenchmarkAndroidTest
+```
+
+The Macrobenchmark library refuses to run on emulators because their numbers are
+not representative. To do an indicative smoke run on an emulator anyway:
+
+```sh
+./gradlew :benchmark:connectedBenchmarkAndroidTest -PallowEmulatorBenchmarks
+```
+
+`BaselineProfileGenerator` records a baseline profile the same way. To wire it up,
+apply the `androidx.baselineprofile` plugin to `:app` as well, then run the
+generator task; the generated profile is committed under the app's baseline
+profile source set so release builds ship it.
+
+Benchmarks are a measurement tool, not a pass/fail gate. Record a baseline on a
+representative device before claiming a startup, scroll, or search improvement.
+
+## Minified-release smoke
+
+The `benchmark` build type is R8-minified and debug-signed, so it can be installed
+without release keystore environment variables to smoke-test shrinking and the
+exported Media3 service:
+
+```sh
+./gradlew :app:assembleBenchmark
+adb install -r app/build/outputs/apk/benchmark/app-benchmark.apk
+adb shell am start -n com.shapeshed.aerial/.MainActivity
+# Expect no FATAL/AndroidRuntime crash in logcat and a registered media session:
+adb shell dumpsys media_session | grep -i aerial
+```

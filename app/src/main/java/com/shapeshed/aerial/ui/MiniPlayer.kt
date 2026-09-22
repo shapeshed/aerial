@@ -11,12 +11,12 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,8 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +65,7 @@ internal fun MiniPlayer(
     icyInfo: String,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    onHeightChanged: (Int) -> Unit,
+    onHeightChange: (Int) -> Unit,
     onStop: () -> Unit,
     onTogglePlayback: () -> Unit,
     showNextStation: Boolean,
@@ -85,14 +86,15 @@ internal fun MiniPlayer(
             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
             targetOffsetY = { it },
         ),
-        modifier = modifier.onSizeChanged { onHeightChanged(it.height) },
+        modifier = modifier.onSizeChanged { onHeightChange(it.height) },
     ) {
         station?.let { visibleStation ->
             val dismissState = rememberSwipeToDismissBoxState()
+            val currentOnStop by rememberUpdatedState(onStop)
             LaunchedEffect(dismissState.currentValue) {
                 if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onStop()
+                    currentOnStop()
                 }
             }
             SwipeToDismissBox(
@@ -157,33 +159,41 @@ internal fun MiniPlayer(
                                             onTogglePlayback()
                                         },
                                 ) {
-                                val motionScheme = MaterialTheme.motionScheme
-                                Box(contentAlignment = Alignment.Center) {
-                                    AnimatedContent(
-                                        targetState = isBuffering to isPlaying,
-                                        transitionSpec = {
-                                            (fadeIn(motionScheme.defaultEffectsSpec()) +
-                                                scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f))
-                                                .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
-                                        },
-                                        label = "playPauseIcon",
-                                    ) { (buffering, playing) ->
-                                        if (buffering) {
-                                            CircularWavyProgressIndicator(
-                                                modifier = Modifier.size(28.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                                contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(30.dp),
-                                            )
+                                    val motionScheme = MaterialTheme.motionScheme
+                                    Box(contentAlignment = Alignment.Center) {
+                                        AnimatedContent(
+                                            targetState = isBuffering to isPlaying,
+                                            transitionSpec = {
+                                                (
+                                                    fadeIn(motionScheme.defaultEffectsSpec()) +
+                                                        scaleIn(motionScheme.defaultSpatialSpec(), initialScale = 0.85f)
+                                                    )
+                                                    .togetherWith(fadeOut(motionScheme.defaultEffectsSpec()))
+                                            },
+                                            label = "playPauseIcon",
+                                        ) { (buffering, playing) ->
+                                            if (buffering) {
+                                                CircularWavyProgressIndicator(
+                                                    modifier = Modifier.size(28.dp),
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = if (playing) {
+                                                        Icons.Rounded.Pause
+                                                    } else {
+                                                        Icons.Rounded.PlayArrow
+                                                    },
+                                                    contentDescription = stringResource(
+                                                        if (playing) R.string.pause else R.string.play,
+                                                    ),
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(30.dp),
+                                                )
+                                            }
                                         }
                                     }
-                                }
                                 }
                                 if (showNextStation) {
                                     Surface(

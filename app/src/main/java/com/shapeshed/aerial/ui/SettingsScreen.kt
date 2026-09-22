@@ -3,12 +3,13 @@ package com.shapeshed.aerial.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,8 +43,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -51,17 +52,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.os.Build
 import com.shapeshed.aerial.BuildConfig
 import com.shapeshed.aerial.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SettingsScreen(
-    viewModel: SettingsViewModel,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SettingsScreen(viewModel: SettingsViewModel, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val exportLauncher = rememberLauncherForActivityResult(
@@ -80,13 +76,17 @@ fun SettingsScreen(
     val loadedSettings = settings ?: return
     val backupMessage = when (val result = loadedSettings.backupResult) {
         SettingsBackupResult.Exported -> stringResource(R.string.backup_exported)
+
         is SettingsBackupResult.Imported -> pluralStringResource(
             R.plurals.backup_imported,
             result.stationCount,
             result.stationCount,
         )
+
         SettingsBackupResult.ExportFailed -> stringResource(R.string.backup_export_failed)
+
         SettingsBackupResult.ImportFailed -> stringResource(R.string.backup_import_failed)
+
         null -> null
     }
 
@@ -97,10 +97,18 @@ fun SettingsScreen(
         viewModel.onBackupResultShown(result)
     }
 
+    // The dirty/nightly build label is a developer aid. It is hoisted out of
+    // SettingsContent so deterministic previews can supply a stable label; see
+    // docs/quality-improvement-plan.md.
+    val versionLabel = BuildConfig.BUILD_LABEL.takeIf { it.isNotBlank() }?.let { label ->
+        stringResource(R.string.build_label_format, label)
+    } ?: stringResource(R.string.version_format, BuildConfig.VERSION_NAME)
+
     SettingsContent(
         showStreamBitrate = loadedSettings.showStreamBitrate,
         showHome = loadedSettings.showHome,
         snackbarHostState = snackbarHostState,
+        versionLabel = versionLabel,
         onShowStreamBitrateChange = viewModel::setShowStreamBitrate,
         onShowHomeChange = viewModel::setShowHome,
         onExport = { exportLauncher.launch("aerial-backup.zip") },
@@ -116,6 +124,7 @@ internal fun SettingsContent(
     showStreamBitrate: Boolean,
     showHome: Boolean,
     snackbarHostState: SnackbarHostState,
+    versionLabel: String,
     onShowStreamBitrateChange: (Boolean) -> Unit,
     onShowHomeChange: (Boolean) -> Unit,
     onExport: () -> Unit,
@@ -123,9 +132,6 @@ internal fun SettingsContent(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val versionLabel = BuildConfig.BUILD_LABEL.takeIf { it.isNotBlank() }?.let { label ->
-        stringResource(R.string.build_label_format, label)
-    } ?: stringResource(R.string.version_format, BuildConfig.VERSION_NAME)
     val context = LocalContext.current
     Scaffold(
         modifier = modifier,
@@ -136,9 +142,15 @@ internal fun SettingsContent(
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -153,101 +165,98 @@ internal fun SettingsContent(
                 contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-            item(contentType = "section") {
-                SettingsGroupLabel(text = stringResource(R.string.section_display))
-            }
-            item(contentType = "setting") {
-                ListItem(
-                    modifier = Modifier.clickable { onShowHomeChange(!showHome) },
-                    leadingContent = { Icon(Icons.Rounded.Home, contentDescription = null) },
-                    supportingContent = { Text(stringResource(R.string.show_home_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = showHome,
-                            onCheckedChange = onShowHomeChange,
-                        )
-                    },
-                ) {
-                    Text(stringResource(R.string.show_home))
+                item(contentType = "section") {
+                    SettingsGroupLabel(text = stringResource(R.string.section_display))
                 }
-            }
-            item(contentType = "setting") {
-                ListItem(
-                    modifier = Modifier.clickable { onShowStreamBitrateChange(!showStreamBitrate) },
-                    leadingContent = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
-                    supportingContent = { Text(stringResource(R.string.show_stream_bitrate_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = showStreamBitrate,
-                            onCheckedChange = onShowStreamBitrateChange,
-                        )
-                    },
-                ) {
-                    Text(stringResource(R.string.show_stream_bitrate))
-                }
-            }
-            // In-app language picker only for pre-Android-13; 13+ uses the system per-app setting.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                 item(contentType = "setting") {
-                    LanguageSettingRow()
+                    ListItem(
+                        modifier = Modifier.clickable { onShowHomeChange(!showHome) },
+                        leadingContent = { Icon(Icons.Rounded.Home, contentDescription = null) },
+                        supportingContent = { Text(stringResource(R.string.show_home_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = showHome,
+                                onCheckedChange = onShowHomeChange,
+                            )
+                        },
+                    ) {
+                        Text(stringResource(R.string.show_home))
+                    }
                 }
-            }
-            item(contentType = "section") {
-                Text(
-                    text = stringResource(R.string.section_data),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
-                )
-            }
-            item(contentType = "action") {
-                ListItem(
-                    modifier = Modifier.clickable(onClick = onExport),
-                    leadingContent = {
-                        Icon(Icons.Rounded.FileDownload, contentDescription = null)
-                    },
-                    supportingContent = { Text(stringResource(R.string.export_backup_desc)) },
-                ) {
-                    Text(stringResource(R.string.export_backup))
+                item(contentType = "setting") {
+                    ListItem(
+                        modifier = Modifier.clickable { onShowStreamBitrateChange(!showStreamBitrate) },
+                        leadingContent = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+                        supportingContent = { Text(stringResource(R.string.show_stream_bitrate_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = showStreamBitrate,
+                                onCheckedChange = onShowStreamBitrateChange,
+                            )
+                        },
+                    ) {
+                        Text(stringResource(R.string.show_stream_bitrate))
+                    }
                 }
-            }
-            item(contentType = "action") {
-                ListItem(
-                    modifier = Modifier.clickable(onClick = onImport),
-                    leadingContent = {
-                        Icon(Icons.Rounded.FileUpload, contentDescription = null)
-                    },
-                    supportingContent = { Text(stringResource(R.string.import_backup_desc)) },
-                ) {
-                    Text(stringResource(R.string.import_backup))
+                // In-app language picker only for pre-Android-13; 13+ uses the system per-app setting.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    item(contentType = "setting") {
+                        LanguageSettingRow()
+                    }
                 }
-            }
-            item(contentType = "footer") {
-                Text(
-                    text = versionLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("settings-version")
-                        .clickable {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("version", versionLabel))
-                        }
-                        .padding(vertical = 16.dp),
-                )
-            }
+                item(contentType = "section") {
+                    Text(
+                        text = stringResource(R.string.section_data),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
+                    )
+                }
+                item(contentType = "action") {
+                    ListItem(
+                        modifier = Modifier.clickable(onClick = onExport),
+                        leadingContent = {
+                            Icon(Icons.Rounded.FileDownload, contentDescription = null)
+                        },
+                        supportingContent = { Text(stringResource(R.string.export_backup_desc)) },
+                    ) {
+                        Text(stringResource(R.string.export_backup))
+                    }
+                }
+                item(contentType = "action") {
+                    ListItem(
+                        modifier = Modifier.clickable(onClick = onImport),
+                        leadingContent = {
+                            Icon(Icons.Rounded.FileUpload, contentDescription = null)
+                        },
+                        supportingContent = { Text(stringResource(R.string.import_backup_desc)) },
+                    ) {
+                        Text(stringResource(R.string.import_backup))
+                    }
+                }
+                item(contentType = "footer") {
+                    Text(
+                        text = versionLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-version")
+                            .clickable {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("version", versionLabel))
+                            }
+                            .padding(vertical = 16.dp),
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SettingsGroupLabel(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
+private fun SettingsGroupLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,

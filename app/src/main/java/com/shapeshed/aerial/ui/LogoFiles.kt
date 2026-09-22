@@ -6,8 +6,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.net.Uri
 import android.os.Build
-import com.shapeshed.aerial.ArtworkProvider
-import com.shapeshed.aerial.R
 import android.webkit.MimeTypeMap
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
@@ -18,10 +16,12 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.svg.SvgDecoder
+import com.shapeshed.aerial.ArtworkProvider
+import com.shapeshed.aerial.R
 import java.io.File
 import java.net.URL
-import java.util.Locale
 import java.util.LinkedHashMap
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -195,10 +195,11 @@ fun localLogoArtworkUri(context: Context, file: File): Uri? {
     return ArtworkProvider.uriFor(context, ArtworkProvider.LOCAL_LOGO_DIR, artworkFile.name)
 }
 
-internal fun mediaArtworkFileForSystem(file: File): File =
-    if (file.extension.lowercase(Locale.US) == "svg") {
-        File(file.parentFile, "${file.nameWithoutExtension}_media.png")
-    } else file
+internal fun mediaArtworkFileForSystem(file: File): File = if (file.extension.lowercase(Locale.US) == "svg") {
+    File(file.parentFile, "${file.nameWithoutExtension}_media.png")
+} else {
+    file
+}
 
 fun appIconBitmap(context: Context): ByteArray? {
     return try {
@@ -213,25 +214,21 @@ fun appIconBitmap(context: Context): ByteArray? {
     }
 }
 
-private fun extensionFromMimeType(mimeType: String?): String? {
-    return mimeType?.let {
-        MimeTypeMap.getSingleton()
-            .getExtensionFromMimeType(it)
-            ?.lowercase(Locale.US)
-    }
+private fun extensionFromMimeType(mimeType: String?): String? = mimeType?.let {
+    MimeTypeMap.getSingleton()
+        .getExtensionFromMimeType(it)
+        ?.lowercase(Locale.US)
 }
 
-private fun String.extensionOrNull(): String? {
-    return substringAfterLast('.', missingDelimiterValue = "")
-        .lowercase(Locale.US)
-        .takeIf { it.isNotBlank() && it.length <= 5 }
-}
+private fun String.extensionOrNull(): String? = substringAfterLast('.', missingDelimiterValue = "")
+    .lowercase(Locale.US)
+    .takeIf { it.isNotBlank() && it.length <= 5 }
 
 /**
  * Renders a Coil [Image] to a same-size ARGB bitmap, preserving its own transparency —
  * shared decode step behind [toOpaqueBitmap] and [isPredominantlyLight].
  */
-private fun Image.toTransparentBitmap(): Bitmap {
+internal fun Image.toTransparentBitmap(): Bitmap {
     val width = width.takeIf { it > 0 } ?: 512
     val height = height.takeIf { it > 0 } ?: 512
     val bitmap = createBitmap(width, height)
@@ -241,7 +238,9 @@ private fun Image.toTransparentBitmap(): Bitmap {
         // support hardware bitmaps") — copy() does the GPU-to-software readback instead.
         this is BitmapImage && this.bitmap.config == Bitmap.Config.HARDWARE ->
             canvas.drawBitmap(this.bitmap.copy(Bitmap.Config.ARGB_8888, false), 0f, 0f, null)
+
         this is BitmapImage -> canvas.drawBitmap(this.bitmap, 0f, 0f, null)
+
         else -> draw(canvas)
     }
     return bitmap
@@ -359,7 +358,7 @@ fun Image.hasTransparentMargin(): Boolean {
 /** Detects circular artwork, including circular marks exported on an opaque square canvas. */
 fun Image.hasCircularArtwork(): Boolean = toTransparentBitmap().hasCircularArtwork()
 
-private fun Bitmap.hasCircularArtwork(): Boolean {
+internal fun Bitmap.hasCircularArtwork(): Boolean {
     if (width < 4 || height < 4) return false
     val insetX = (width * 0.08f).toInt().coerceAtLeast(1)
     val insetY = (height * 0.08f).toInt().coerceAtLeast(1)
@@ -376,7 +375,11 @@ private fun Bitmap.hasCircularArtwork(): Boolean {
         this[insetX, height / 2],
     )
     val transparentCorners = corners.count { android.graphics.Color.alpha(it) < MIN_OPAQUE_ALPHA }
-    if (transparentCorners == corners.size) return edges.count { android.graphics.Color.alpha(it) >= MIN_OPAQUE_ALPHA } >= 2
+    if (transparentCorners ==
+        corners.size
+    ) {
+        return edges.count { android.graphics.Color.alpha(it) >= MIN_OPAQUE_ALPHA } >= 2
+    }
 
     val cornerColor = corners.map { color ->
         floatArrayOf(
@@ -411,22 +414,19 @@ private fun Bitmap.hasCircularArtwork(): Boolean {
  * contrasting edges misclassifies full-bleed square artwork with a horizontal or vertical band
  * as circular, which causes its corners to be clipped in the grid.
  */
-internal fun looksLikeCircularArtwork(
-    transparentCorners: Int,
-    cornersMatch: Boolean,
-    contrastingEdges: Int,
-): Boolean = if (transparentCorners == 4) {
-    contrastingEdges >= 2
-} else {
-    cornersMatch && contrastingEdges >= 3
-}
+internal fun looksLikeCircularArtwork(transparentCorners: Int, cornersMatch: Boolean, contrastingEdges: Int): Boolean =
+    if (transparentCorners == 4) {
+        contrastingEdges >= 2
+    } else {
+        cornersMatch && contrastingEdges >= 3
+    }
 
-private fun colorDistance(first: FloatArray, second: FloatArray): Float =
-    kotlin.math.sqrt(first.indices.sumOf { index ->
+private fun colorDistance(first: FloatArray, second: FloatArray): Float = kotlin.math.sqrt(
+    first.indices.sumOf { index ->
         val difference = first[index] - second[index]
         (difference * difference).toDouble()
-    }).toFloat()
-
+    },
+).toFloat()
 
 // MD3 baseline Neutral-10 (on-surface dark tone) — pre-API-31 fallback for adaptiveNeutral(),
 // on devices with no dynamic color palette to draw from.

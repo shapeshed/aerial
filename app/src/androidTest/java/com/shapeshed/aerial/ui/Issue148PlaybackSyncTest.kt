@@ -4,12 +4,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.media3.common.Player
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.shapeshed.aerial.AerialApp
-import com.shapeshed.aerial.testing.AerialTestEnvironment
-import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
-import com.shapeshed.aerial.toPlayableMediaItem
 import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.lastPlayedStationSnapshot
+import com.shapeshed.aerial.testing.AerialTestEnvironment
+import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
+import com.shapeshed.aerial.toPlayableMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -34,7 +34,14 @@ class Issue148PlaybackSyncTest {
         val left = station("Metadata left", "metadata-left")
         val right = station("Metadata right", "metadata-right")
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(
+                app,
+                app.repository,
+                app.registryRepository,
+                app.settingsDataStore,
+                app.networkMonitor,
+                StringProvider { app.getString(it) },
+            )
         }
 
         withContext(Dispatchers.Main) {
@@ -62,7 +69,14 @@ class Issue148PlaybackSyncTest {
             preferences.remove(LAST_PLAYED_STATION_KEY)
         }
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(
+                app,
+                app.repository,
+                app.registryRepository,
+                app.settingsDataStore,
+                app.networkMonitor,
+                StringProvider { app.getString(it) },
+            )
         }
         withTimeout(5_000) {
             viewModel.stations.first { stations -> stations.count { it.id in setOf(leftId, rightId) } == 2 }
@@ -113,7 +127,14 @@ class Issue148PlaybackSyncTest {
         }
 
         val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+            MainViewModel(
+                app,
+                app.repository,
+                app.registryRepository,
+                app.settingsDataStore,
+                app.networkMonitor,
+                StringProvider { app.getString(it) },
+            )
         }
         val collection = launch(Dispatchers.Main) { viewModel.playbackUiState.collect {} }
         withTimeout(5_000) {

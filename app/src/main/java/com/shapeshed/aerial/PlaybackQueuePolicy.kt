@@ -20,8 +20,7 @@ internal fun createSessionPlayer(player: Player): Player = object : ForwardingPl
         super.getAvailableCommands().withoutSkipCommandsFor(player.mediaItemCount)
 }
 
-private fun Int.isSkipCommandAvailableFor(mediaItemCount: Int): Boolean =
-    mediaItemCount > 1 || this !in SKIP_COMMANDS
+private fun Int.isSkipCommandAvailableFor(mediaItemCount: Int): Boolean = mediaItemCount > 1 || this !in SKIP_COMMANDS
 
 @OptIn(UnstableApi::class)
 private fun Player.Commands.withoutSkipCommandsFor(mediaItemCount: Int): Player.Commands =

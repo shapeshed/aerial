@@ -15,30 +15,28 @@ enum class FavoritesSort {
     MOST_PLAYED,
 }
 
-data class LastPlayedStationSnapshot(
-    val station: Station,
-    val queue: List<Station> = emptyList(),
-)
+data class LastPlayedStationSnapshot(val station: Station, val queue: List<Station> = emptyList())
 
-fun Station.toLastPlayedJson(queue: List<Station> = emptyList()): JSONObject =
-    stationJson(this)
-        .put("queue", org.json.JSONArray().apply {
+fun Station.toLastPlayedJson(queue: List<Station> = emptyList()): JSONObject = stationJson(this)
+    .put(
+        "queue",
+        org.json.JSONArray().apply {
             queue.forEach { put(stationJson(it)) }
-        })
+        },
+    )
 
-private fun stationJson(station: Station): JSONObject =
-    JSONObject()
-        .put("id", station.id)
-        .put("name", station.name)
-        .put("streamUrl", station.streamUrl)
-        .put("logoPath", station.logoPath)
-        .put("isFavorite", station.isFavorite)
-        .put("provider", station.provider)
-        .put("providerId", station.providerId)
-        .put("tags", station.tags)
-        .put("description", station.description)
-        .put("country", station.country)
-        .put("countryCode", station.countryCode)
+private fun stationJson(station: Station): JSONObject = JSONObject()
+    .put("id", station.id)
+    .put("name", station.name)
+    .put("streamUrl", station.streamUrl)
+    .put("logoPath", station.logoPath)
+    .put("isFavorite", station.isFavorite)
+    .put("provider", station.provider)
+    .put("providerId", station.providerId)
+    .put("tags", station.tags)
+    .put("description", station.description)
+    .put("country", station.country)
+    .put("countryCode", station.countryCode)
 
 fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     val obj = JSONObject(json)
@@ -50,26 +48,27 @@ fun lastPlayedStationSnapshot(json: String): LastPlayedStationSnapshot {
     )
 }
 
-private fun JSONObject.toStation(): Station =
-    Station(
-        id = optLong("id"),
-        name = optString("name"),
-        streamUrl = optString("streamUrl"),
-        logoPath = optString("logoPath"),
-        isFavorite = optBoolean("isFavorite"),
-        provider = optString("provider"),
-        providerId = optString("providerId"),
-        tags = optString("tags"),
-        description = optString("description"),
-        country = optString("country"),
-        countryCode = optString("countryCode"),
-    )
+private fun JSONObject.toStation(): Station = Station(
+    id = optLong("id"),
+    name = optString("name"),
+    streamUrl = optString("streamUrl"),
+    logoPath = optString("logoPath"),
+    isFavorite = optBoolean("isFavorite"),
+    provider = optString("provider"),
+    providerId = optString("providerId"),
+    tags = optString("tags"),
+    description = optString("description"),
+    country = optString("country"),
+    countryCode = optString("countryCode"),
+)
 
 fun sortStations(stations: List<Station>, sort: FavoritesSort): List<Station> = when (sort) {
     FavoritesSort.AZ -> stations.sortedWith(compareBy { stationSortKey(it.name) })
+
     FavoritesSort.LAST_PLAYED -> stations.sortedWith(
         compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
     )
+
     FavoritesSort.MOST_PLAYED -> stations.sortedWith(
         compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
     )
@@ -83,8 +82,7 @@ fun haveSameStationIdentities(left: List<Station>, right: List<Station>): Boolea
 }
 
 /** Builds a linear-time lookup for a persisted queue order. */
-fun stationOrder(ids: List<Long>): Map<Long, Int> =
-    ids.mapIndexed { index, id -> id to index }.toMap()
+fun stationOrder(ids: List<Long>): Map<Long, Int> = ids.mapIndexed { index, id -> id to index }.toMap()
 
 private fun Station.identityKeys(): Set<String> = buildSet {
     if (id != 0L) add("id:$id")
@@ -100,9 +98,8 @@ private val NUMBER_WORDS = mapOf(
     "ten" to 10, "eleven" to 11, "twelve" to 12,
 )
 
-private fun stationSortKey(name: String): String =
-    name.split(Regex("\\s+")).joinToString(" ") { token ->
-        NUMBER_WORDS[token.lowercase()]?.let { "%03d".format(it) }
-            ?: token.toIntOrNull()?.let { "%03d".format(it) }
-            ?: token.lowercase()
-    }
+private fun stationSortKey(name: String): String = name.split(Regex("\\s+")).joinToString(" ") { token ->
+    NUMBER_WORDS[token.lowercase()]?.let { "%03d".format(it) }
+        ?: token.toIntOrNull()?.let { "%03d".format(it) }
+        ?: token.lowercase()
+}

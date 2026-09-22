@@ -26,6 +26,7 @@ class ArtworkProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+        if (!isReadOnlyArtworkMode(mode)) throw FileNotFoundException(uri.toString())
         val context = context ?: throw FileNotFoundException(uri.toString())
         val segments = uri.pathSegments
         if (segments.size != 2) throw FileNotFoundException(uri.toString())
@@ -51,7 +52,8 @@ class ArtworkProvider : ContentProvider() {
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
-    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
+    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int =
+        0
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
@@ -65,6 +67,9 @@ class ArtworkProvider : ContentProvider() {
             "content://${context.packageName}.artwork/$dir/$fileName".toUri()
     }
 }
+
+/** The provider is read-only, so only read modes may open a descriptor. */
+internal fun isReadOnlyArtworkMode(mode: String): Boolean = !mode.contains('w') && !mode.contains('a')
 
 internal fun resolveArtworkFile(context: android.content.Context, directory: String, fileName: String): File? {
     val dir = when (directory) {

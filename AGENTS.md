@@ -11,7 +11,8 @@ Jetpack Compose Material 3. The package/application id is:
 com.shapeshed.aerial
 ```
 
-Use JDK 17. The app currently compiles with Android SDK 37 and targets SDK 37.
+Use JDK 17 or newer; builds target Java 17 bytecode. CI builds with JDK 25. The
+app currently compiles with Android SDK 37 and targets SDK 37.
 
 ## Common Commands
 
@@ -259,6 +260,22 @@ https://gitlab.com/fdroid/fdroiddata/-/merge_requests/40759
 - Add-station entry points should use clear language like `Add a station`.
 - Home content should clear the mini-player when active.
 
+## Security Posture
+
+- `ArtworkProvider` is intentionally exported without a permission: Android Auto,
+  Bluetooth AVRCP and System UI fetch artwork by `content://` URI and cannot take
+  part in a permission-grant handshake. It is read-only (`openFile` rejects write
+  modes), serves only existing direct children of two known cache directories
+  (canonical-parent guard), and declares `android:grantUriPermissions="false"`.
+  `ArtworkProviderTest` covers traversal, absolute paths and the read-only
+  write/query contract.
+- `PlayerService` is intentionally exported for Media3 / Android Auto. Its
+  `PendingIntent` is explicit and `FLAG_IMMUTABLE`, and connection behaviour is
+  covered by the instrumented Media3 tests.
+- There are no deep-link `VIEW` intent filters. If one is added, resolve incoming
+  URIs with explicit component checks or `IntentSanitizer` rather than forwarding
+  an untrusted `Intent`.
+
 ## Git Hygiene
 
 The worktree may contain user changes. Do not revert unrelated changes.
@@ -276,5 +293,9 @@ For releases, use:
 ```text
 chore(release): v0.1.1
 ```
+
+Keep the subject line to 50 characters or fewer, use the imperative mood, and
+wrap the body at 72 characters. Separate the body from the subject with a blank
+line.
 
 Reference: https://www.conventionalcommits.org/

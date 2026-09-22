@@ -1,39 +1,77 @@
 package com.shapeshed.aerial.ui
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.items as lazyItems
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.*
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.text.style.*
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.data.*
+import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.data.Station
 
 @Composable
-internal fun HomeEmptyState(
-    text: String,
-    supportingText: String,
-    icon: ImageVector = Icons.Rounded.Radio,
-) {
+internal fun HomeEmptyState(text: String, supportingText: String, icon: ImageVector = Icons.Rounded.Radio) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -73,8 +111,6 @@ internal fun HomeEmptyState(
         }
     }
 }
-
-
 
 internal fun shouldFocusRecentlyPlayedItem(previousKeys: List<String>, currentKeys: List<String>): Boolean =
     previousKeys.isNotEmpty() && currentKeys.firstOrNull() != previousKeys.firstOrNull()
@@ -177,7 +213,10 @@ internal fun HomeTabContent(
                 ) {
                     IconButton(
                         onClick = onForYouViewAll,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
@@ -222,11 +261,7 @@ internal fun HomeTabContent(
 }
 
 @Composable
-private fun HomeSectionHeading(
-    text: String,
-    modifier: Modifier = Modifier,
-    action: (@Composable () -> Unit)? = null,
-) {
+private fun HomeSectionHeading(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -245,11 +280,7 @@ private fun HomeSectionHeading(
 }
 
 @Composable
-private fun MoodCard(
-    mood: CuratedMood,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun MoodCard(mood: CuratedMood, onClick: () -> Unit, modifier: Modifier = Modifier) {
     // Same neutral tonal surface as the favourites station tiles, rather than an accent
     // colour — text/icon pairing matches how every other neutral surface in the app reads
     // (onSurface for primary text, onSurfaceVariant for supporting text and icon glyphs).
@@ -345,17 +376,19 @@ internal fun MoodDetailScreen(
                 }
             }
         }
-                lazyItems(
+        lazyItems(
             items = stations,
             key = { "${it.provider}-${it.providerId}-${it.name}-${it.streamUrl}" },
             contentType = { "mood-station" },
         ) { station ->
             val isActive = currentStation?.let { active ->
                 active.streamUrl == station.streamUrl ||
-                    (active.provider.isNotBlank() &&
-                        active.providerId.isNotBlank() &&
-                        active.provider == station.provider &&
-                        active.providerId == station.providerId)
+                    (
+                        active.provider.isNotBlank() &&
+                            active.providerId.isNotBlank() &&
+                            active.provider == station.provider &&
+                            active.providerId == station.providerId
+                        )
             } ?: false
             val isSaved = station.streamUrl in savedStreamUrls || station.savedKey() in savedRegistryKeys
             MoodStationRow(
@@ -389,8 +422,8 @@ private fun MoodStationRow(
         color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = if (isActive) 0.dp else 1.dp,
-            modifier = modifier
-                .fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .padding(horizontal = 16.dp),
     ) {
         ListItem(
@@ -400,14 +433,21 @@ private fun MoodStationRow(
                 StationLogoSurface(
                     logoModel = logoModelFor(station.logoUrl),
                     size = 50.dp,
-                    fallbackBackground = if (isActive) MaterialTheme.colorScheme.secondaryContainer
-                    else MaterialTheme.colorScheme.surface,
+                    fallbackBackground = if (isActive) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
                     allowContrastPlate = false,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Radio,
                         contentDescription = null,
-                        tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isActive) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.size(26.dp),
                     )
                 }
@@ -420,7 +460,11 @@ private fun MoodStationRow(
                     Text(
                         text = countryLabel,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isActive) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -435,6 +479,7 @@ private fun MoodStationRow(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                             )
+
                             isPlaying -> EqualizerBars(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier
@@ -446,15 +491,22 @@ private fun MoodStationRow(
                     }
                     IconButton(
                         onClick = onToggleFavorite,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
                         Icon(
                             imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = stringResource(
                                 if (isSaved) R.string.remove_from_favorites else R.string.save_to_favorites,
                             ),
-                            tint = if (isSaved) MaterialTheme.colorScheme.primary else {
-                                if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (isSaved) {
+                                MaterialTheme.colorScheme.primary
+                            } else if (isActive) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             },
                         )
                     }
@@ -464,7 +516,11 @@ private fun MoodStationRow(
             Text(
                 text = station.name,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (isActive) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

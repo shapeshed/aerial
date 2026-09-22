@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25.0.4+101.0.LTS
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -58,6 +58,8 @@ jobs:
     name: Instrumented tests and coverage
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -67,7 +69,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25.0.4+101.0.LTS
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -86,13 +88,13 @@ jobs:
         run: ./gradlew jacocoDeviceTestUnitTestReport jacocoDeviceTestUnitTestCoverageVerification
 
       - name: Upload JaCoCo coverage to Codecov
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
-        uses: codecov/codecov-action@v5
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v7
         with:
           files: ./app/build/reports/jacoco/jacocoDeviceTestUnitTestReport/jacocoDeviceTestUnitTestReport.xml
           flags: device-test-unit
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
 
       - name: Start Android emulator and run isolated device tests
         uses: reactivecircus/android-emulator-runner@v2

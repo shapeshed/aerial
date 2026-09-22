@@ -30,14 +30,17 @@ internal fun navigationSuiteType(widthDp: Int): NavigationSuiteType =
 internal fun AdaptiveNavigationShell(
     selectedDestination: Int,
     showNavigation: Boolean,
-    onDestinationSelected: (Int) -> Unit,
+    onDestinationSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     navigationSuiteType: NavigationSuiteType? = null,
     content: @Composable () -> Unit,
 ) {
     val scaffoldState = rememberNavigationSuiteScaffoldState(
-        if (showNavigation) NavigationSuiteScaffoldValue.Visible
-        else NavigationSuiteScaffoldValue.Hidden,
+        if (showNavigation) {
+            NavigationSuiteScaffoldValue.Visible
+        } else {
+            NavigationSuiteScaffoldValue.Hidden
+        },
     )
     LaunchedEffect(showNavigation) {
         if (showNavigation) scaffoldState.show() else scaffoldState.hide()
@@ -46,10 +49,16 @@ internal fun AdaptiveNavigationShell(
     val navigationItems: @Composable () -> Unit = {
         NavigationSuiteItem(
             selected = selectedDestination == HOME_DESTINATION,
-            onClick = { onDestinationSelected(HOME_DESTINATION) },
+            onClick = { onDestinationSelect(HOME_DESTINATION) },
             icon = {
                 Icon(
-                    imageVector = if (selectedDestination == HOME_DESTINATION) Icons.Rounded.Home else Icons.Outlined.Home,
+                    imageVector = if (selectedDestination ==
+                        HOME_DESTINATION
+                    ) {
+                        Icons.Rounded.Home
+                    } else {
+                        Icons.Outlined.Home
+                    },
                     contentDescription = null,
                 )
             },
@@ -57,10 +66,16 @@ internal fun AdaptiveNavigationShell(
         )
         NavigationSuiteItem(
             selected = selectedDestination == FAVORITES_DESTINATION,
-            onClick = { onDestinationSelected(FAVORITES_DESTINATION) },
+            onClick = { onDestinationSelect(FAVORITES_DESTINATION) },
             icon = {
                 Icon(
-                    imageVector = if (selectedDestination == FAVORITES_DESTINATION) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    imageVector = if (selectedDestination ==
+                        FAVORITES_DESTINATION
+                    ) {
+                        Icons.Rounded.Favorite
+                    } else {
+                        Icons.Rounded.FavoriteBorder
+                    },
                     contentDescription = null,
                 )
             },

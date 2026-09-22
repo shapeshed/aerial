@@ -5,9 +5,14 @@ for Aerial.
 
 ## Requirements
 
-- JDK 17
+- JDK 17 or newer (builds target Java 17 bytecode; CI uses JDK 25)
 - Android SDK with platform 37 installed
 - Android Studio or the Gradle wrapper
+
+Plugin and dependency versions are managed centrally in
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml). Add or update versions
+there and reference them through the generated `libs.*` aliases rather than
+hardcoding coordinates in a build script.
 
 The app currently targets SDK 37 and has a minimum SDK of 26.
 

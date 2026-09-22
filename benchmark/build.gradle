@@ -1,0 +1,44 @@
+plugins {
+    alias(libs.plugins.android.test)
+}
+
+android {
+    namespace = 'com.shapeshed.aerial.benchmark'
+    compileSdk 37
+
+    defaultConfig {
+        minSdk 26
+        targetSdk 37
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        // Benchmarks are only trustworthy on physical devices. Allow an explicit
+        // emulator smoke run (indicative numbers only) via -PallowEmulatorBenchmarks.
+        if (project.hasProperty('allowEmulatorBenchmarks')) {
+            testInstrumentationRunnerArguments['androidx.benchmark.suppressErrors'] = 'EMULATOR'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        // Macrobenchmark runs against a non-debuggable, profileable build.
+        benchmark {
+            debuggable = false
+            signingConfig = signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
+    }
+
+    targetProjectPath = ':app'
+    experimentalProperties['android.experimental.self-instrumenting'] = true
+}
+
+dependencies {
+    implementation libs.androidx.benchmark.macro.junit4
+    implementation libs.androidx.uiautomator
+    implementation libs.junit
+    implementation libs.androidx.test.runner
+    implementation libs.androidx.test.ext.junit.ktx
+}

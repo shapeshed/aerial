@@ -8,9 +8,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,97 +24,94 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.BeachAccess
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Landscape
+import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Radio
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material.icons.rounded.WbSunny
-import androidx.compose.material.icons.rounded.BeachAccess
-import androidx.compose.material.icons.rounded.FitnessCenter
-import androidx.compose.material.icons.rounded.NightsStay
-import androidx.compose.material.icons.rounded.Landscape
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AppBarWithSearch
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalToggleButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AppBarWithSearch
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -123,10 +120,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberContainedSearchBarState
-import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberContainedSearchBarState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -141,51 +138,52 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.isTraversalGroup
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
-import coil3.compose.AsyncImage
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import androidx.compose.ui.res.stringResource
-import com.shapeshed.aerial.R
-import com.shapeshed.aerial.navigation.AerialNavigator
-import com.shapeshed.aerial.navigation.AerialRoute
-import com.shapeshed.aerial.data.FavoritesSort
-import com.shapeshed.aerial.data.RegistryStation
-import com.shapeshed.aerial.data.Station
-import java.io.File
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.window.core.layout.WindowSizeClass
+import coil3.SingletonImageLoader
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import com.shapeshed.aerial.R
+import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.navigation.AerialNavigator
+import com.shapeshed.aerial.navigation.AerialRoute
+import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Localized country name from the stored ISO code via ICU, in the app's current locale.
 // Cached per (code, language) so Locale.Builder isn't called on every row recomposition.
@@ -279,20 +277,15 @@ internal val CURATED_MOODS = listOf(
     ),
 )
 
-internal data class RegistryStationKey(
-    val provider: String,
-    val providerId: String,
-)
+internal data class RegistryStationKey(val provider: String, val providerId: String)
 
-internal fun RegistryStation.savedKey(): RegistryStationKey? =
-    RegistryStationKey(provider, providerId).takeIf {
-        it.provider.isNotBlank() && it.providerId.isNotBlank()
-    }
+internal fun RegistryStation.savedKey(): RegistryStationKey? = RegistryStationKey(provider, providerId).takeIf {
+    it.provider.isNotBlank() && it.providerId.isNotBlank()
+}
 
-internal fun Station.savedKey(): RegistryStationKey? =
-    RegistryStationKey(provider, providerId).takeIf {
-        it.provider.isNotBlank() && it.providerId.isNotBlank()
-    }
+internal fun Station.savedKey(): RegistryStationKey? = RegistryStationKey(provider, providerId).takeIf {
+    it.provider.isNotBlank() && it.providerId.isNotBlank()
+}
 
 private fun RegistryStation.toPlaybackStation(): Station = Station(
     name = name,
@@ -443,8 +436,10 @@ fun MainScreen(
     val density = LocalDensity.current
     val stationContentBottomPadding = if (currentStation != null) with(density) { miniPlayerHeightPx.toDp() } else 0.dp
     MainScreenEffects(
-        viewModel = viewModel,
-        context = context,
+        onConnect = { viewModel.connect(context) },
+        onSetShowNowPlaying = viewModel::setShowNowPlaying,
+        onSearchRegistry = viewModel::searchRegistry,
+        onClearRecentlyAddedStation = viewModel::clearRecentlyAddedStation,
         showNowPlaying = showNowPlaying,
         isSearchExpanded = isSearchExpanded,
         showCountrySheet = showCountrySheet,
@@ -483,9 +478,15 @@ fun MainScreen(
                             textFieldState.edit { replace(0, length, "") }
                             scope.launch { searchBarState.animateToCollapsed() }
                         },
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 } else {
                     Icon(Icons.Rounded.Search, contentDescription = null)
@@ -496,7 +497,10 @@ fun MainScreen(
                     isSearchExpanded && searchQueryText.isNotEmpty() -> {
                         IconButton(
                             onClick = { textFieldState.edit { replace(0, length, "") } },
-                            shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                            shapes = IconButtonShapes(
+                                IconButtonDefaults.smallRoundShape,
+                                IconButtonDefaults.smallPressedShape,
+                            ),
                         ) {
                             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_search))
                         }
@@ -522,7 +526,7 @@ fun MainScreen(
                 searchScrollBehavior.scrollState.scrollOffset = 0f
                 searchScrollBehavior.scrollState.contentOffset = 0f
             },
-            onMoodSelected = { navigator.navigate(AerialRoute.Mood(it.id)) },
+            onMoodSelect = { navigator.navigate(AerialRoute.Mood(it.id)) },
             onSetForYouCountry = viewModel::setForYouCountry,
             onOpenCountrySearch = ::openCountrySearch,
             onOpenRegistrySearch = ::openRegistrySearch,
@@ -545,7 +549,7 @@ fun MainScreen(
                 }
             },
             onHomeViewModeChange = viewModel::setHomeViewMode,
-            onSortSelected = viewModel::setFavoritesSort,
+            onSortSelect = viewModel::setFavoritesSort,
             onStationLongPress = { contextStation = it },
         )
     }
@@ -575,7 +579,7 @@ fun MainScreen(
             isBuffering = isBuffering,
             isPlaying = isPlaying,
             hasStationNavigation = hasStationNavigation,
-            onHeightChanged = { miniPlayerHeightPx = it },
+            onHeightChange = { miniPlayerHeightPx = it },
             onStop = viewModel::stopAndClear,
             onTogglePlayback = viewModel::togglePlayback,
             onPlayNext = { nextPlaybackStation?.let { viewModel.play(it, playbackQueue) } },
@@ -591,7 +595,7 @@ fun MainScreen(
         AdaptiveNavigationShell(
             selectedDestination = effectiveSelectedTab,
             showNavigation = showHome && isSearchRoute,
-            onDestinationSelected = { destination ->
+            onDestinationSelect = { destination ->
                 viewModel.setSelectedHomeTab(destination)
                 val route = if (destination == TAB_HOME && showHome) {
                     AerialRoute.Home
@@ -612,8 +616,14 @@ fun MainScreen(
 
         AnimatedVisibility(
             visible = showNowPlaying && isMainRoute,
-            enter = slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), initialOffsetY = { it }),
-            exit = slideOutVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), targetOffsetY = { it }),
+            enter = slideInVertically(
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                initialOffsetY = { it },
+            ),
+            exit = slideOutVertically(
+                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                targetOffsetY = { it },
+            ),
             modifier = Modifier.fillMaxSize(),
         ) {
             val station = currentStation
@@ -653,67 +663,70 @@ fun MainScreen(
             }
         }
 
-        if (isSearchRoute) MainSearchOverlay(
-            searchBarState = searchBarState,
-            inputField = searchInputField,
-            textFieldState = textFieldState,
-            query = searchQueryText,
-            uiState = uiState,
-            savedStreamUrls = savedStreamUrls,
-            savedRegistryKeys = savedRegistryKeys,
-            onCountryFilter = { openFilterSheet { showCountrySheet = true } },
-            onGenreFilter = { openFilterSheet { showGenreSheet = true } },
-            onClearFilters = viewModel::clearAllFilters,
-            onSearch = viewModel::searchRegistry,
-            onSaveRecentSearch = viewModel::saveRecentSearch,
-            onRemoveRecentSearch = viewModel::removeRecentSearch,
-            onPlayFavorite = viewModel::play,
-            onPlayRegistry = viewModel::playFromRegistry,
-            onTogglePlayback = viewModel::togglePlayback,
-            onAddRegistry = viewModel::addFromRegistry,
-            onRemoveRegistry = viewModel::removeFromRegistry,
-            onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
-            onAddManually = { navigator.navigate(AerialRoute.AddStation) },
-        )
+        if (isSearchRoute) {
+            MainSearchOverlay(
+                searchBarState = searchBarState,
+                inputField = searchInputField,
+                textFieldState = textFieldState,
+                query = searchQueryText,
+                uiState = uiState,
+                savedStreamUrls = savedStreamUrls,
+                savedRegistryKeys = savedRegistryKeys,
+                onCountryFilter = { openFilterSheet { showCountrySheet = true } },
+                onGenreFilter = { openFilterSheet { showGenreSheet = true } },
+                onClearFilters = viewModel::clearAllFilters,
+                onSearch = viewModel::searchRegistry,
+                onSaveRecentSearch = viewModel::saveRecentSearch,
+                onRemoveRecentSearch = viewModel::removeRecentSearch,
+                onPlayFavorite = viewModel::play,
+                onPlayRegistry = viewModel::playFromRegistry,
+                onTogglePlayback = viewModel::togglePlayback,
+                onAddRegistry = viewModel::addFromRegistry,
+                onRemoveRegistry = viewModel::removeFromRegistry,
+                onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
+                onAddManually = { navigator.navigate(AerialRoute.AddStation) },
+            )
+        }
 
-        if (isSearchRoute) MainModalHost(
-            showCountrySheet = showCountrySheet,
-            showGenreSheet = showGenreSheet,
-            countrySheetState = countrySheetState,
-            genreSheetState = genreSheetState,
-            countryQuery = countryFilterQuery,
-            genreQuery = genreFilterQuery,
-            availableCountries = availableCountries,
-            selectedCountries = selectedCountries,
-            allTags = allTags,
-            selectedTags = selectedTags,
-            tagLabels = tagLabels,
-            appLocale = appLocale,
-            contextStation = contextStation,
-            stationToDelete = stationToDelete,
-            onDismissCountry = dismissCountrySheet,
-            onDismissGenre = dismissGenreSheet,
-            onCountryQueryChange = { countryFilterQuery = it },
-            onGenreQueryChange = { genreFilterQuery = it },
-            onToggleCountry = viewModel::toggleCountryFilter,
-            onClearCountry = viewModel::clearCountryFilter,
-            onToggleTag = viewModel::toggleTagFilter,
-            onClearTag = viewModel::clearTagFilter,
-            onDismissContext = { contextStation = null },
-            onEditStation = {
-                contextStation = null
-                navigator.navigate(AerialRoute.EditStation(it.id))
-            },
-            onRequestDelete = {
-                stationToDelete = it
-                contextStation = null
-            },
-            onDismissDelete = { stationToDelete = null },
-            onConfirmDelete = {
-                viewModel.deleteStation(it)
-                stationToDelete = null
-            },
-        )
+        if (isSearchRoute) {
+            MainModalHost(
+                showCountrySheet = showCountrySheet,
+                showGenreSheet = showGenreSheet,
+                countrySheetState = countrySheetState,
+                genreSheetState = genreSheetState,
+                countryQuery = countryFilterQuery,
+                genreQuery = genreFilterQuery,
+                availableCountries = availableCountries,
+                selectedCountries = selectedCountries,
+                allTags = allTags,
+                selectedTags = selectedTags,
+                tagLabels = tagLabels,
+                appLocale = appLocale,
+                contextStation = contextStation,
+                stationToDelete = stationToDelete,
+                onDismissCountry = dismissCountrySheet,
+                onDismissGenre = dismissGenreSheet,
+                onCountryQueryChange = { countryFilterQuery = it },
+                onGenreQueryChange = { genreFilterQuery = it },
+                onToggleCountry = viewModel::toggleCountryFilter,
+                onClearCountry = viewModel::clearCountryFilter,
+                onToggleTag = viewModel::toggleTagFilter,
+                onClearTag = viewModel::clearTagFilter,
+                onDismissContext = { contextStation = null },
+                onEditStation = {
+                    contextStation = null
+                    navigator.navigate(AerialRoute.EditStation(it.id))
+                },
+                onRequestDelete = {
+                    stationToDelete = it
+                    contextStation = null
+                },
+                onDismissDelete = { stationToDelete = null },
+                onConfirmDelete = {
+                    viewModel.deleteStation(it)
+                    stationToDelete = null
+                },
+            )
+        }
     }
-
 }

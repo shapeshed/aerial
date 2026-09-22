@@ -16,25 +16,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Favorite
@@ -67,33 +64,37 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.Station
 import java.io.File
 import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
 
@@ -153,7 +154,10 @@ fun NowPlayingScreen(
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val dismissNestedScrollConnection = remember(contentScrollState, onDismiss, dismissThresholdPx) {
         object : NestedScrollConnection {
-            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+            override fun onPreScroll(
+                available: androidx.compose.ui.geometry.Offset,
+                source: NestedScrollSource,
+            ): androidx.compose.ui.geometry.Offset {
                 if (available.y > 0f && contentScrollState.value == 0) {
                     dragOffsetY = (dragOffsetY + available.y).coerceAtLeast(0f)
                     return androidx.compose.ui.geometry.Offset(0f, available.y)
@@ -226,7 +230,10 @@ fun NowPlayingScreen(
                         onClick = onDismiss,
                         modifier = Modifier.semantics { traversalIndex = 0f },
                     ) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.close_player))
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.close_player),
+                        )
                     }
                 },
                 actions = {
@@ -329,10 +336,11 @@ fun NowPlayingScreen(
                         }
                         val pagerState = rememberPagerState(initialPage = initialPage) { virtualPageCount }
                         var isSyncingToStation by remember { mutableStateOf(false) }
+                        val currentOnPlayStation by rememberUpdatedState(onPlayStation)
                         LaunchedEffect(pagerState.settledPage) {
                             if (isSyncingToStation) return@LaunchedEffect
                             val target = swipeStations[circularPageIndex(pagerState.settledPage, swipeStations.size)]
-                            if (!target.matches(station)) onPlayStation(target)
+                            if (!target.matches(station)) currentOnPlayStation(target)
                         }
                         LaunchedEffect(swipeIndex) {
                             val currentIndex = circularPageIndex(pagerState.currentPage, swipeStations.size)
@@ -413,8 +421,18 @@ fun NowPlayingScreen(
                                 .semantics { traversalIndex = 4f },
                         ) {
                             Icon(
-                                imageVector = if (station.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = stringResource(if (station.isFavorite) R.string.remove_from_favorites else R.string.add_to_favorites),
+                                imageVector = if (station.isFavorite) {
+                                    Icons.Rounded.Favorite
+                                } else {
+                                    Icons.Rounded.FavoriteBorder
+                                },
+                                contentDescription = stringResource(
+                                    if (station.isFavorite) {
+                                        R.string.remove_from_favorites
+                                    } else {
+                                        R.string.add_to_favorites
+                                    },
+                                ),
                             )
                         }
                     }
@@ -539,14 +557,21 @@ fun NowPlayingScreen(
                                     onClick = {
                                         val copyText = buildString {
                                             if (!trackArtist.isNullOrBlank()) append(trackArtist)
-                                            if (!trackArtist.isNullOrBlank() && !trackTitle.isNullOrBlank()) append(" — ")
+                                            if (!trackArtist.isNullOrBlank() &&
+                                                !trackTitle.isNullOrBlank()
+                                            ) {
+                                                append(" — ")
+                                            }
                                             if (!trackTitle.isNullOrBlank()) append(trackTitle)
                                         }
                                         clipboard.setPrimaryClip(ClipData.newPlainText("track", copyText))
                                     },
                                     modifier = Modifier.semantics { traversalIndex = 10f },
                                 ) {
-                                    Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy_track_info))
+                                    Icon(
+                                        Icons.Rounded.ContentCopy,
+                                        contentDescription = stringResource(R.string.copy_track_info),
+                                    )
                                 }
                                 Column(
                                     modifier = Modifier
@@ -587,14 +612,10 @@ fun NowPlayingScreen(
             onDismiss = { showSleepTimer = false },
         )
     }
-
 }
 
 @Composable
-private fun StationArtworkSurface(
-    artworkModel: Any?,
-    modifier: Modifier = Modifier,
-) {
+private fun StationArtworkSurface(artworkModel: Any?, modifier: Modifier = Modifier) {
     BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxSize(),
@@ -617,10 +638,7 @@ private fun StationArtworkSurface(
 }
 
 @Composable
-private fun StreamBitratePill(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
+private fun StreamBitratePill(text: String, modifier: Modifier = Modifier) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,

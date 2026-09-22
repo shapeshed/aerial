@@ -1,29 +1,81 @@
 package com.shapeshed.aerial.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.*
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
-import androidx.compose.ui.graphics.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.automirrored.rounded.ViewList
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalToggleButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.text.style.*
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.data.*
+import com.shapeshed.aerial.data.FavoritesSort
+import com.shapeshed.aerial.data.Station
 
 @Composable
 private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
@@ -62,7 +114,7 @@ internal fun FavoritesTabContent(
     onPlay: (Station) -> Unit,
     onRemoveFavorite: (Station) -> Unit,
     onHomeViewModeChange: (HomeViewMode) -> Unit,
-    onSortSelected: (FavoritesSort) -> Unit,
+    onSortSelect: (FavoritesSort) -> Unit,
     onStationLongPress: (Station) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -83,6 +135,7 @@ internal fun FavoritesTabContent(
     var showSortSheet by remember { mutableStateOf(false) }
     var previousStationKeys by remember { mutableStateOf(emptyList<String>()) }
     val stationKeys = remember(stations) { stations.map { it.id.toString() } }
+    val currentOnScrollToTop by rememberUpdatedState(onScrollToTop)
 
     // Play-dependent sorts can move the newly played station while the user is browsing
     // Favorites. Re-anchor the active layout like Home's recently-played shelf, but never
@@ -95,7 +148,7 @@ internal fun FavoritesTabContent(
             )
         previousStationKeys = stationKeys
         if (!shouldFocus) return@LaunchedEffect
-        onScrollToTop()
+        currentOnScrollToTop()
         gridState.animateScrollToItem(0)
     }
 
@@ -103,7 +156,7 @@ internal fun FavoritesTabContent(
         FavoritesSortSheet(
             current = favoritesSort,
             onSelect = { sort ->
-                onSortSelected(sort)
+                onSortSelect(sort)
                 showSortSheet = false
             },
             onDismiss = { showSortSheet = false },
@@ -165,8 +218,9 @@ internal fun FavoritesTabContent(
                             onClick = { onPlay(station) },
                             onLongClick = { onStationLongPress(station) },
                             modifier = Modifier
-                                .testTag("favorite-card-${station.id}")
+                                .testTag("favorite-card-${station.id}"),
                         )
+
                         HomeViewMode.List -> StationListRow(
                             station = station,
                             isActive = isActive,
@@ -181,9 +235,10 @@ internal fun FavoritesTabContent(
                     }
                 }
             }
+        }
+    }
 }
-}
-}
+
 @Composable
 private fun FavoritesHeader(
     favoritesSort: FavoritesSort,
@@ -207,7 +262,7 @@ private fun FavoritesHeader(
             Text(favoritesSortLabel(favoritesSort))
         }
         Spacer(modifier = Modifier.weight(1f))
-        HomeViewModeToggle(selected = homeViewMode, onSelected = onHomeViewModeChange)
+        HomeViewModeToggle(selected = homeViewMode, onSelect = onHomeViewModeChange)
     }
 }
 
@@ -215,11 +270,7 @@ private fun FavoritesHeader(
 // Google apps (list of radio rows under a small title).
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-private fun FavoritesSortSheet(
-    current: FavoritesSort,
-    onSelect: (FavoritesSort) -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun FavoritesSortSheet(current: FavoritesSort, onSelect: (FavoritesSort) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
@@ -262,7 +313,7 @@ private fun FavoritesSortSheet(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun HomeViewModeToggle(
     selected: HomeViewMode,
-    onSelected: (HomeViewMode) -> Unit,
+    onSelect: (HomeViewMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ButtonGroup(
@@ -274,7 +325,7 @@ private fun HomeViewModeToggle(
             buttonGroupContent = {
                 ToggleButton(
                     checked = selected == HomeViewMode.Cards,
-                    onCheckedChange = { if (it) onSelected(HomeViewMode.Cards) },
+                    onCheckedChange = { if (it) onSelect(HomeViewMode.Cards) },
                     shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
                     colors = FilledTonalToggleButtonDefaults.colors(),
                 ) {
@@ -291,7 +342,7 @@ private fun HomeViewModeToggle(
             buttonGroupContent = {
                 ToggleButton(
                     checked = selected == HomeViewMode.List,
-                    onCheckedChange = { if (it) onSelected(HomeViewMode.List) },
+                    onCheckedChange = { if (it) onSelect(HomeViewMode.List) },
                     shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
                     colors = FilledTonalToggleButtonDefaults.colors(),
                 ) {
@@ -331,6 +382,7 @@ private fun StationListRow(
     val swipeBackgroundColor by animateColorAsState(
         targetValue = when (dismissState.targetValue) {
             SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+
             SwipeToDismissBoxValue.StartToEnd,
             SwipeToDismissBoxValue.EndToStart,
             -> MaterialTheme.colorScheme.errorContainer
@@ -364,6 +416,7 @@ private fun StationListRow(
                             )
                             .padding(12.dp),
                     )
+
                     SwipeToDismissBoxValue.Settled -> Unit
                 }
             }
@@ -376,8 +429,11 @@ private fun StationListRow(
         },
     ) {
         Surface(
-            color = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-            else MaterialTheme.colorScheme.surfaceContainer,
+            color = if (isActive) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
             shape = MaterialTheme.shapes.medium,
             modifier = modifier
                 .fillMaxWidth()
@@ -398,8 +454,11 @@ private fun StationListRow(
                         station = station,
                         isActive = isActive,
                         size = 50.dp,
-                        surfaceColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-                        else MaterialTheme.colorScheme.surfaceContainer,
+                        surfaceColor = if (isActive) {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        },
                         allowContrastPlate = false,
                     )
                 },
@@ -407,7 +466,11 @@ private fun StationListRow(
                     {
                         Text(
                             text = label,
-                            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isActive) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -422,6 +485,7 @@ private fun StationListRow(
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
                                 )
+
                                 isPlaying -> EqualizerBars(
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier
@@ -439,7 +503,11 @@ private fun StationListRow(
                 Text(
                     text = station.name,
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    color = if (isActive) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -468,8 +536,11 @@ private fun StationTile(
         isPlaying = isPlaying,
         isBuffering = isBuffering,
     )
-    val cardColor = if (isActive) MaterialTheme.colorScheme.surfaceContainerHigh
-    else MaterialTheme.colorScheme.surfaceContainerLow
+    val cardColor = if (isActive) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = cardColor,
@@ -504,42 +575,42 @@ private fun StationTile(
                     modifier = Modifier.size(48.dp),
                 )
             }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .then(if (isPlaying) Modifier.safeMarquee() else Modifier),
-            )
-            if (hasActivityIndicator) {
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(width = 24.dp, height = 20.dp),
-                ) {
-                    if (isBuffering) {
-                        CircularWavyProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
-                        )
-                    } else {
-                        EqualizerBars(
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(width = 24.dp, height = 20.dp),
-                            barCount = 3,
-                        )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (isPlaying) Modifier.safeMarquee() else Modifier),
+                )
+                if (hasActivityIndicator) {
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                    ) {
+                        if (isBuffering) {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f),
+                            )
+                        } else {
+                            EqualizerBars(
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(width = 24.dp, height = 20.dp),
+                                barCount = 3,
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}
 }

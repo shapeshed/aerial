@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:layout_marginTop="2dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    tools:ignore="UseAppTint">
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        tools:ignore="ContentDescription" />
+
+    <ImageButton
+        android:id="@+id/widget_previous"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/widget_control_secondary"
+        android:contentDescription="@string/widget_previous"
+        android:padding="10dp"
+        android:src="@drawable/ic_widget_previous"
+        android:tint="@color/widget_on_secondary_container" />
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        tools:ignore="ContentDescription" />
+
+    <ImageButton
+        android:id="@+id/widget_play_pause"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/widget_control_primary_paused"
+        android:contentDescription="@string/widget_play"
+        android:padding="11dp"
+        android:src="@drawable/ic_widget_play"
+        android:tint="@color/widget_on_primary_container" />
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        tools:ignore="ContentDescription" />
+
+    <ImageButton
+        android:id="@+id/widget_next"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/widget_control_secondary"
+        android:contentDescription="@string/widget_next"
+        android:padding="10dp"
+        android:src="@drawable/ic_widget_next"
+        android:tint="@color/widget_on_secondary_container" />
+
+    <ImageView
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        tools:ignore="ContentDescription" />
+</LinearLayout>

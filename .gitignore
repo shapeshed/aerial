@@ -85,5 +85,5 @@ kotlin-ide/
 /unsigned/
 /extlib/
 
-# Local Compose audit snapshots
-COMPOSE-AUDIT-REPORT-*.md
+# Local Compose audit snapshots (retained reports live in docs/audits/)
+/COMPOSE-AUDIT-REPORT-*.md

@@ -1,13 +1,14 @@
 package com.shapeshed.aerial
 
+import android.os.Build
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.shapeshed.aerial.ui.MainScreen
 import com.shapeshed.aerial.ui.MainViewModel
 import com.shapeshed.aerial.ui.SettingsScreen
@@ -30,6 +31,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         splashScreen.setKeepOnScreenCondition { !mainViewModel.isInitialized.value }
         enableEdgeToEdge()
+        // The nav bar sits over a Material surface; do not let the system scrim it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         setContent {
             AerialTheme {
                 MainScreen(

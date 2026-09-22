@@ -2,14 +2,28 @@ import com.github.triplet.gradle.androidpublisher.ReleaseStatus
 import com.github.triplet.gradle.androidpublisher.ResolutionStrategy
 
 plugins {
-    id 'com.android.application'
+    alias(libs.plugins.android.application)
     id 'jacoco'
-    id 'org.jetbrains.kotlin.plugin.compose'
-    id 'org.jetbrains.kotlin.plugin.serialization'
-    id 'com.google.devtools.ksp'
-    id 'com.google.dagger.hilt.android'
-    id 'com.github.triplet.play'
-    id 'com.android.compose.screenshot'
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.play.publisher)
+    alias(libs.plugins.compose.screenshot)
+    alias(libs.plugins.ktlint)
+}
+
+ktlint {
+    // Pin the ktlint CLI rather than inheriting the plugin's default so upgrades
+    // are explicit and Renovate-managed. 1.8.0 parses the Kotlin 2.x sources.
+    version = libs.versions.ktlint.get()
+    android = true
+    // Existing violations are recorded in app/config/ktlint/baseline.xml by
+    // `./gradlew :app:ktlintGenerateBaseline`. Only new violations fail the build.
+    // Do NOT run a one-shot `ktlintFormat` on the whole project: it does not
+    // converge here and leaves more violations than the baseline (see
+    // docs/quality-improvement-plan.md §2.3). Reduce the baseline in reviewed
+    // batches instead, regenerating it after each step.
 }
 
 def registrySourceFile = layout.projectDirectory.file("src/main/registry/registry.json")
@@ -49,8 +63,8 @@ android {
         applicationId "com.shapeshed.aerial"
         minSdk 26
         targetSdk 37
-        versionCode 18
-        versionName "0.7.1"
+        versionCode 19
+        versionName "0.7.2"
         buildConfigField "String", "BUILD_LABEL", "\"${buildLabel}\""
         testInstrumentationRunner "com.shapeshed.aerial.testing.AerialTestRunner"
     }
@@ -79,6 +93,12 @@ android {
             minifyEnabled true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        // Release-like, debug-signed variant targeted by the :benchmark module.
+        benchmark {
+            initWith release
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
         }
     }
 
@@ -179,29 +199,41 @@ tasks.configureEach {
     }
 }
 
+// Shared inputs for the coverage report and its verification rule so the two can
+// never drift apart. Only owner-written classes are measured: generated Room
+// implementations, Hilt/Dagger output, R/BuildConfig and compiler synthetics are
+// excluded, otherwise the denominator is polluted and the ratio is meaningless.
+def deviceTestUnitTestExecutionData = fileTree(layout.buildDirectory).include(
+    "jacoco/testDeviceTestUnitTest.exec",
+    "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
+)
+// The post-ASM classes are the exact bytecode the unit-test task executes, so the
+// execution data and the class files share JaCoCo's class id and the report is
+// free of "Classes in bundle ... do not match with execution data" mismatches.
+def deviceTestUnitTestClassDirectories = fileTree(
+    layout.buildDirectory.dir("intermediates/classes/deviceTest/transformDeviceTestClassesWithAsm/dirs"),
+) {
+    include('com/shapeshed/aerial/**')
+    exclude(
+        // Android toolchain generated.
+        '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
+        // Hilt / Dagger generated.
+        '**/*Hilt*', '**/Dagger*', '**/*_Factory*', '**/*_MembersInjector*',
+        // Room generated database and DAO implementations.
+        '**/*_Impl.class', '**/*_Impl$*.class',
+        // Kotlin compiler `when`/sealed mappings, which contain no source lines.
+        '**/*$WhenMappings.class',
+    )
+}
+
 tasks.register("jacocoDeviceTestUnitTestReport", JacocoReport) {
     dependsOn("testDeviceTestUnitTest")
     group = "verification"
     description = "Generates JaCoCo coverage for local deviceTest unit tests."
 
-    executionData.from(fileTree(layout.buildDirectory).include(
-        "jacoco/testDeviceTestUnitTest.exec",
-        "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
-    ))
+    executionData.from(deviceTestUnitTestExecutionData)
     sourceDirectories.from(files("src/main/java", "src/main/kotlin"))
-    // Use the post-ASM classes that the unit-test task executes. The previous
-    // pre-transform Kotlin/Javac directories could contain the same class with
-    // a different JaCoCo id, producing a report that looked successful but was
-    // not trustworthy.
-    classDirectories.from(fileTree(
-        layout.buildDirectory.dir("intermediates/classes/deviceTest/transformDeviceTestClassesWithAsm/dirs"),
-    ) {
-        include('com/shapeshed/aerial/**')
-        exclude(
-            '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
-            '**/*Hilt*', '**/Dagger*', '**/*_Factory*', '**/*_MembersInjector*',
-        )
-    })
+    classDirectories.from(deviceTestUnitTestClassDirectories)
     reports {
         html.required = true
         xml.required = true
@@ -214,93 +246,87 @@ tasks.register("jacocoDeviceTestUnitTestCoverageVerification", JacocoCoverageVer
     group = "verification"
     description = "Verifies the measured line coverage for local deviceTest unit tests."
 
-    executionData.from(fileTree(layout.buildDirectory).include(
-        "jacoco/testDeviceTestUnitTest.exec",
-        "outputs/unit_test_code_coverage/deviceTestUnitTest/testDeviceTestUnitTest.exec",
-    ))
-    classDirectories.from(fileTree(
-        layout.buildDirectory.dir("intermediates/classes/deviceTest/transformDeviceTestClassesWithAsm/dirs"),
-    ) {
-        include('com/shapeshed/aerial/**')
-        exclude(
-            '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
-            '**/*Hilt*', '**/Dagger*', '**/*_Factory*', '**/*_MembersInjector*',
-        )
-    })
+    executionData.from(deviceTestUnitTestExecutionData)
+    classDirectories.from(deviceTestUnitTestClassDirectories)
     violationRules {
         rule {
             element = 'BUNDLE'
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
-                minimum = 0.18
+                // Baseline recorded after excluding generated classes (measured
+                // 0.237 on 2026-09-21); raise as new behavior tests land rather
+                // than lowering to fit the current suite.
+                minimum = 0.23
             }
         }
     }
 }
 
 dependencies {
-    def composeBom = platform('androidx.compose:compose-bom:2026.08.00')
+    def composeBom = platform(libs.compose.bom)
     implementation composeBom
 
-    implementation 'androidx.compose.ui:ui'
-    implementation 'androidx.compose.material3:material3:1.5.0-alpha27'
-    implementation 'androidx.compose.material3:material3-adaptive-navigation-suite'
-    implementation 'androidx.compose.material3.adaptive:adaptive:1.3.0'
-    implementation 'androidx.compose.material3.adaptive:adaptive-navigation3:1.3.0'
-    implementation 'androidx.compose.material:material-icons-extended'
-    implementation 'androidx.compose.ui:ui-tooling-preview'
-    debugImplementation 'androidx.compose.ui:ui-tooling'
-    debugImplementation 'androidx.compose.ui:ui-test-manifest'
-    deviceTestImplementation 'androidx.compose.ui:ui-test-manifest'
+    implementation libs.compose.ui.core
+    implementation libs.material3.core
+    implementation libs.material3.navsuite
+    implementation libs.material3.adaptive.core
+    implementation libs.material3.adaptive.nav3
+    implementation libs.compose.icons.extended
+    implementation libs.compose.ui.preview
+    debugImplementation libs.compose.ui.tooling
+    debugImplementation libs.compose.ui.test.manifest
+    deviceTestImplementation libs.compose.ui.test.manifest
 
-    implementation 'androidx.core:core-ktx:1.19.0'
-    implementation 'androidx.appcompat:appcompat:1.8.0'
-    implementation 'androidx.core:core-splashscreen:1.2.0'
-    implementation 'androidx.activity:activity-compose:1.13.0'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.11.0'
-    implementation 'androidx.hilt:hilt-navigation-compose:1.4.0'
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.splashscreen
+    implementation libs.androidx.activity.compose
+    implementation libs.androidx.lifecycle.viewmodel.compose
+    implementation libs.androidx.lifecycle.runtime.compose
+    implementation libs.androidx.hilt.navigation.compose
+    implementation libs.androidx.glance.appwidget
+    implementation libs.androidx.glance.material3
 
-    def media3Version = '1.11.0'
-    implementation "androidx.media3:media3-exoplayer:$media3Version"
-    implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
-    implementation "androidx.media3:media3-session:$media3Version"
+    implementation libs.media3.exoplayer
+    implementation libs.media3.hls
+    implementation libs.media3.session
 
-    def roomVersion = '2.8.4'
-    implementation "androidx.room:room-runtime:$roomVersion"
-    implementation "androidx.room:room-ktx:$roomVersion"
-    ksp "androidx.room:room-compiler:$roomVersion"
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+    ksp libs.room.compiler
 
-    def navigation3Version = '1.1.7'
-    implementation "androidx.navigation3:navigation3-runtime:$navigation3Version"
-    implementation "androidx.navigation3:navigation3-ui:$navigation3Version"
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0'
-    implementation 'io.coil-kt.coil3:coil-compose:3.6.1'
-    implementation 'io.coil-kt.coil3:coil-network-okhttp:3.6.1'
-    implementation 'io.coil-kt.coil3:coil-svg:3.6.1'
-    implementation 'com.squareup.okhttp3:okhttp:5.5.0'
-    implementation 'androidx.datastore:datastore-preferences:1.2.1'
-    implementation 'androidx.concurrent:concurrent-futures-ktx:1.3.0'
-    implementation 'com.google.dagger:hilt-android:2.60.1'
-    ksp 'com.google.dagger:hilt-android-compiler:2.60.1'
+    implementation libs.androidx.navigation3.runtime
+    implementation libs.androidx.navigation3.ui
+    implementation libs.androidx.lifecycle.viewmodel.navigation3
+    implementation libs.kotlinx.serialization.core
+    implementation libs.coil.compose
+    implementation libs.coil.network.okhttp
+    implementation libs.coil.svg
+    implementation libs.okhttp
+    implementation libs.androidx.datastore.preferences
+    implementation libs.androidx.concurrent.futures.ktx
+    implementation libs.hilt.android
+    ksp libs.hilt.compiler
 
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.json:json:20240303'
-    testImplementation 'org.mockito.kotlin:mockito-kotlin:6.3.0'
-    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0'
+    testImplementation libs.junit
+    testImplementation libs.json
+    testImplementation libs.mockito.kotlin
+    testImplementation libs.kotlinx.coroutines.test
 
-    androidTestImplementation 'androidx.test:runner:1.7.0'
-    androidTestImplementation 'androidx.test:rules:1.7.0'
-    androidTestImplementation 'androidx.test:core-ktx:1.7.0'
-    androidTestImplementation 'androidx.test.ext:junit-ktx:1.3.0'
-    androidTestImplementation "androidx.room:room-testing:$roomVersion"
+    androidTestImplementation libs.androidx.test.runner
+    androidTestImplementation libs.androidx.test.rules
+    androidTestImplementation libs.androidx.test.core.ktx
+    androidTestImplementation libs.androidx.test.ext.junit.ktx
+    androidTestImplementation libs.room.testing
     // Compose UI Test still declares Espresso 3.5 transitively. Pin the current stable
     // bridge, which uses Context#getSystemService and supports Android 17 input APIs.
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+    androidTestImplementation libs.espresso.core
     androidTestImplementation composeBom
-    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
-    screenshotTestImplementation 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha16'
-    screenshotTestImplementation 'androidx.compose.ui:ui-tooling'
+    androidTestImplementation libs.compose.ui.test.junit4
+    screenshotTestImplementation libs.screenshot.validation.api
+    screenshotTestImplementation libs.compose.ui.tooling
+
+    // Jetpack Compose lint rules for ktlint (modifier, state hoisting, params, ...).
+    ktlintRuleset libs.compose.rules
 }

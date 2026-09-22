@@ -1,5 +1,6 @@
 package com.shapeshed.aerial.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -15,7 +16,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.activity.ComponentActivity
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.testing.AerialTestEnvironment
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
@@ -45,7 +45,14 @@ class TagFilterFlowTest {
             registryStation("Jazz Station", "jazz"),
             registryStation("Pop Station", "pop"),
         )
-        viewModel = MainViewModel(app, app.repository, app.registryRepository, app.settingsDataStore)
+        viewModel = MainViewModel(
+            app,
+            app.repository,
+            app.registryRepository,
+            app.settingsDataStore,
+            app.networkMonitor,
+            StringProvider { app.getString(it) },
+        )
     }
 
     @Test
@@ -146,7 +153,7 @@ class TagFilterFlowTest {
 
     private fun registryStation(name: String, tag: String) = RegistryStation(
         name = name,
-        streamUrl = "https://example.invalid/${tag}",
+        streamUrl = "https://example.invalid/$tag",
         tags = tag,
         provider = "tag-flow-test",
         providerId = tag,

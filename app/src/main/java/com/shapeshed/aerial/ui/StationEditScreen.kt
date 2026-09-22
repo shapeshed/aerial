@@ -1,8 +1,5 @@
 package com.shapeshed.aerial.ui
 
-import androidx.compose.ui.res.stringResource
-import com.shapeshed.aerial.R
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -11,9 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -46,22 +45,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shapeshed.aerial.R
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun StationEditScreen(
-    viewModel: StationEditViewModel,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun StationEditScreen(viewModel: StationEditViewModel, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val name by viewModel.name.collectAsStateWithLifecycle()
     val streamUrl by viewModel.streamUrl.collectAsStateWithLifecycle()
@@ -76,22 +72,68 @@ fun StationEditScreen(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let { viewModel.onLogoPicked(context, it) } }
 
+    StationEditContent(
+        isEditing = viewModel.isEditing,
+        name = name,
+        streamUrl = streamUrl,
+        logoModel = logoModel,
+        showRemoveLogo = logoPath.isNotEmpty(),
+        showRemoveLogoConfirm = showRemoveLogoConfirm,
+        onNameChange = viewModel::onNameChange,
+        onStreamUrlChange = viewModel::onStreamUrlChange,
+        onChangeLogo = { imagePicker.launch(arrayOf("image/*")) },
+        onRequestRemoveLogo = { showRemoveLogoConfirm = true },
+        onRemoveLogo = viewModel::removeLogo,
+        onDismissRemoveLogo = { showRemoveLogoConfirm = false },
+        onSave = { viewModel.save(onDismiss) },
+        onDismiss = onDismiss,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun StationEditContent(
+    isEditing: Boolean,
+    name: String,
+    streamUrl: String,
+    logoModel: Any?,
+    showRemoveLogo: Boolean,
+    showRemoveLogoConfirm: Boolean,
+    onNameChange: (String) -> Unit,
+    onStreamUrlChange: (String) -> Unit,
+    onChangeLogo: () -> Unit,
+    onRequestRemoveLogo: () -> Unit,
+    onRemoveLogo: () -> Unit,
+    onDismissRemoveLogo: () -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (viewModel.isEditing) R.string.edit_station else R.string.add_station)) },
+                title = {
+                    Text(stringResource(if (isEditing) R.string.edit_station else R.string.add_station))
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onDismiss,
-                        shapes = IconButtonShapes(IconButtonDefaults.smallRoundShape, IconButtonDefaults.smallPressedShape),
+                        shapes = IconButtonShapes(
+                            IconButtonDefaults.smallRoundShape,
+                            IconButtonDefaults.smallPressedShape,
+                        ),
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
                     TextButton(
-                        onClick = { viewModel.save(onDismiss) },
+                        onClick = onSave,
                         enabled = name.isNotBlank() && streamUrl.isNotBlank(),
                     ) {
                         Text(stringResource(R.string.action_save))
@@ -100,46 +142,60 @@ fun StationEditScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding),
+        ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 600.dp)
                     .fillMaxSize()
                     .padding(horizontal = 24.dp)
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .align(Alignment.TopCenter),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-            // Hoisted: stringResource can't be called inside the semantics {} lambda.
-            val changeLogoLabel = stringResource(R.string.change_station_logo)
-            val chooseLogoLabel = stringResource(R.string.choose_station_logo)
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(120.dp),
-            ) {
+                // Hoisted: stringResource can't be called inside the semantics {} lambda.
+                val changeLogoLabel = stringResource(R.string.change_station_logo)
+                val chooseLogoLabel = stringResource(R.string.choose_station_logo)
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = changeLogoLabel
-                            onClick(chooseLogoLabel) { true }
-                        }
-                        .clickable { imagePicker.launch(arrayOf("image/*")) },
+                    modifier = Modifier.size(120.dp),
                 ) {
-                    if (logoModel != null) {
-                        StationLogoSurface(
-                            logoModel = logoModel,
-                            size = 120.dp,
-                            fallbackBackground = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = changeLogoLabel
+                                onClick(chooseLogoLabel) { true }
+                            }
+                            .clickable(onClick = onChangeLogo),
+                    ) {
+                        if (logoModel != null) {
+                            StationLogoSurface(
+                                logoModel = logoModel,
+                                size = 120.dp,
+                                fallbackBackground = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Radio,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(60.dp),
+                                )
+                            }
+                        } else {
                             Icon(
                                 imageVector = Icons.Rounded.Radio,
                                 contentDescription = null,
@@ -147,74 +203,66 @@ fun StationEditScreen(
                                 modifier = Modifier.size(60.dp),
                             )
                         }
-                    } else {
+                    }
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .align(Alignment.BottomEnd),
+                    ) {
                         Icon(
-                            imageVector = Icons.Rounded.Radio,
+                            imageVector = Icons.Rounded.Edit,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(60.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .align(Alignment.BottomEnd),
-                ) {
-	                    Icon(
-	                        imageVector = Icons.Rounded.Edit,
-	                        contentDescription = null,
-	                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-	                        modifier = Modifier.size(16.dp),
+
+                if (showRemoveLogo) {
+                    TextButton(onClick = onRequestRemoveLogo) {
+                        Text(stringResource(R.string.remove_icon))
+                    }
+                }
+
+                if (showRemoveLogoConfirm) {
+                    AlertDialog(
+                        onDismissRequest = onDismissRemoveLogo,
+                        title = { Text(stringResource(R.string.remove_icon_title)) },
+                        text = { Text(stringResource(R.string.remove_icon_message)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                onRemoveLogo()
+                                onDismissRemoveLogo()
+                            }) {
+                                Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = onDismissRemoveLogo) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        },
                     )
                 }
-            }
 
-            if (logoPath.isNotEmpty()) {
-                TextButton(onClick = { showRemoveLogoConfirm = true }) {
-                    Text(stringResource(R.string.remove_icon))
-                }
-            }
-
-            if (showRemoveLogoConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showRemoveLogoConfirm = false },
-                    title = { Text(stringResource(R.string.remove_icon_title)) },
-                    text = { Text(stringResource(R.string.remove_icon_message)) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.removeLogo()
-                            showRemoveLogoConfirm = false
-                        }) {
-                            Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showRemoveLogoConfirm = false }) {
-                            Text(stringResource(R.string.action_cancel))
-                        }
-                    },
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text(stringResource(R.string.field_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
-
-            OutlinedTextField(
-                value = name,
-                onValueChange = { viewModel.onNameChange(it) },
-                label = { Text(stringResource(R.string.field_name)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = streamUrl,
-                onValueChange = { viewModel.onStreamUrlChange(it) },
-                label = { Text(stringResource(R.string.field_stream_url)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = streamUrl,
+                    onValueChange = onStreamUrlChange,
+                    label = { Text(stringResource(R.string.field_stream_url)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

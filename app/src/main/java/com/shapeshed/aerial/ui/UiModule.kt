@@ -4,10 +4,10 @@ import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.shapeshed.aerial.AerialApp
-import com.shapeshed.aerial.dataStore
-import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.NetworkMonitor
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.dataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,8 +19,7 @@ import javax.inject.Singleton
 object UiModule {
     @Provides
     @Singleton
-    fun provideStationRepository(application: Application): StationRepository =
-        (application as AerialApp).repository
+    fun provideStationRepository(application: Application): StationRepository = (application as AerialApp).repository
 
     @Provides
     @Singleton
@@ -29,23 +28,24 @@ object UiModule {
 
     @Provides
     @Singleton
-    fun provideNetworkMonitor(application: Application): NetworkMonitor =
-        NetworkMonitor(application)
+    fun provideNetworkMonitor(application: Application): NetworkMonitor = NetworkMonitor(application)
 
     @Provides
     @Singleton
-    fun provideArtworkLoader(application: Application): ArtworkLoader =
-        CoilArtworkLoader(application)
+    fun provideArtworkLoader(application: Application): ArtworkLoader = CoilArtworkLoader(application)
 
     @Provides
     @Singleton
-    fun provideMediaControllerGateway(): MediaControllerGateway =
-        DefaultMediaControllerGateway()
+    fun provideStringProvider(application: Application): StringProvider =
+        StringProvider { id -> application.getString(id) }
 
     @Provides
     @Singleton
-    fun provideSettingsDataStore(application: Application): DataStore<Preferences> =
-        application.dataStore
+    fun provideMediaControllerGateway(): MediaControllerGateway = DefaultMediaControllerGateway()
+
+    @Provides
+    @Singleton
+    fun provideSettingsDataStore(application: Application): DataStore<Preferences> = application.dataStore
 
     @Provides
     @Singleton

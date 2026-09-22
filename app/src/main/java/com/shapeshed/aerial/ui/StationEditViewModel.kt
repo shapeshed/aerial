@@ -4,22 +4,22 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.data.RegistryRepository
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel(assistedFactory = StationEditViewModel.Factory::class)
 class StationEditViewModel @AssistedInject internal constructor(
@@ -37,10 +37,7 @@ class StationEditViewModel @AssistedInject internal constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(
-            stationId: Long?,
-            logoImporter: suspend (Context, Uri) -> File?,
-        ): StationEditViewModel
+        fun create(stationId: Long?, logoImporter: suspend (Context, Uri) -> File?): StationEditViewModel
     }
 
     private val _name = MutableStateFlow("")
@@ -76,6 +73,7 @@ class StationEditViewModel @AssistedInject internal constructor(
                         _registryLogoUrl.value = when {
                             station.provider.isNotBlank() && station.providerId.isNotBlank() ->
                                 registryRepository.getByProviderId(station.provider, station.providerId)?.logoUrl
+
                             else -> registryRepository.getByStreamUrl(station.streamUrl)?.logoUrl
                         }?.takeIf { it.isNotBlank() }
                     }
@@ -84,8 +82,12 @@ class StationEditViewModel @AssistedInject internal constructor(
         }
     }
 
-    fun onNameChange(value: String) { _name.value = value }
-    fun onStreamUrlChange(value: String) { _streamUrl.value = value }
+    fun onNameChange(value: String) {
+        _name.value = value
+    }
+    fun onStreamUrlChange(value: String) {
+        _streamUrl.value = value
+    }
 
     fun onLogoPicked(context: Context, uri: Uri): Job {
         val job = viewModelScope.launch {
@@ -110,12 +112,14 @@ class StationEditViewModel @AssistedInject internal constructor(
     fun save(onDone: () -> Unit) {
         if (_name.value.isBlank() || _streamUrl.value.isBlank()) return
         viewModelScope.launch {
-            logoCopyJob?.join()  // wait for any in-progress copy before reading the path
-            val station = (existingStation ?: Station(
-                name = "",
-                streamUrl = "",
-                isFavorite = true,
-            )).copy(
+            logoCopyJob?.join() // wait for any in-progress copy before reading the path
+            val station = (
+                existingStation ?: Station(
+                    name = "",
+                    streamUrl = "",
+                    isFavorite = true,
+                )
+                ).copy(
                 id = stationId ?: 0,
                 name = _name.value.trim(),
                 streamUrl = _streamUrl.value.trim(),

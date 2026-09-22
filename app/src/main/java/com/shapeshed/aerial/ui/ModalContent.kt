@@ -1,10 +1,34 @@
 package com.shapeshed.aerial.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -125,11 +149,12 @@ internal fun SearchFilterRow(
 ) {
     val appLocale = LocalConfiguration.current.locales[0]
     val tagLabels = rememberTagLabels()
-    fun chipLabel(selected: Set<String>, fallback: String, displayName: (String) -> String = { it }): String = when (selected.size) {
-        0 -> fallback
-        1 -> displayName(selected.first())
-        else -> "${displayName(selected.first())}+${selected.size - 1}"
-    }
+    fun chipLabel(selected: Set<String>, fallback: String, displayName: (String) -> String = { it }): String =
+        when (selected.size) {
+            0 -> fallback
+            1 -> displayName(selected.first())
+            else -> "${displayName(selected.first())}+${selected.size - 1}"
+        }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -139,20 +164,46 @@ internal fun SearchFilterRow(
         FilterChip(
             selected = selectedCountries.isNotEmpty(),
             onClick = onCountryClick,
-            label = { Text(chipLabel(selectedCountries, stringResource(R.string.filter_country)) { countryName(it, appLocale) }) },
+            label = {
+                Text(
+                    chipLabel(selectedCountries, stringResource(R.string.filter_country)) {
+                        countryName(it, appLocale)
+                    },
+                )
+            },
             leadingIcon = if (selectedCountries.isNotEmpty()) {
-                { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
-            } else null,
-            trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                }
+            } else {
+                null
+            },
+            trailingIcon = {
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
+            },
         )
         FilterChip(
             selected = selectedTags.isNotEmpty(),
             onClick = onGenreClick,
             label = { Text(chipLabel(selectedTags, stringResource(R.string.filter_genre)) { tagLabels[it] ?: it }) },
             leadingIcon = if (selectedTags.isNotEmpty()) {
-                { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
-            } else null,
-            trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                }
+            } else {
+                null
+            },
+            trailingIcon = {
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
+            },
         )
         if (hasFilters) {
             TextButton(onClick = onClearAll) { Text(stringResource(R.string.clear_all)) }
@@ -161,11 +212,7 @@ internal fun SearchFilterRow(
 }
 
 @Composable
-private fun StationContextSheet(
-    station: Station,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-) {
+private fun StationContextSheet(station: Station, onEdit: () -> Unit, onDelete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()

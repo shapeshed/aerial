@@ -25,7 +25,7 @@ class MiniPlayerNavigationTest {
                     icyInfo = "Live Radio",
                     isPlaying = true,
                     isBuffering = false,
-                    onHeightChanged = {},
+                    onHeightChange = {},
                     onStop = {},
                     onTogglePlayback = {},
                     showNextStation = true,
