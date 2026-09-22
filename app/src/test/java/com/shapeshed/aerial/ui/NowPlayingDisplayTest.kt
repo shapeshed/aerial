@@ -21,6 +21,25 @@ class NowPlayingDisplayTest {
     }
 
     @Test
+    fun miniPlayerShowsTheStationNameAsArtistWhenOnlyATitleIsKnown() {
+        // Regression: an ICY title with no "artist - title" separator makes PlayerService set the
+        // artist to the station name. The mini player must match the notification rather than
+        // falling back to "Live Radio".
+        assertEquals(
+            TrackDisplay("Now playing info goes here", "Kool FM"),
+            computeTrackDisplay("Kool FM", "Now playing info goes here", null),
+        )
+    }
+
+    @Test
+    fun miniPlayerShowsTheStationNameAsArtistWhenTheStreamEchoesIt() {
+        assertEquals(
+            TrackDisplay("Some Show", "Radio X"),
+            computeTrackDisplay("Radio X", "Some Show", "Radio X"),
+        )
+    }
+
+    @Test
     fun noMetadataShowsStationNameAndLiveRadio() {
         val display = computeNowPlayingDisplay("Radio X", icyTitle = null)
         assertEquals(NowPlayingDisplay("Radio X", "Live Radio"), display)

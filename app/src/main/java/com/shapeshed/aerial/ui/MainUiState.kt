@@ -102,7 +102,14 @@ fun computeTrackDisplay(
     val artist = trackArtist?.trim()?.takeIf {
         it.isNotEmpty() && it != stationName && it != liveRadio
     }
-    return TrackDisplay(title ?: stationName, artist ?: liveRadio)
+    val hasTrackMetadata = title != null || artist != null
+    // With track metadata, the station name is the meaningful second line — the same value the
+    // Media3 notification and quick-settings player show. Without it, use the "Live Radio"
+    // placeholder rather than repeating the station name on both lines.
+    return TrackDisplay(
+        title = title ?: stationName,
+        artist = artist ?: if (hasTrackMetadata) stationName else liveRadio,
+    )
 }
 
 /** Derives stable station and ICY/ID3 display text shared by all playback surfaces. */
