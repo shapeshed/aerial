@@ -1,5 +1,6 @@
 package com.shapeshed.aerial.data
 
+import com.shapeshed.aerial.testing.FakePlayHistoryDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -358,21 +359,6 @@ class StationRepositoryTest {
         override suspend fun delete(station: Station) {
             stations.removeAll { it.id == station.id }
         }
-    }
-
-    private class FakePlayHistoryDao(vararg initialEntries: PlayHistoryEntry) : PlayHistoryDao {
-        val entries = initialEntries.toMutableList()
-
-        override suspend fun recordPlay(entry: PlayHistoryEntry) {
-            entries.removeAll { it.provider == entry.provider && it.providerId == entry.providerId }
-            entries += entry
-        }
-
-        override suspend fun recent(limit: Int): List<PlayHistoryEntry> =
-            entries.sortedByDescending { it.playedAt }.take(limit)
-
-        override fun recentAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> =
-            flowOf(entries.sortedByDescending { it.playedAt }.take(limit))
     }
 
     @Test
