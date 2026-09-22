@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -57,7 +58,7 @@ class MainActivityNavigationTest {
         }
         composeRule.onNodeWithText(string(R.string.add_your_own_station)).performClick()
         composeRule.waitUntil(timeoutMillis = 30_000) {
-            composeRule.onAllNodesWithText(string(R.string.add_station)).fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithTag("station-edit-screen").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(string(R.string.add_station)).assertIsDisplayed()
 
