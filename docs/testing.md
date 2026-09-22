@@ -32,6 +32,29 @@ regression test to make a change pass.
 Pull requests use the repository checklist to record this evidence. Reviewers
 should request the missing test before approving a feature or bug fix.
 
+## Test doubles
+
+Choose the lightest double that proves the observable behavior:
+
+- Prefer hand-written fakes for stateful collaborators and assert on the
+  resulting state, not on calls. Shared helpers live in
+  `app/src/test/java/com/shapeshed/aerial/testing/` (`MemoryDataStore`,
+  `FakeSharedPreferences`, `FakePlayHistoryDao`); a DAO fake that only serves one
+  test file stays next to that file.
+- Use the real implementation or an in-process server when it is fast and
+  deterministic: `HttpUtilsTest` drives the real HTTP path against a
+  `com.sun.net.httpserver.HttpServer` on an ephemeral port.
+- Reserve Mockito for interactions that are the behavior itself (for example
+  `Player.moveMediaItem` or a fire-and-forget `recordPlay`) and for Android-owned
+  or very large collaborators such as `StationRepository`, `RegistryRepository`,
+  and `Context` that cannot run on the JVM.
+- A fake can drift from the real component, so keep a contract test against the
+  real implementation; Room DAO behavior is pinned by the instrumented suite.
+
+There is no Robolectric dependency. When logic needs an Android type, extract a
+pure seam first (for example `WidgetPlaybackStore`'s `SharedPreferences`
+overloads) rather than adding one.
+
 ## Safe device testing
 
 Instrumented tests use the `deviceTest` build type and target:
