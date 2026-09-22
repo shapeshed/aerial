@@ -1,12 +1,17 @@
 package com.shapeshed.aerial.widget
 
+import android.content.Context
 import com.shapeshed.aerial.testing.FakeSharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class WidgetPlaybackStoreTest {
     private val preferences = FakeSharedPreferences()
+    private val context = mock<Context>()
 
     @Test
     fun writePublishesPlaybackAndNavigationState() {
@@ -104,5 +109,28 @@ class WidgetPlaybackStoreTest {
         assertEquals(false, state.isPlaying)
         assertEquals("station-1", state.mediaId)
         assertEquals("Song", state.trackTitle)
+    }
+
+    @Test
+    fun contextOverloadsShareTheWidgetPreferencesFile() {
+        whenever(context.getSharedPreferences(any(), any())).thenReturn(preferences)
+
+        WidgetPlaybackStore.write(
+            context,
+            mediaId = "station-1",
+            isPlaying = true,
+            canSkipPrevious = true,
+            canSkipNext = false,
+        )
+        WidgetPlaybackStore.writeMetadata(context, mediaId = "station-1", title = "Song", artist = "Artist")
+
+        val playing = WidgetPlaybackStore.read(context)
+        assertEquals("station-1", playing.mediaId)
+        assertEquals(true, playing.isPlaying)
+        assertEquals("Song", playing.trackTitle)
+
+        WidgetPlaybackStore.markStopped(context)
+
+        assertEquals(false, WidgetPlaybackStore.read(context).isPlaying)
     }
 }
