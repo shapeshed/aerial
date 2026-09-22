@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import com.shapeshed.aerial.testing.MemoryDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -67,15 +68,4 @@ class PlaybackSnapshotStoreTest {
         name = name,
         streamUrl = "https://stream.example/$id",
     )
-
-    private class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
-        private val state = MutableStateFlow(initial)
-        override val data: Flow<Preferences> = state
-
-        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
-            val updated = transform(state.value)
-            state.value = updated
-            return updated
-        }
-    }
 }
