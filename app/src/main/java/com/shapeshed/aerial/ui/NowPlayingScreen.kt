@@ -96,7 +96,7 @@ import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
+internal fun circularPageIndex(page: Int, size: Int): Int = ((page % size) + size) % size
 
 // A station's own saved logo, resolved the same way StationAvatar does. Used as full-bleed
 // artwork for swipe-pager pages that aren't the actively playing station: those have no live
