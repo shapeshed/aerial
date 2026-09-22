@@ -97,8 +97,7 @@ class PlayerService : MediaLibraryService() {
     private var lastIcyTitle: String? = null
     private var lastId3Title: String? = null
     private var pausedAtMs: Long? = null
-    private var reconnectingStream = false
-    private var lastReconnectAtMs = 0L
+    private val reconnectThrottle = ReconnectThrottle(RECONNECT_RETRY_COOLDOWN_MS, SystemClock::elapsedRealtime)
 
     private fun log(message: String) {
         Log.d(TAG, message)
@@ -218,7 +217,7 @@ class PlayerService : MediaLibraryService() {
 
             val pausedForMs = pausedAtMs?.let { SystemClock.elapsedRealtime() - it }
             pausedAtMs = null
-            if (pausedForMs != null && pausedForMs > STALE_BUFFER_THRESHOLD_MS) {
+            if (isStalePause(pausedForMs, STALE_BUFFER_THRESHOLD_MS)) {
                 reconnectCurrentStream("resuming after ${pausedForMs}ms pause")
             }
         }
@@ -451,7 +450,7 @@ class PlayerService : MediaLibraryService() {
     // don't double-count; playing a different station in between resets the guard.
     private fun recordPlayOnce() {
         val station = stationFromMediaItem(player.currentMediaItem, stations) ?: return
-        val stationKey = "${station.provider}|${station.providerId}|${station.streamUrl}"
+        val stationKey = stationPlaybackKey(station)
         if (stationKey == lastRecordedStationKey) return
         lastRecordedStationKey = stationKey
         val playedAt = System.currentTimeMillis()
@@ -543,25 +542,24 @@ class PlayerService : MediaLibraryService() {
     }
 
     private fun reconnectCurrentStream(reason: String) {
-        if (reconnectingStream) return
-        val nowMs = SystemClock.elapsedRealtime()
-        if (nowMs - lastReconnectAtMs < RECONNECT_RETRY_COOLDOWN_MS) {
-            log("skip reconnectCurrentStream reason=$reason cooldown")
+        if (player.currentMediaItem == null) return
+        if (!reconnectThrottle.tryAcquire()) {
+            log("skip reconnectCurrentStream reason=$reason")
             return
         }
-        val item = player.currentMediaItem ?: return
-        val shouldResume = player.playWhenReady
-        reconnectingStream = true
-        lastReconnectAtMs = nowMs
-        log("reconnectCurrentStream reason=$reason shouldResume=$shouldResume")
-        lastIcyTitle = null
-        lastId3Title = null
-        runCatching {
-            reconnectPlayerAfterError(player, shouldResume)
-        }.onFailure { error ->
-            Log.w(TAG, "Failed to reconnect current stream", error)
+        try {
+            val shouldResume = player.playWhenReady
+            log("reconnectCurrentStream reason=$reason shouldResume=$shouldResume")
+            lastIcyTitle = null
+            lastId3Title = null
+            runCatching {
+                reconnectPlayerAfterError(player, shouldResume)
+            }.onFailure { error ->
+                Log.w(TAG, "Failed to reconnect current stream", error)
+            }
+        } finally {
+            reconnectThrottle.release()
         }
-        reconnectingStream = false
     }
 
     override fun onDestroy() {
