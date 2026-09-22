@@ -434,10 +434,12 @@ Recommended next steps:
   pass — inspect the reference/rendered/diff images under
   `app/build/outputs/screenshotTest-results/preview/debug/` and only update after
   an intentional UI change.
-- **The ktlint baseline is line-number sensitive.** Editing a file that has
-  baseline entries shifts line numbers and makes those entries stop matching, so
-  `ktlintCheck` fails until you re-run `:app:ktlintGenerateBaseline`. The baseline
-  count is unchanged by pure line shifts.
+- **The ktlint baseline is empty (0 entries, confirmed 2026-09-22), so line shifts
+  no longer matter.** It was line-number sensitive while entries existed; new
+  violations now fail `quality` directly. If entries are ever re-added, editing a
+  baselined file shifts their line numbers and `ktlintCheck` fails until
+  `:app:ktlintGenerateBaseline` is re-run (the count is unchanged by pure line
+  shifts).
 - **Configuration cache is not enabled globally**: it races KSP sources with the
   combined release gate. It is fine for a narrow `compileDebugKotlin`.
 - **Do not run instrumentation against `com.shapeshed.aerial`**: tests use the
@@ -461,3 +463,45 @@ Recommended next steps:
 ./gradlew test lint assembleRelease bundleRelease   # release gate
 ./gradlew connectedDeviceTestAndroidTest            # on an unlocked device/emulator
 ```
+
+---
+
+## 10. Coverage & testability pass (2026-09-22, PR #251)
+
+Appended after the fact so the plan stays trustworthy; earlier phases are left as written.
+
+- **Coverage gate raised 0.23 -> 0.28.** Owned-code line coverage measured
+  **23.7% -> 29.1%** (JaCoCo, generated classes excluded). The baseline comment in
+  `app/build.gradle` records the measurement.
+- **New pure seams** (extracted so the behaviour is JVM-testable):
+  - `PlayerReconnectPolicy.kt` — `ReconnectThrottle` + `isStalePause` out of
+    `PlayerService`. Also a bug fix: the old `lastReconnectAtMs = 0L` sentinel
+    conflated "never attempted" with "attempted at device boot", so the first
+    reconnect was suppressed when the service started inside the cooldown window.
+  - `PlaybackRecording.kt` — `stationPlaybackKey`, the per-listen identity
+    (deliberately not the Media3 mediaId, which is `"0"` for every unsaved station).
+  - `ui/PlaybackStateSync.kt` — `currentBitrateKbps`. **Declared bitrates only**;
+    streams that declare none (HLS variant playlists, raw ADTS) intentionally show
+    nothing rather than a measured/estimated value.
+  - `PlaybackSessionCoordinator.paginated` made `internal` and covered.
+  - `WidgetPlaybackStore` gained `SharedPreferences` overloads as a test seam.
+  - `MainViewModel` gained an `@IoDispatcher` qualifier (`ui/IoDispatcher.kt`,
+    bound in `UiModule`) and `attachController()` extracted from `connect()`, so
+    `play`, `togglePlayback`, `stopAndClear` and the paused restore are testable
+    without a platform Context or a main-thread executor.
+- **New JVM tests:** backup round-trip and failure paths
+  (`ZipSettingsBackupManagerTest`); `HttpUtils` against an in-process server;
+  widget playback state; library paging clamp; declared bitrate; registry tag
+  ranking, search filters, featured matching and For You fallback;
+  `NetworkMonitor` transitions; `MainViewModel` playback; `savedKey`/pager helpers.
+- **Test hygiene:** shared `testing/MemoryDataStore` and `testing/FakePlayHistoryDao`;
+  `docs/testing.md` now documents the test-double policy (fakes for state, mocks for
+  interactions-as-behaviour, real or in-process servers when cheap; no Robolectric).
+- **Deliberately not covered:** Compose `*ScreenKt`/`*ContentKt`, the Glance
+  `AerialWidget` rendering, and `LogoFiles` bitmaps. These are the largest remaining
+  uncovered blocks but need Robolectric or a device, and the screenshot/instrumented
+  suites already own them.
+- **Not covered, with reason:** `MainViewModel.syncPlaybackState(Player)` (the
+  `onEvents` adapter) could not be driven in a JVM test — `Player.Events` built from
+  a `FlagSet` does not report `containsAny` — and it only delegates to the already
+  tested `reducePlaybackSync`. Left as is rather than fought.

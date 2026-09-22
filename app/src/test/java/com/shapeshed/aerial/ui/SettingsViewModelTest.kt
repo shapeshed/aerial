@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.ViewModel
+import com.shapeshed.aerial.testing.MemoryDataStore
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -147,16 +148,5 @@ class SettingsViewModelTest {
         }
 
         override suspend fun import(uri: Uri): BackupOperationResult<Int> = importResult
-    }
-
-    private class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
-        private val state = MutableStateFlow(initial)
-        override val data: Flow<Preferences> = state
-
-        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
-            val updated = transform(state.value)
-            state.value = updated
-            return updated
-        }
     }
 }

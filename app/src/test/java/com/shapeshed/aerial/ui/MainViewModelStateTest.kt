@@ -18,6 +18,7 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.testing.MemoryDataStore
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -720,14 +721,4 @@ class MainViewModelStateTest {
                 .build(),
         )
         .build()
-
-    private class MemoryDataStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
-        private val state = MutableStateFlow(initial)
-        override val data: Flow<Preferences> = state
-        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
-            val updated = transform(state.value)
-            state.value = updated
-            return updated
-        }
-    }
 }

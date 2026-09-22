@@ -1,5 +1,10 @@
 package com.shapeshed.aerial.ui
 
+import androidx.annotation.OptIn
+import androidx.media3.common.C
+import androidx.media3.common.Format
+import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
 import com.shapeshed.aerial.data.Station
 
 /**
@@ -76,3 +81,21 @@ internal fun PlaybackUiState.reducePlaybackSync(
     isBuffering = isBuffering,
     queue = queue.ifEmpty { this.queue },
 )
+
+/**
+ * Shows only the bitrate the stream itself declares. Undeclared streams (HLS variant playlists,
+ * raw ADTS) deliberately show nothing rather than a measured or estimated value, so video,
+ * unselected and unspecified bitrates are ignored instead of being guessed.
+ */
+@OptIn(UnstableApi::class)
+internal fun currentBitrateKbps(tracks: Tracks): Int? = tracks.getGroups()
+    .asSequence()
+    .filter { group -> group.type == C.TRACK_TYPE_AUDIO && group.isSelected }
+    .flatMap { group ->
+        (0 until group.length).asSequence()
+            .filter { index -> group.isTrackSelected(index) }
+            .map { index -> group.getTrackFormat(index) }
+    }
+    .mapNotNull { format -> format.bitrate.takeIf { it != Format.NO_VALUE && it > 0 } }
+    .firstOrNull()
+    ?.let { bitrate -> (bitrate / 1_000).coerceAtLeast(1) }
