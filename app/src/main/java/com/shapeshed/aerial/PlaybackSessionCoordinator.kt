@@ -132,11 +132,15 @@ internal class PlaybackSessionCoordinator(
             )
         }
     }
+}
 
-    private fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
-        if (pageSize <= 0) return this
-        val from = (page * pageSize).coerceIn(0, size)
-        val to = (from + pageSize).coerceIn(from, size)
-        return subList(from, to)
-    }
+/**
+ * Clamps [page]/[pageSize] to the list bounds for Media3 library paging. A non-positive page size
+ * means "no paging", so every item is returned.
+ */
+internal fun List<MediaItem>.paginated(page: Int, pageSize: Int): List<MediaItem> {
+    if (pageSize <= 0) return this
+    val from = (page * pageSize).coerceIn(0, size)
+    val to = (from + pageSize).coerceIn(from, size)
+    return subList(from, to)
 }
