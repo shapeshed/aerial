@@ -13,13 +13,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
-import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import com.shapeshed.aerial.R
@@ -835,20 +833,8 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    @androidx.annotation.OptIn(UnstableApi::class)
     private fun updateCurrentBitrate(tracks: Tracks) {
-        val bitrateKbps = tracks.getGroups()
-            .asSequence()
-            .filter { group -> group.type == C.TRACK_TYPE_AUDIO && group.isSelected }
-            .flatMap { group ->
-                (0 until group.length).asSequence()
-                    .filter { index -> group.isTrackSelected(index) }
-                    .map { index -> group.getTrackFormat(index) }
-            }
-            .mapNotNull { format -> format.bitrate.takeIf { it != Format.NO_VALUE && it > 0 } }
-            .firstOrNull()
-            ?.let { bitrate -> (bitrate / 1_000).coerceAtLeast(1) }
-        _playbackUiState.value = _playbackUiState.value.copy(bitrateKbps = bitrateKbps)
+        _playbackUiState.value = _playbackUiState.value.copy(bitrateKbps = currentBitrateKbps(tracks))
     }
 
     // queue is the ordered list station is part of in whatever screen triggered playback
