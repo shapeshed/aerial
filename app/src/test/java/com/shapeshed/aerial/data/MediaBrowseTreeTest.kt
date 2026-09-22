@@ -2,6 +2,7 @@ package com.shapeshed.aerial.data
 
 import android.content.Context
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.testing.FakePlayHistoryDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -267,20 +268,5 @@ class MediaBrowseTreeTest {
             stations.filter { it.tags.contains(tag, ignoreCase = true) }
         override suspend fun all(): List<RegistryStation> = stations.sortedBy { it.name }
         override suspend fun browse(limit: Int): List<RegistryStation> = stations.sortedBy { it.name }.take(limit)
-    }
-
-    private class FakePlayHistoryDao(vararg initialEntries: PlayHistoryEntry) : PlayHistoryDao {
-        val entries = initialEntries.toMutableList()
-
-        override suspend fun recordPlay(entry: PlayHistoryEntry) {
-            entries.removeAll { it.provider == entry.provider && it.providerId == entry.providerId }
-            entries += entry
-        }
-
-        override suspend fun recent(limit: Int): List<PlayHistoryEntry> =
-            entries.sortedByDescending { it.playedAt }.take(limit)
-
-        override fun recentAsFlow(limit: Int): Flow<List<PlayHistoryEntry>> =
-            flowOf(entries.sortedByDescending { it.playedAt }.take(limit))
     }
 }
