@@ -49,6 +49,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -84,6 +85,7 @@ class MainViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
     private val mediaControllerGateway: MediaControllerGateway = DefaultMediaControllerGateway(),
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AndroidViewModel(application) {
 
     val isOnline = networkMonitor.isOnline
@@ -457,7 +459,7 @@ class MainViewModel @Inject constructor(
 
     fun playRandomFromMood(tags: List<String>) {
         viewModelScope.launch {
-            val station = withContext(Dispatchers.IO) {
+            val station = withContext(ioDispatcher) {
                 tags.shuffled().firstNotNullOfOrNull { tag ->
                     registryRepository.randomByCategory(tag.lowercase())
                 }
@@ -473,7 +475,7 @@ class MainViewModel @Inject constructor(
     fun addFromRegistry(registryStation: RegistryStation) {
         viewModelScope.launch {
             val localLogoPath = if (registryStation.logoUrl.isNotBlank()) {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     val dir = File(getApplication<Application>().filesDir, "logos").also { it.mkdirs() }
                     artworkLoader.download(registryStation.logoUrl, dir)
                 } ?: registryStation.logoUrl
@@ -481,7 +483,7 @@ class MainViewModel @Inject constructor(
                 ""
             }
             if (!localLogoPath.startsWith("http")) {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     ensureMediaArtworkForLogo(getApplication(), File(localLogoPath))
                 }
             }
@@ -595,30 +597,39 @@ class MainViewModel @Inject constructor(
         if (controllerFuture != null) return
         val appContext = context.applicationContext
         controllerFuture = mediaControllerGateway.connect(appContext)
-        controllerFuture?.addListener({
-            controller = controllerFuture?.get()
-            controller?.addListener(playerListener)
-            controller?.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
-                val station = allStationsState.value.firstOrNull { it.id == id }
-                if (station != null) {
-                    syncPlaybackState(controller, station)
-                    controller?.mediaMetadata?.let { metadata ->
-                        handlePlaybackMetadata(
-                            mediaItem = controller?.currentMediaItem,
-                            title = metadata.title?.toString(),
-                            artist = metadata.artist?.toString(),
-                        )
-                    }
-                } else if (currentStationIdState.value == null) {
-                    syncPlaybackState(controller)
-                }
+        controllerFuture?.addListener(
+            { controllerFuture?.get()?.let(::attachController) },
+            ContextCompat.getMainExecutor(appContext),
+        )
+    }
+
+    /**
+     * Wires a connected controller into this ViewModel. Kept separate from [connect] so the wiring
+     * is testable without a platform Context or a main-thread executor.
+     */
+    @androidx.annotation.VisibleForTesting
+    internal fun attachController(mediaController: MediaController) {
+        controller = mediaController
+        mediaController.addListener(playerListener)
+        mediaController.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+            val station = allStationsState.value.firstOrNull { it.id == id }
+            if (station != null) {
+                syncPlaybackState(mediaController, station)
+                val metadata = mediaController.mediaMetadata
+                handlePlaybackMetadata(
+                    mediaItem = mediaController.currentMediaItem,
+                    title = metadata.title?.toString(),
+                    artist = metadata.artist?.toString(),
+                )
+            } else if (currentStationIdState.value == null) {
+                syncPlaybackState(mediaController)
             }
-            if (controller?.currentMediaItem == null) {
-                viewModelScope.launch {
-                    pendingRestoreStation.await()?.let { loadStationPaused(it) }
-                }
+        }
+        if (mediaController.currentMediaItem == null) {
+            viewModelScope.launch {
+                pendingRestoreStation.await()?.let { loadStationPaused(it) }
             }
-        }, ContextCompat.getMainExecutor(appContext))
+        }
     }
 
     fun toggleFavorite(station: Station) {
@@ -652,7 +663,7 @@ class MainViewModel @Inject constructor(
             }
             repository.delete(station)
             if (!isCurrent) {
-                withContext(Dispatchers.IO) { deleteStationArtworkFiles(station.logoPath) }
+                withContext(ioDispatcher) { deleteStationArtworkFiles(station.logoPath) }
             }
             requestAerialWidgetUpdate(getApplication())
         }
@@ -857,7 +868,7 @@ class MainViewModel @Inject constructor(
         val startIndex = playbackPlan.startIndex
         controller?.let { mediaController ->
             viewModelScope.launch {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     if (startIndex != null) {
                         val mediaItems = coroutineScope {
                             playbackPlan.requestedQueue.map { station ->
@@ -925,7 +936,7 @@ class MainViewModel @Inject constructor(
     // restore — a bare remote URL isn't embedded in the backup zip (see SettingsViewModel).
     private suspend fun ensureLocalLogo(station: Station): Station {
         if (!station.logoPath.startsWith("http")) return station
-        val localPath = withContext(Dispatchers.IO) {
+        val localPath = withContext(ioDispatcher) {
             val dir = File(getApplication<Application>().filesDir, "logos").also { it.mkdirs() }
             artworkLoader.download(station.logoPath, dir)
         } ?: return station
@@ -948,7 +959,7 @@ class MainViewModel @Inject constructor(
         }
         clearLastPlayedStationIfMatching(station)
         repository.delete(station)
-        withContext(Dispatchers.IO) { deleteStationArtworkFiles(station.logoPath) }
+        withContext(ioDispatcher) { deleteStationArtworkFiles(station.logoPath) }
     }
 
     override fun onCleared() {
@@ -1006,7 +1017,7 @@ class MainViewModel @Inject constructor(
 
         controller?.let { mediaController ->
             viewModelScope.launch {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     if (startIndex != null) {
                         val mediaItems = coroutineScope {
                             queue.map { stationEntry ->
