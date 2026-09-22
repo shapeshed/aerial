@@ -255,9 +255,9 @@ tasks.register("jacocoDeviceTestUnitTestCoverageVerification", JacocoCoverageVer
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
                 // Baseline recorded after excluding generated classes (measured
-                // 0.237 on 2026-09-21); raise as new behavior tests land rather
+                // 0.262 on 2026-09-22); raise as new behavior tests land rather
                 // than lowering to fit the current suite.
-                minimum = 0.23
+                minimum = 0.25
             }
         }
     }
