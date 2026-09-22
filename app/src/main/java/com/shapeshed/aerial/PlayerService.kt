@@ -525,11 +525,13 @@ class PlayerService : MediaLibraryService() {
         artworkData: ByteArray? = null,
         artworkUri: Uri?,
     ) {
-        val mediaMetadata = item.mediaMetadata.buildUpon()
-            .setTitle(title)
-            .setArtist(artist ?: stationName)
-            .setSubtitle(title)
-            .setAlbumTitle(stationName)
+        val mediaMetadata = trackDisplayMetadata(
+            base = item.mediaMetadata,
+            stationName = stationName,
+            title = title,
+            artist = artist,
+            liveRadio = getString(R.string.live_radio).orEmpty(),
+        ).buildUpon()
             .apply {
                 if (artworkData != null) {
                     setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)

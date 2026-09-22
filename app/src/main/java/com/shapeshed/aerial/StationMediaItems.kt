@@ -11,6 +11,7 @@ import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.bauerStreamUrl
 import com.shapeshed.aerial.ui.appIconBitmap
 import com.shapeshed.aerial.ui.cachedRemoteArtworkUri
+import com.shapeshed.aerial.ui.computeTrackDisplay
 import com.shapeshed.aerial.ui.localLogoArtworkUri
 import java.io.File
 
@@ -48,6 +49,15 @@ fun stationMediaMetadata(context: Context, station: Station, artworkUriOverride:
         .takeIf { it.isNotEmpty() && !it.startsWith("http") }
         ?.let { localLogoArtworkUri(context, File(it)) }
 
+    // The default (no ICY/ID3 yet) notification text, sharing the mini player's rule so the
+    // quick-settings player and the in-app surfaces can never drift apart.
+    val display = computeTrackDisplay(
+        stationName = station.name,
+        trackTitle = null,
+        trackArtist = null,
+        liveRadio = context.getString(R.string.live_radio).orEmpty(),
+    )
+
     return MediaMetadata.Builder().apply {
         when {
             artworkUriOverride != null -> setArtworkUri(artworkUriOverride)
@@ -61,9 +71,9 @@ fun stationMediaMetadata(context: Context, station: Station, artworkUriOverride:
             }
         }
     }
-        .setTitle(station.name)
-        .setArtist(context.getString(R.string.live_radio))
-        .setSubtitle(context.getString(R.string.live_radio))
+        .setTitle(display.title)
+        .setArtist(display.artist)
+        .setSubtitle(display.artist)
         .setAlbumTitle(station.name)
         .setIsBrowsable(false)
         .setIsPlayable(true)
@@ -77,6 +87,26 @@ fun stationMediaMetadata(context: Context, station: Station, artworkUriOverride:
                 putString("logoPath", station.logoPath)
             },
         )
+        .build()
+}
+
+/**
+ * The notification / quick-settings text for the playing track. Shares [computeTrackDisplay] with
+ * the in-app mini player so the two surfaces cannot drift apart.
+ */
+internal fun trackDisplayMetadata(
+    base: MediaMetadata,
+    stationName: String,
+    title: String,
+    artist: String?,
+    liveRadio: String,
+): MediaMetadata {
+    val display = computeTrackDisplay(stationName, title, artist, liveRadio)
+    return base.buildUpon()
+        .setTitle(display.title)
+        .setArtist(display.artist)
+        .setSubtitle(display.title)
+        .setAlbumTitle(stationName)
         .build()
 }
 
