@@ -127,4 +127,10 @@
     <string name="previous_station">Eelmine jaam</string>
     <string name="station_options">Jaama valikud</string>
     <string name="section_display">Ekraanivaade</string>
+    <string name="widget_name">Aeriali lemikud</string>
+    <string name="widget_empty">Märgi raadiojaamad lemmikuks ja näed neid siin</string>
+    <string name="widget_previous">Eelmine</string>
+    <string name="widget_play">Esita</string>
+    <string name="widget_pause">Peata esitus</string>
+    <string name="widget_next">Järgmine</string>
 </resources>
