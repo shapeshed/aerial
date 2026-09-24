@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.R
@@ -56,7 +57,9 @@ class MainActivityNavigationTest {
         composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithText(string(R.string.no_stations_found)).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText(string(R.string.add_your_own_station)).performClick()
+        composeRule.onNodeWithText(string(R.string.add_your_own_station))
+            .performScrollTo()
+            .performClick()
         composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithTag("station-edit-screen").fetchSemanticsNodes().isNotEmpty()
         }
