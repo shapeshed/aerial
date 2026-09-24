@@ -1,0 +1,11 @@
+# Codecov is reporting-only. The enforced coverage floor lives in Gradle
+# (jacocoDeviceTestUnitTestCoverageVerification), which runs in CI, so the
+# Codecov statuses are informational rather than a second required gate.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
