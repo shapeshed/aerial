@@ -125,10 +125,7 @@ internal fun MainSearchOverlay(
                 onAdd = onAddRegistry,
                 onRemove = onRemoveRegistry,
                 bottomPadding = 0.dp,
-                onAddManually = {
-                    onCollapse()
-                    onAddManually()
-                },
+                onAddManually = onAddManually,
                 state = resultsGridState,
                 header = filterHeader,
             )
