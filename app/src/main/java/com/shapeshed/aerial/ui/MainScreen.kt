@@ -684,15 +684,7 @@ fun MainScreen(
                 onAddRegistry = viewModel::addFromRegistry,
                 onRemoveRegistry = viewModel::removeFromRegistry,
                 onCollapse = { scope.launch { searchBarState.animateToCollapsed() } },
-                onAddManually = {
-                    // Collapse the search bar before navigating so the overlay is not torn
-                    // down mid-animation, which made the add-station screen intermittently
-                    // unavailable on slower devices.
-                    scope.launch {
-                        searchBarState.animateToCollapsed()
-                        navigator.navigate(AerialRoute.AddStation)
-                    }
-                },
+                onAddManually = { navigator.navigate(AerialRoute.AddStation) },
             )
         }
 
