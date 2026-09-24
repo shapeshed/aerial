@@ -161,7 +161,13 @@ def playServiceAccountJsonFile = System.getenv("AERIAL_PLAY_SERVICE_ACCOUNT_JSON
 play {
     if (playServiceAccountJsonFile) {
         serviceAccountCredentials.set(file(playServiceAccountJsonFile))
-        resolutionStrategy.set(ResolutionStrategy.AUTO)
+        // Keep this file's versionCode for every artifact. The Play publisher's AUTO
+        // strategy rewrites it during the build, so the GitHub release APK ended up
+        // one versionCode ahead of the tagged source (0.7.1: source 18, APK 19;
+        // 0.7.2: source 19, APK 20). F-Droid builds from the tag and compares against
+        // that APK, so the mismatch stopped it publishing new versions. The versionCode
+        // is managed with scripts/bump-version.sh instead.
+        resolutionStrategy.set(ResolutionStrategy.IGNORE)
     }
     defaultToAppBundles.set(true)
     track.set("production")
