@@ -147,4 +147,10 @@
     <string name="car_moods">Nastroje</string>
     <string name="recently_played">Ostatnio odtwarzane</string>
     <string name="station_options">Opcje stacji</string>
+    <string name="widget_name">Ulubione Aerial</string>
+    <string name="widget_empty">Dodaj ulubione stacje, aby zobaczyć je tutaj</string>
+    <string name="widget_previous">Poprzednie</string>
+    <string name="widget_play">Włącz</string>
+    <string name="widget_pause">Wstrzymaj</string>
+    <string name="widget_next">Następne</string>
 </resources>
