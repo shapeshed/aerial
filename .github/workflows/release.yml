@@ -107,6 +107,17 @@ jobs:
           install -m 0644 "${{ steps.attest.outputs.bundle-path }}" \
             "app/build/release-assets/aerial-${GITHUB_REF_NAME}.intoto.jsonl"
 
+      - name: Generate SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          file: app/build/release-assets/aerial-${{ github.ref_name }}.apk
+          format: cyclonedx-json
+          output-file: app/build/release-assets/aerial-${{ github.ref_name }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -132,7 +143,7 @@ jobs:
           generate_release_notes: true
 
       - name: Decode Play service account credentials
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
         env:
           AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: |
@@ -143,7 +154,7 @@ jobs:
           printf '%s' "$AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/play-service-account.json"
 
       - name: Publish release to Google Play (production)
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
         env:
           AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE: ${{ runner.temp }}/play-service-account.json
           AERIAL_KEYSTORE_FILE: ${{ runner.temp }}/aerial-release.jks

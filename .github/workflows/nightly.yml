@@ -79,6 +79,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Rename APK
+        id: rename
         if: steps.check.outputs.skip != 'true'
         run: |
           set -eu
@@ -92,6 +93,9 @@ jobs:
           mv "$apk" "./$name"
           sha256sum "./$name" > "./$name.sha256"
           echo "APK_NAME=$name" >> "$GITHUB_ENV"
+          echo "SBOM_NAME=${name%.apk}.cdx.json" >> "$GITHUB_ENV"
+          echo "apk_name=$name" >> "$GITHUB_OUTPUT"
+          echo "sbom_name=${name%.apk}.cdx.json" >> "$GITHUB_OUTPUT"
 
       - name: Generate build provenance
         if: steps.check.outputs.skip != 'true'
@@ -108,6 +112,17 @@ jobs:
           install -m 0644 "${{ steps.attest.outputs.bundle-path }}" "./$provenance"
           echo "PROVENANCE_NAME=$provenance" >> "$GITHUB_ENV"
 
+      - name: Generate SBOM
+        if: steps.check.outputs.skip != 'true'
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          file: ${{ steps.rename.outputs.apk_name }}
+          format: cyclonedx-json
+          output-file: ./${{ steps.rename.outputs.sbom_name }}
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+
       - name: Replace nightly release
         if: steps.check.outputs.skip != 'true'
         env:
@@ -117,7 +132,7 @@ jobs:
           if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete nightly --repo "$GITHUB_REPOSITORY" -y --cleanup-tag
           fi
-          gh release create nightly "./$APK_NAME" "./$APK_NAME.sha256" "./$PROVENANCE_NAME" \
+          gh release create nightly "./$APK_NAME" "./$APK_NAME.sha256" "./$PROVENANCE_NAME" "./$SBOM_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --title "Aerial Nightly" \
