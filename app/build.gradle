@@ -161,7 +161,9 @@ def playServiceAccountJsonFile = System.getenv("AERIAL_PLAY_SERVICE_ACCOUNT_JSON
 play {
     if (playServiceAccountJsonFile) {
         serviceAccountCredentials.set(file(playServiceAccountJsonFile))
-        resolutionStrategy.set(ResolutionStrategy.AUTO)
+        // Keep the committed versionCode authoritative for reproducible artifacts.
+        // Publishing must fail on a conflict instead of rewriting the built output.
+        resolutionStrategy.set(ResolutionStrategy.FAIL)
     }
     defaultToAppBundles.set(true)
     track.set("production")

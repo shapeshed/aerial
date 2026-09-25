@@ -83,6 +83,7 @@ fi
 
 echo "Running Gradle release gate..."
 "$ROOT_DIR/gradlew" -p "$ROOT_DIR" test lint assembleRelease bundleRelease
+"$ROOT_DIR/scripts/verify-release-version-code.sh"
 
 if [[ "$skip_fdroid" == false ]]; then
   if [[ ! -d "$FDROIDDATA_DIR" ]]; then
