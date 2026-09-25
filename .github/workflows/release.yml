@@ -132,6 +132,21 @@ jobs:
           path: app/build/play-assets/*
           if-no-files-found: error
 
+      - name: Generate release notes from CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="$version" '
+            $0 == "## [" version "]" || $0 ~ "^## \\[" version "\\] - " { in_section = 1; next }
+            in_section && /^## \[/ { exit }
+            in_section { print }
+          ' CHANGELOG.md > app/build/release-notes.md
+          if [ ! -s app/build/release-notes.md ]; then
+            echo "No CHANGELOG.md section found for $version" >&2
+            exit 1
+          fi
+
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
@@ -140,7 +155,7 @@ jobs:
             app/build/release-assets/*
           overwrite_files: true
           draft: true
-          generate_release_notes: true
+          body_path: app/build/release-notes.md
 
       - name: Decode Play service account credentials
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
