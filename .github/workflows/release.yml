@@ -7,26 +7,28 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     name: Build release APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDK
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin
           java-version: 25.0.4+101.0.LTS
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
@@ -36,7 +38,7 @@ jobs:
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "$PWD:/workspace" -w /workspace \
-            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8 \
             python3 scripts/generate-registry-db.py \
               --input app/src/main/registry/registry.json \
               --output app/build/generated/aerialRegistry/assets/registry.db.compressed \
@@ -90,14 +92,14 @@ jobs:
           sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aerial-release-apk
           path: app/build/release-assets/*
           if-no-files-found: error
 
       - name: Upload Play artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aerial-play-aab
           path: app/build/play-assets/*
@@ -105,7 +107,7 @@ jobs:
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           files: |
             app/build/release-assets/*
