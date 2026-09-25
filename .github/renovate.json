@@ -5,7 +5,9 @@
     ":dependencyDashboard",
     ":rebaseStalePrs",
     ":prConcurrentLimit10",
-    ":automergeRequireAllStatusChecks"
+    ":automergeRequireAllStatusChecks",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests"
   ],
   "labels": [
     "dependencies",
@@ -16,9 +18,33 @@
   "major": {
     "automerge": false
   },
+  "packageRules": [
+    {
+      "description": "Automerge GitHub-hosted runner image updates. CI runs on the new image, and :automergeRequireAllStatusChecks gates the merge on a green run.",
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "automerge": true
+    }
+  ],
   "enabledManagers": [
     "gradle",
-    "github-actions"
+    "github-actions",
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Pin the F-Droid buildserver image used by the release workflow",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.*\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "registry\\.gitlab\\.com/fdroid/fdroidserver:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "depNameTemplate": "registry.gitlab.com/fdroid/fdroidserver",
+      "datasourceTemplate": "docker"
+    }
   ],
   "timezone": "UTC",
   "dependencyDashboard": true

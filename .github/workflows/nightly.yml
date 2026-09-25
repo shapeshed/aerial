@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: nightly-build
@@ -15,13 +15,17 @@ concurrency:
 jobs:
   nightly:
     name: Build and publish nightly APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     if: github.repository_owner == 'shapeshed'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Check for commits in the last 24 hours
         id: check
@@ -35,14 +39,14 @@ jobs:
 
       - name: Set up JDK
         if: steps.check.outputs.skip != 'true'
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin
           java-version: 25.0.4+101.0.LTS
 
       - name: Set up Gradle
         if: steps.check.outputs.skip != 'true'
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Make Gradle wrapper executable
         if: steps.check.outputs.skip != 'true'
@@ -75,6 +79,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Rename APK
+        id: rename
         if: steps.check.outputs.skip != 'true'
         run: |
           set -eu
@@ -88,6 +93,35 @@ jobs:
           mv "$apk" "./$name"
           sha256sum "./$name" > "./$name.sha256"
           echo "APK_NAME=$name" >> "$GITHUB_ENV"
+          echo "SBOM_NAME=${name%.apk}.cdx.json" >> "$GITHUB_ENV"
+          echo "apk_name=$name" >> "$GITHUB_OUTPUT"
+          echo "sbom_name=${name%.apk}.cdx.json" >> "$GITHUB_OUTPUT"
+
+      - name: Generate build provenance
+        if: steps.check.outputs.skip != 'true'
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ env.APK_NAME }}
+
+      - name: Prepare provenance asset
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          set -eu
+          provenance="${APK_NAME%.apk}.intoto.jsonl"
+          install -m 0644 "${{ steps.attest.outputs.bundle-path }}" "./$provenance"
+          echo "PROVENANCE_NAME=$provenance" >> "$GITHUB_ENV"
+
+      - name: Generate SBOM
+        if: steps.check.outputs.skip != 'true'
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          file: ${{ steps.rename.outputs.apk_name }}
+          format: cyclonedx-json
+          output-file: ./${{ steps.rename.outputs.sbom_name }}
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
 
       - name: Replace nightly release
         if: steps.check.outputs.skip != 'true'
@@ -98,7 +132,7 @@ jobs:
           if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete nightly --repo "$GITHUB_REPOSITORY" -y --cleanup-tag
           fi
-          gh release create nightly "./$APK_NAME" "./$APK_NAME.sha256" \
+          gh release create nightly "./$APK_NAME" "./$APK_NAME.sha256" "./$PROVENANCE_NAME" "./$SBOM_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --title "Aerial Nightly" \

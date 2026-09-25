@@ -7,26 +7,30 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     name: Build release APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDK
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin
           java-version: 25.0.4+101.0.LTS
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
@@ -36,7 +40,7 @@ jobs:
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "$PWD:/workspace" -w /workspace \
-            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8 \
             python3 scripts/generate-registry-db.py \
               --input app/src/main/registry/registry.json \
               --output app/build/generated/aerialRegistry/assets/registry.db.compressed \
@@ -89,15 +93,40 @@ jobs:
           sha256sum "app/build/release-assets/aerial-${tag}.apk" > "app/build/release-assets/aerial-${tag}.apk.sha256"
           sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
 
+      - name: Generate build provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: app/build/release-assets/aerial-*.apk
+
+      - name: Add build provenance to release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          install -m 0644 "${{ steps.attest.outputs.bundle-path }}" \
+            "app/build/release-assets/aerial-${GITHUB_REF_NAME}.intoto.jsonl"
+
+      - name: Generate SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          file: app/build/release-assets/aerial-${{ github.ref_name }}.apk
+          format: cyclonedx-json
+          output-file: app/build/release-assets/aerial-${{ github.ref_name }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aerial-release-apk
           path: app/build/release-assets/*
           if-no-files-found: error
 
       - name: Upload Play artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aerial-play-aab
           path: app/build/play-assets/*
@@ -105,7 +134,7 @@ jobs:
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           files: |
             app/build/release-assets/*
@@ -114,7 +143,7 @@ jobs:
           generate_release_notes: true
 
       - name: Decode Play service account credentials
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
         env:
           AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
         run: |
@@ -125,7 +154,7 @@ jobs:
           printf '%s' "$AERIAL_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/play-service-account.json"
 
       - name: Publish release to Google Play (production)
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
         env:
           AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE: ${{ runner.temp }}/play-service-account.json
           AERIAL_KEYSTORE_FILE: ${{ runner.temp }}/aerial-release.jks
