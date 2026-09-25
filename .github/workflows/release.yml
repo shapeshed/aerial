@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Check out repository
@@ -90,6 +92,20 @@ jobs:
           cp "$signed_aab" "app/build/play-assets/aerial-${tag}.aab"
           sha256sum "app/build/release-assets/aerial-${tag}.apk" > "app/build/release-assets/aerial-${tag}.apk.sha256"
           sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
+
+      - name: Generate build provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: app/build/release-assets/aerial-*.apk
+
+      - name: Add build provenance to release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          install -m 0644 "${{ steps.attest.outputs.bundle-path }}" \
+            "app/build/release-assets/aerial-${GITHUB_REF_NAME}.intoto.jsonl"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
