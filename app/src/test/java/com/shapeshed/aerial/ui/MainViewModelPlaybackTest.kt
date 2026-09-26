@@ -31,9 +31,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -45,6 +47,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -67,6 +70,33 @@ class MainViewModelPlaybackTest {
 
         verify(controller).prepare()
         verify(controller).play()
+    }
+
+    @Test
+    fun newestPlayRequestWinsWhenEarlierMediaItemConversionIsPending() = runTest {
+        val controller = mock<MediaController>()
+        val mainDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(mainDispatcher)
+        val ioScheduler = TestCoroutineScheduler()
+        val viewModel = viewModel(controller, StandardTestDispatcher(ioScheduler))
+
+        val queue = listOf(station(1), station(2))
+        viewModel.play(station(1), queue)
+        runCurrent()
+        viewModel.play(station(2), queue)
+        runCurrent()
+        ioScheduler.advanceUntilIdle()
+        runCurrent()
+        ioScheduler.advanceUntilIdle()
+        runCurrent()
+
+        val mediaItems = argumentCaptor<List<androidx.media3.common.MediaItem>>()
+        val startIndex = argumentCaptor<Int>()
+        verify(controller, times(1)).setMediaItems(mediaItems.capture(), startIndex.capture(), any())
+        assertEquals(listOf("1", "2"), mediaItems.firstValue.map { it.mediaId })
+        assertEquals(1, startIndex.firstValue)
+        verify(controller, times(1)).prepare()
+        verify(controller, times(1)).play()
     }
 
     @Test

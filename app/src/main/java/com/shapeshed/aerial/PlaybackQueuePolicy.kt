@@ -55,7 +55,11 @@ internal suspend fun expandControllerQueue(
     return if (siblings != null && siblingIndex >= 0) {
         MediaSession.MediaItemsWithStartPosition(siblings, siblingIndex, startPositionMs)
     } else {
-        val resolved = mediaItems.map { item -> resolveMediaItem(item.mediaId) ?: item }
+        val resolved = mediaItems.map { item ->
+            resolveMediaItem(item.mediaId)
+                ?: item.takeIf { controllerPackage == appPackage }
+                ?: throw IllegalArgumentException("Unresolved media item: ${item.mediaId}")
+        }
         MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
     }
 }
