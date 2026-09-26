@@ -120,7 +120,7 @@ class ZipSettingsBackupManager(
 
                     entry.name == BACKUP_MANIFEST -> {
                         manifestJson = ByteArrayOutputStream().use { output ->
-                            zip.copyTo(output)
+                            zip.copyEntryTo(output, MAX_BACKUP_ENTRY_BYTES)
                             output.toString(Charsets.UTF_8.name())
                         }
                     }
@@ -130,7 +130,7 @@ class ZipSettingsBackupManager(
                             logoDir,
                             "${UUID.randomUUID()}_${safeFileName(entry.name.substringAfterLast('/'))}",
                         )
-                        file.outputStream().use { zip.copyTo(it) }
+                        file.outputStream().use { zip.copyEntryTo(it, MAX_BACKUP_ENTRY_BYTES) }
                         ensureMediaArtworkForLogo(context, file)
                         restoredLogos[entry.name] = file.absolutePath
                     }
@@ -194,8 +194,21 @@ class ZipSettingsBackupManager(
 
     private fun safeFileName(name: String): String = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "logo" }
 
+    private fun ZipInputStream.copyEntryTo(output: OutputStream, maxBytes: Long) {
+        val buffer = ByteArray(8 * 1024)
+        var totalBytes = 0L
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) return
+            totalBytes += read
+            require(totalBytes <= maxBytes) { "Backup entry exceeds the maximum allowed size" }
+            output.write(buffer, 0, read)
+        }
+    }
+
     private companion object {
         const val BACKUP_VERSION = 1
         const val BACKUP_MANIFEST = "backup.json"
+        const val MAX_BACKUP_ENTRY_BYTES = 1024L * 1024L
     }
 }

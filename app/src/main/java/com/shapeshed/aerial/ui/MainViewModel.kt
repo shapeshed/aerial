@@ -51,6 +51,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -63,6 +64,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -136,7 +138,9 @@ class MainViewModel @Inject constructor(
 
     private fun initialize() {
         viewModelScope.launch {
-            migrateImportedArtwork()
+            withContext(ioDispatcher) {
+                migrateImportedArtwork()
+            }
         }
         viewModelScope.launch {
             repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
@@ -227,6 +231,7 @@ class MainViewModel @Inject constructor(
 
     private val allStationsState: StateFlow<List<Station>> = repository.getAll()
         .map { stations -> stations.map { recoverStationArtwork(it) } }
+        .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private suspend fun recoverStationArtwork(station: Station): Station {
@@ -592,6 +597,7 @@ class MainViewModel @Inject constructor(
 
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
+    private var playbackJob: Job? = null
 
     fun connect(context: Context) {
         if (controllerFuture != null) return
@@ -867,7 +873,8 @@ class MainViewModel @Inject constructor(
         persistLastPlayedStation(playbackPlan.station, playbackPlan.requestedQueue)
         val startIndex = playbackPlan.startIndex
         controller?.let { mediaController ->
-            viewModelScope.launch {
+            playbackJob?.cancel()
+            playbackJob = viewModelScope.launch {
                 withContext(ioDispatcher) {
                     if (startIndex != null) {
                         val mediaItems = coroutineScope {
@@ -913,6 +920,7 @@ class MainViewModel @Inject constructor(
     // play() afterwards goes through the same path as starting a station with no player active.
     fun stopAndClear() {
         suppressLastPlayedPersist = true
+        playbackJob?.cancel()
         activeFavoritesOrderState.value = null
         controller?.apply {
             stop()

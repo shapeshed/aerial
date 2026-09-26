@@ -60,6 +60,7 @@ import com.shapeshed.aerial.data.favoriteToggleAction
 import com.shapeshed.aerial.data.httpGetText
 import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.data.resolveStreamUrl
+import com.shapeshed.aerial.data.streamMetadataChanges
 import com.shapeshed.aerial.data.streamMetadataFrames
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
@@ -245,13 +246,15 @@ class PlayerService : MediaLibraryService() {
         }
 
         override fun onMetadata(metadata: Metadata) {
-            val frames = streamMetadataFrames(metadata)
+            val item = player.currentMediaItem ?: return
+            val changes = streamMetadataChanges(
+                frames = streamMetadataFrames(metadata),
+                lastIcyTitle = lastIcyTitle,
+                lastId3Title = lastId3Title,
+            )
 
-            frames.icyTitle?.let { rawTitle ->
-                val title = rawTitle.trim()
-                if (title.isEmpty() || title == lastIcyTitle) return
+            changes.icyTitle?.let { title ->
                 lastIcyTitle = title
-                val item = player.currentMediaItem ?: return
                 val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
                     item.mediaMetadata.extras?.getString("stationName"),
                     item.mediaMetadata.title,
@@ -275,32 +278,28 @@ class PlayerService : MediaLibraryService() {
                 )
             }
 
-            val id3Title = frames.id3Title
-            if (id3Title != null) {
-                if (id3Title != lastId3Title) {
-                    lastId3Title = id3Title
-                    val item = player.currentMediaItem ?: return
-                    val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
-                        item.mediaMetadata.extras?.getString("stationName"),
-                        item.mediaMetadata.title,
-                    )
-                    WidgetPlaybackStore.writeMetadata(
-                        this@PlayerService,
-                        item.mediaId,
-                        id3Title,
-                        frames.id3Artist,
-                    )
-                    requestAerialWidgetUpdate(this@PlayerService)
-                    replaceCurrentMediaItem(
-                        item,
-                        index = player.currentMediaItemIndex,
-                        stationName = stationName,
-                        artist = frames.id3Artist,
-                        title = id3Title,
-                        artworkData = frames.id3Artwork ?: item.mediaMetadata.artworkData,
-                        artworkUri = if (frames.id3Artwork != null) null else item.mediaMetadata.artworkUri,
-                    )
-                }
+            changes.id3Title?.let { id3Title ->
+                lastId3Title = id3Title
+                val stationName = currentStation()?.name ?: stationNameFromMediaMetadata(
+                    item.mediaMetadata.extras?.getString("stationName"),
+                    item.mediaMetadata.title,
+                )
+                WidgetPlaybackStore.writeMetadata(
+                    this@PlayerService,
+                    item.mediaId,
+                    id3Title,
+                    changes.id3Artist,
+                )
+                requestAerialWidgetUpdate(this@PlayerService)
+                replaceCurrentMediaItem(
+                    item,
+                    index = player.currentMediaItemIndex,
+                    stationName = stationName,
+                    artist = changes.id3Artist,
+                    title = id3Title,
+                    artworkData = changes.id3Artwork ?: item.mediaMetadata.artworkData,
+                    artworkUri = if (changes.id3Artwork != null) null else item.mediaMetadata.artworkUri,
+                )
             }
         }
 
