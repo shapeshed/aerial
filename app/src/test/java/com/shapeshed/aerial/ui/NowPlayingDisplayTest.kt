@@ -1,5 +1,9 @@
 package com.shapeshed.aerial.ui
 
+import com.shapeshed.aerial.playback.NowPlayingDisplay
+import com.shapeshed.aerial.playback.TrackDisplay
+import com.shapeshed.aerial.playback.computeNowPlayingDisplay
+import com.shapeshed.aerial.playback.computeTrackDisplay
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

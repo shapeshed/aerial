@@ -4,8 +4,6 @@ import android.app.Application
 import android.os.Bundle
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -18,13 +16,13 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.playback.WidgetUpdater
 import com.shapeshed.aerial.testing.MemoryDataStore
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -64,6 +62,68 @@ class MainViewModelStateTest {
         val clear = ViewModel::class.java.getDeclaredMethod("clear\$lifecycle_viewmodel")
         viewModels.forEach { clear.invoke(it) }
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun favouritingAnEphemeralStationAsksTheWidgetToRedraw() = runTest {
+        val repository = mock<StationRepository>()
+        val savedId = 7L
+        // The ephemeral path waits for the saved row to reach the station list before it hands the
+        // station off, so the list has to contain it.
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(station(id = savedId, name = "Saved"))))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.saveAsFavorite(any())).thenReturn(savedId)
+        val widgetUpdater = RecordingWidgetUpdater()
+        val viewModel = viewModel(repository, mock(), widgetUpdater = widgetUpdater)
+
+        viewModel.toggleFavorite(station(id = 0L, name = "Played but unsaved"))
+        advanceUntilIdle()
+
+        assertEquals(1, widgetUpdater.requestCount)
+    }
+
+    @Test
+    fun unfavouritingRemovesTheSavedRowAndAsksTheWidgetToRedraw() = runTest {
+        val repository = mock<StationRepository>()
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        val widgetUpdater = RecordingWidgetUpdater()
+        val viewModel = viewModel(repository, mock(), widgetUpdater = widgetUpdater)
+        val favourite = station(id = 3L, name = "Favourite")
+
+        viewModel.toggleFavorite(favourite)
+        advanceUntilIdle()
+
+        verify(repository).delete(argThat { id == favourite.id })
+        assertEquals(1, widgetUpdater.requestCount)
+    }
+
+    @Test
+    fun restoringAFavouriteAsksTheWidgetToRedraw() = runTest {
+        val repository = mock<StationRepository>()
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        val widgetUpdater = RecordingWidgetUpdater()
+        whenever(repository.saveAsFavorite(any())).thenReturn(11L)
+        val viewModel = viewModel(repository, mock(), widgetUpdater = widgetUpdater)
+
+        viewModel.restoreFavorite(station(id = 0L, name = "Bring back"))
+        advanceUntilIdle()
+
+        assertEquals(1, widgetUpdater.requestCount)
+    }
+
+    @Test
+    fun startupDoesNotAskTheWidgetToRedraw() = runTest {
+        val repository = mock<StationRepository>()
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        whenever(repository.getAll()).thenReturn(flowOf(emptyList()))
+        val widgetUpdater = RecordingWidgetUpdater()
+
+        viewModel(repository, mock(), widgetUpdater = widgetUpdater)
+        advanceUntilIdle()
+
+        assertEquals(0, widgetUpdater.requestCount)
     }
 
     @Test
@@ -697,6 +757,7 @@ class MainViewModelStateTest {
         dataStore: DataStore<Preferences> = MemoryDataStore(),
         artworkLoader: ArtworkLoader = CoilArtworkLoader(mock()),
         ioDispatcher: CoroutineDispatcher = mainDispatcher,
+        widgetUpdater: WidgetUpdater = NoopWidgetUpdater,
     ): MainViewModel {
         val app = mock<Application>()
         val network = mock<NetworkMonitor>()
@@ -710,6 +771,7 @@ class MainViewModelStateTest {
             dataStore = dataStore,
             networkMonitor = network,
             strings = strings,
+            widgetUpdater = widgetUpdater,
             artworkLoader = artworkLoader,
             ioDispatcher = ioDispatcher,
         ).also(viewModels::add)
@@ -730,6 +792,16 @@ class MainViewModelStateTest {
             this.url = url
             return path
         }
+    }
+
+    /** Counts redraw requests so tests can assert the widget is told when favourites change. */
+    private class RecordingWidgetUpdater : WidgetUpdater {
+        var requestCount = 0
+        override fun request() {
+            requestCount++
+        }
+
+        override suspend fun handlePlaybackAction(action: String?) = Unit
     }
 
     private fun station(id: Long, name: String, lastPlayedAt: Long = 0, playCount: Int = 0) = Station(

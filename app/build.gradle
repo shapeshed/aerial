@@ -152,6 +152,12 @@ android {
             // Some framework calls (e.g. Uri.parse, used by media3's MediaItem.Builder) would
             // otherwise throw "not mocked" in plain JUnit tests with no Robolectric.
             returnDefaultValues = true
+            all {
+                // PackageLayeringTest reads the main sources to assert the package graph stays
+                // acyclic. Point it at the tree explicitly rather than relying on the working
+                // directory Gradle happens to use.
+                systemProperty "aerial.mainSourceDir", layout.projectDirectory.dir("src/main/java/com/shapeshed/aerial").asFile.absolutePath
+            }
         }
     }
 }
@@ -257,9 +263,9 @@ tasks.register("jacocoDeviceTestUnitTestCoverageVerification", JacocoCoverageVer
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
                 // Baseline recorded after excluding generated classes (measured
-                // 0.300 on 2026-09-22); raise as new behavior tests land rather
+                // 0.327 on 2026-09-27); raise as new behavior tests land rather
                 // than lowering to fit the current suite.
-                minimum = 0.29
+                minimum = 0.32
             }
         }
     }

@@ -20,14 +20,16 @@ abstract class RegistryDatabase : RoomDatabase() {
         private const val PREFS_NAME = "registry_database"
         private const val PREF_ASSET_VERSION = "asset_version"
 
-        @Volatile private var instance: RegistryDatabase? = null
-
-        fun get(context: Context, assetVersion: Int): RegistryDatabase = instance ?: synchronized(this) {
+        /**
+         * Builds the registry database, first making sure the bundled registry asset is unpacked
+         * for [assetVersion]. Singleton lifetime is owned by Hilt (see `UiModule`), so this must
+         * not be called more than once per process.
+         */
+        internal fun create(context: Context, assetVersion: Int): RegistryDatabase {
             context.prepareRegistryDatabase(assetVersion)
-            Room.databaseBuilder(context, RegistryDatabase::class.java, DATABASE_NAME)
+            return Room.databaseBuilder(context, RegistryDatabase::class.java, DATABASE_NAME)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
-                .also { instance = it }
         }
 
         private fun Context.prepareRegistryDatabase(assetVersion: Int) {

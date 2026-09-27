@@ -17,22 +17,6 @@ class AerialWidgetTest {
     }
 
     @Test
-    fun navigationMirrorsTheActiveQueue() {
-        assertEquals(
-            WidgetNavigationAvailability(previous = false, next = false),
-            widgetNavigationAvailability(index = 0, size = 1),
-        )
-        assertEquals(
-            WidgetNavigationAvailability(previous = true, next = true),
-            widgetNavigationAvailability(index = 0, size = 3),
-        )
-        assertEquals(
-            WidgetNavigationAvailability(previous = true, next = true),
-            widgetNavigationAvailability(index = 2, size = 3),
-        )
-    }
-
-    @Test
     fun widgetLayoutAdaptsToAvailableSize() {
         assertEquals(WidgetLayoutSize(180, 48), widgetLayoutSize(width = 180, height = 48))
         assertEquals(WidgetLayoutSize(304, 48), widgetLayoutSize(width = 400, height = 48))

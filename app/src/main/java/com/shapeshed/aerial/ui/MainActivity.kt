@@ -1,4 +1,4 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.ui
 
 import android.os.Build
 import android.os.Bundle

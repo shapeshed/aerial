@@ -12,12 +12,13 @@ import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
-import com.shapeshed.aerial.data.MediaBrowseTree
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.StationArtworkResolver
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.resolveQueueStart
+import com.shapeshed.aerial.playback.MediaBrowseTree
+import com.shapeshed.aerial.playback.toSystemPlayableMediaItem
 import kotlinx.coroutines.flow.first
 
 /**

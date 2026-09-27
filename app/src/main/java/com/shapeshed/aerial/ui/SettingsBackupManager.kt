@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.data.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import java.io.ByteArrayOutputStream

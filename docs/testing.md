@@ -4,6 +4,17 @@ Aerial follows the Android testing pyramid used by current Google Compose
 reference projects such as [Now in Android](https://github.com/android/nowinandroid#testing)
 and [Jetcaster](https://github.com/android/compose-samples/tree/main/Jetcaster).
 
+## Static analysis
+
+`./gradlew quality` runs ktlint and Android lint. ktlint's `no-unused-imports`
+rule is switched on explicitly in `.editorconfig`
+(`ktlint_standard_no-unused-imports`): the `android_studio` code style this
+project uses leaves that standard rule off by default, so stale imports were
+accumulating without failing the build. Remove an unused import rather than
+suppressing the rule. `ktlintFormat` autocorrects this rule safely, but a
+whole-project `ktlintFormat` is not a reliable way to clear the baseline
+(see `docs/quality-improvement-plan.md` §2.3).
+
 ## Test placement
 
 - `app/src/test/` contains fast JVM tests for repositories, ViewModels, parsers,
@@ -112,17 +123,42 @@ the required, provider-independent coverage gate.
 
 ## Dependency injection
 
-The application and main activity are Hilt-enabled, and screen ViewModels are
-migrated incrementally behind explicit modules and constructor injection.
+Hilt owns the whole object graph. `UiModule` is the single place a
+process-wide collaborator is constructed; `AerialApp` holds nothing but the
+`@HiltAndroidApp` annotation and Coil's `SingletonImageLoader.Factory` hook.
+`PlayerService` and both widget receivers are `@AndroidEntryPoint` components,
+so no code casts `Application` to reach the graph. Adding a collaborator means
+adding a binding to `UiModule` or an `@Inject` constructor, never a cached
+field.
+
+Two rules keep that from drifting:
+
+- Anything a caller needs from another component is an interface with a
+  default implementation bound in `UiModule` (`WidgetUpdater`,
+  `MediaControllerGateway`, `ArtworkLoader`, `StringProvider`,
+  `SettingsBackupManager`). This is what lets unit tests substitute a fake
+  without a DI-aware runner.
+- Any type with real logic gets its own file and pure inputs, so it can be
+  unit tested directly. `WidgetUpdateDebounce` is the model: the coalescing
+  rule is tested on virtual time rather than through a live `AppWidgetManager`.
+
+`DependencyGraphTest` pins the wiring itself: it resolves every collaborator
+the UI and service depend on through Hilt's `@EntryPoint` and asserts the
+results are shared instances, which is what catches a collaborator that ends
+up constructed twice.
+
 The station editor uses Hilt assisted injection for its route-provided station
 ID, so navigation arguments remain explicit rather than being read from global
 state.
-Local unit tests should continue to instantiate classes directly with fakes;
-they do not need Hilt. When an instrumented test first requires injected
-dependencies, add `@HiltAndroidTest`, `HiltAndroidRule`, and switch the test
-runner application to `HiltTestApplication` for that test setup. Until then,
-the isolated runner remains intentionally simple and protects the developer's
-normal app installation.
+
+Local unit tests instantiate classes directly with fakes; they do not need
+Hilt. Instrumented tests read the production graph through
+`AerialTestEnvironment.graph()`, which is an `@EntryPoint` on
+`SingletonComponent` — that resolves the same bindings production does
+without needing `HiltTestApplication`, so the runner stays simple and keeps
+protecting the developer's normal app installation. Only if a test later needs
+to *replace* a binding should `@HiltAndroidTest`, `HiltAndroidRule`, and
+`HiltTestApplication` be introduced.
 
 ## Macrobenchmarks
 

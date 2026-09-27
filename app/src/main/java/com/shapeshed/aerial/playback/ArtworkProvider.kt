@@ -1,4 +1,4 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.playback
 
 import android.content.ContentProvider
 import android.content.ContentValues
