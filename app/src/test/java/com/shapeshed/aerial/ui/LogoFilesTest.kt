@@ -1,5 +1,7 @@
 package com.shapeshed.aerial.ui
 
+import com.shapeshed.aerial.playback.looksLikeCircularArtwork
+import com.shapeshed.aerial.playback.mediaArtworkFileForSystem
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Test

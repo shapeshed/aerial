@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import android.app.Application
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -21,17 +22,16 @@ import androidx.media3.common.Tracks
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import com.shapeshed.aerial.R
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
-import com.shapeshed.aerial.data.FavoritesQueueCoordinator
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
+import com.shapeshed.aerial.data.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.SLEEP_TIMER_DURATION_MS
 import com.shapeshed.aerial.data.SleepTimerState
 import com.shapeshed.aerial.data.SleepTimerStore
@@ -41,13 +41,17 @@ import com.shapeshed.aerial.data.buildPlaybackQueuePlan
 import com.shapeshed.aerial.data.normalizeTrackMetadata
 import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.resolveQueueStart
-import com.shapeshed.aerial.stationFromMediaItem
-import com.shapeshed.aerial.toEphemeralStation
-import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import com.shapeshed.aerial.di.IoDispatcher
+import com.shapeshed.aerial.playback.NowPlayingDisplay
+import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.playback.computeNowPlayingDisplay
+import com.shapeshed.aerial.playback.stationFromMediaItem
+import com.shapeshed.aerial.playback.toEphemeralStation
+import com.shapeshed.aerial.playback.toSystemPlayableMediaItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +63,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -69,10 +74,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val RECENTLY_PLAYED_LIMIT = 10
+private const val TAG = "MainViewModel"
+
+/**
+ * Stand-in used when a [MainViewModel] is constructed without Hilt (previews and tests that do not
+ * care about the widget). Production always injects the real updater from `UiModule`.
+ */
+internal object NoopWidgetUpdater : WidgetUpdater {
+    override fun request() = Unit
+    override suspend fun handlePlaybackAction(action: String?) = Unit
+}
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -88,6 +104,8 @@ class MainViewModel @Inject constructor(
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
     private val mediaControllerGateway: MediaControllerGateway = DefaultMediaControllerGateway(),
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @Suppress("VisibleForTests")
+    private val widgetUpdater: WidgetUpdater = NoopWidgetUpdater,
 ) : AndroidViewModel(application) {
 
     val isOnline = networkMonitor.isOnline
@@ -99,8 +117,14 @@ class MainViewModel @Inject constructor(
         dataStore = dataStore,
     )
 
-    private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    private val _startupState = MutableStateFlow<AppStartupState>(AppStartupState.Loading)
+    val startupState: StateFlow<AppStartupState> = _startupState.asStateFlow()
+
+    // The splash screen only needs "may I dismiss yet", so derive that rather than keeping a
+    // second flag that could disagree with the state above.
+    val isInitialized: StateFlow<Boolean> = _startupState
+        .map { it.settled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _allTags = MutableStateFlow<List<String>>(emptyList())
     val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
@@ -139,7 +163,14 @@ class MainViewModel @Inject constructor(
     private fun initialize() {
         viewModelScope.launch {
             withContext(ioDispatcher) {
-                migrateImportedArtwork()
+                try {
+                    migrateImportedArtwork()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    // Best-effort housekeeping; never let it stop the app from opening.
+                    Log.w(TAG, "Artwork migration skipped", error)
+                }
             }
         }
         viewModelScope.launch {
@@ -160,15 +191,41 @@ class MainViewModel @Inject constructor(
                         }
                     }
                 }
+                // A failing history query must not leave the splash screen waiting on a signal
+                // that will never arrive; the gate below settles on the timeout either way.
+                .catch { error ->
+                    Log.w(TAG, "Recently played history unavailable", error)
+                    recentlyPlayedFirstLoad.complete(Unit)
+                }
                 .collect {
                     _recentlyPlayedStations.value = it
+                    // complete() is a no-op once signalled, so re-emissions are harmless.
                     recentlyPlayedFirstLoad.complete(Unit)
                 }
         }
         viewModelScope.launch {
-            repository.getAll().first()
-            recentlyPlayedFirstLoad.await()
-            _isInitialized.value = true
+            // Each source reports "resolved" rather than failing. A failed child would cancel
+            // this coroutine through structured concurrency and the state below would never be
+            // set, which is the same indefinite splash as never resolving at all.
+            val stationsLoaded = async {
+                try {
+                    repository.getAll().first()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    Log.w(TAG, "Station list unavailable; opening anyway", error)
+                }
+            }
+            val historyLoaded = async { recentlyPlayedFirstLoad.await() }
+            val ready = withTimeoutOrNull(STARTUP_CONTENT_TIMEOUT_MS) {
+                awaitAll(stationsLoaded, historyLoaded)
+            }
+            _startupState.value = if (ready == null) {
+                Log.w(TAG, "Home content not ready within ${STARTUP_CONTENT_TIMEOUT_MS}ms; opening anyway")
+                AppStartupState.GaveUp(STARTUP_CONTENT_TIMEOUT_MS)
+            } else {
+                AppStartupState.Ready
+            }
         }
         viewModelScope.launch {
             restoreLastPlayedStation()
@@ -232,6 +289,10 @@ class MainViewModel @Inject constructor(
     private val allStationsState: StateFlow<List<Station>> = repository.getAll()
         .map { stations -> stations.map { recoverStationArtwork(it) } }
         .flowOn(ioDispatcher)
+        // A failed read is a broken database, not a reason to take the process down: the UI
+        // shows an empty list and the user can still reach settings. Without this the shared
+        // flow's collecting coroutine dies, and the exception is unhandled.
+        .catch { error -> Log.w(TAG, "Station list unavailable", error) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private suspend fun recoverStationArtwork(station: Station): Station {
@@ -255,13 +316,10 @@ class MainViewModel @Inject constructor(
     private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
-    private val activeFavoritesOrderState = MutableStateFlow<List<Long>?>(null)
-    private val favoritesQueueCoordinator = FavoritesQueueCoordinator()
+    private val favoritesOrder = FavoritesOrder()
 
-    private fun favoritesOrder(queue: List<Station>): List<Long>? {
-        val favorites = allStationsState.value.filter(Station::isFavorite)
-        return favoritesQueueCoordinator.persistedOrder(queue, favorites)
-    }
+    /** Favourites as the list should show them right now, given the active order override. */
+    private fun favoritesSnapshot(): List<Station> = allStationsState.value.filter(Station::isFavorite)
 
     fun setFavoritesSort(sort: FavoritesSort) {
         _favoritesSort.value = sort
@@ -273,26 +331,35 @@ class MainViewModel @Inject constructor(
 
     /** Keeps next/previous aligned with the order currently shown in the favourites tab. */
     private fun refreshActiveFavoritesQueue(sort: FavoritesSort) {
+        reorderActiveFavoritesQueue(
+            favorites = allStationsState.value.filter(Station::isFavorite),
+            sort = sort,
+            skipIfUnchanged = false,
+        )
+    }
+
+    /**
+     * Applies a reordered favourites list to everything that has to agree on the order: the
+     * visible list, the next/previous queue, the session's playlist, and the persisted snapshot.
+     *
+     * Both the sort control and a play updating a station's row can change that order, and they
+     * used to have separate copies of these steps. Applying them piecemeal is how those four
+     * drift apart — the queue would follow a new sort while the session still held the old one.
+     */
+    private fun reorderActiveFavoritesQueue(favorites: List<Station>, sort: FavoritesSort, skipIfUnchanged: Boolean) {
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
 
-        val favorites = allStationsState.value.filter(Station::isFavorite)
-        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
-            ?: return
-        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
-        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
-        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
-        val currentStation = _playbackUiState.value.station ?: return
-        persistLastPlayedStation(currentStation, reorderedQueue)
+        val reordered = favoritesOrder.reorderIfFavoritesQueue(activeQueue, favorites, sort) ?: return
+        if (skipIfUnchanged && reordered.map(Station::id) == activeQueue.map(Station::id)) return
+
+        favoritesOrder.adopt(reordered.map(Station::id))
+        _playbackUiState.value = _playbackUiState.value.copy(queue = reordered)
+        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reordered) }
+        _playbackUiState.value.station?.let { persistLastPlayedStation(it, reordered) }
     }
 
-    val stations: StateFlow<List<Station>> = combine(allStationsState, _favoritesSort, activeFavoritesOrderState) {
-            list,
-            sort,
-            activeOrder,
-        ->
-        favoritesQueueCoordinator.sortForDisplay(list, sort, activeOrder)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val stations: StateFlow<List<Station>> = favoritesOrder.display(allStationsState, _favoritesSort, viewModelScope)
 
     private val currentStationIdState = MutableStateFlow<Long?>(null)
     private val ephemeralStationState = MutableStateFlow<Station?>(null)
@@ -339,20 +406,19 @@ class MainViewModel @Inject constructor(
      * A play updates [Station.lastPlayedAt] or [Station.playCount] asynchronously in Room. When
      * a play-dependent Favorites sort is active, keep both the visible list and the next/previous
      * queue aligned with that newer row order instead of letting the queue snapshot freeze it.
+     *
+     * [reorderActiveFavoritesQueue] does the applying; this only decides whether it applies.
+     * Skipping an unchanged order matters here because this runs on every station-list emission,
+     * and a play rewrites rows that Room re-emits whether or not the order actually moved.
      */
     private fun refreshActiveFavoritesQueueForStationUpdate(stations: List<Station>) {
         val sort = _favoritesSort.value
         if (sort != FavoritesSort.LAST_PLAYED && sort != FavoritesSort.MOST_PLAYED) return
-        val activeQueue = _playbackUiState.value.queue
-        if (activeQueue.size < 2) return
-        val favorites = stations.filter(Station::isFavorite)
-        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
-            ?: return
-        if (reorderedQueue.map(Station::id) == activeQueue.map(Station::id)) return
-        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
-        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
-        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
-        _playbackUiState.value.station?.let { persistLastPlayedStation(it, reorderedQueue) }
+        reorderActiveFavoritesQueue(
+            favorites = stations.filter(Station::isFavorite),
+            sort = sort,
+            skipIfUnchanged = true,
+        )
     }
 
     // Single derived "what's playing" summary. Recomputes whenever stream metadata or the
@@ -400,7 +466,7 @@ class MainViewModel @Inject constructor(
 
     fun setSelectedHomeTab(tab: Int) {
         _selectedHomeTab.value = tab
-        if (tab != 1) activeFavoritesOrderState.value = null
+        if (tab != 1) favoritesOrder.clear()
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[LAST_HOME_TAB_KEY] = tab }
         }
@@ -428,6 +494,7 @@ class MainViewModel @Inject constructor(
 
     val registrySearchResults: StateFlow<List<RegistryStation>> = searchStateHolder.registryResults
     val favoriteSearchResults: StateFlow<List<Station>> = searchStateHolder.favoriteResults
+    val searchIsSearching: StateFlow<Boolean> = searchStateHolder.isSearching
     val selectedCountries: StateFlow<Set<String>> = searchStateHolder.selectedCountries
     val selectedTags: StateFlow<Set<String>> = searchStateHolder.selectedTags
 
@@ -565,7 +632,10 @@ class MainViewModel @Inject constructor(
         registrySearchResults,
         favoriteSearchResults,
         recentSearches,
-    ) { registry, favorites, recent -> SearchResultsUiState(registry, favorites, recent) }
+        searchIsSearching,
+    ) { registry, favorites, recent, searching ->
+        SearchResultsUiState(registry, favorites, recent, isSearching = searching)
+    }
 
     private val searchFiltersUiState = combine(
         allTags,
@@ -648,7 +718,7 @@ class MainViewModel @Inject constructor(
                 currentStationIdState.value = id
                 allStationsState.first { list -> list.any { it.id == id } }
                 setCurrentStation(repository.getById(id) ?: station.copy(id = id, isFavorite = true))
-                requestAerialWidgetUpdate(getApplication())
+                widgetUpdater.request()
                 return@launch
             }
             if (!station.isFavorite) {
@@ -671,7 +741,7 @@ class MainViewModel @Inject constructor(
             if (!isCurrent) {
                 withContext(ioDispatcher) { deleteStationArtworkFiles(station.logoPath) }
             }
-            requestAerialWidgetUpdate(getApplication())
+            widgetUpdater.request()
         }
     }
 
@@ -682,7 +752,7 @@ class MainViewModel @Inject constructor(
                 currentStationIdState.value = id
                 ephemeralStationState.value = null
             }
-            requestAerialWidgetUpdate(getApplication())
+            widgetUpdater.request()
         }
     }
 
@@ -708,12 +778,9 @@ class MainViewModel @Inject constructor(
             }
         }
         override fun onPlayerError(error: PlaybackException) {
-            _playbackUiState.value = _playbackUiState.value.copy(
-                isPlaying = false,
-                isBuffering = false,
-            )
-            _playbackUiState.value = _playbackUiState.value.copy(
-                error = strings.get(playbackErrorMessageRes(error.errorCode)),
+            _playbackUiState.value = reducePlaybackError(
+                _playbackUiState.value,
+                strings.get(playbackErrorMessageRes(error.errorCode)),
             )
         }
 
@@ -768,10 +835,7 @@ class MainViewModel @Inject constructor(
             liveRadioLabel = liveRadio(),
             stationNames = playback.stationNamesForMetadataFilter(allStationsState.value),
         )
-        _playbackUiState.value = _playbackUiState.value.copy(
-            trackTitle = normalized.title,
-            trackArtist = normalized.artist,
-        )
+        _playbackUiState.value = reduceTrackMetadata(_playbackUiState.value, normalized.title, normalized.artist)
     }
 
     private fun syncPlaybackState(player: Player?, resolvedStation: Station? = null) {
@@ -784,8 +848,8 @@ class MainViewModel @Inject constructor(
             resolvedStation = resolvedStation,
             queue = (0 until player.mediaItemCount)
                 .mapNotNull { index -> resolveStation(player.getMediaItemAt(index)) },
+            bitrateKbps = currentBitrateKbps(player.currentTracks),
         )
-        updateCurrentBitrate(player.currentTracks)
     }
 
     private fun syncPlaybackState(
@@ -795,29 +859,35 @@ class MainViewModel @Inject constructor(
         playWhenReady: Boolean,
         resolvedStation: Station? = null,
         queue: List<Station> = emptyList(),
+        bitrateKbps: Int? = null,
     ) {
         val station = resolvedStation ?: resolveStation(mediaItem)
-        if (queue.isNotEmpty()) {
-            activeFavoritesOrderState.value = favoritesOrder(queue)
-        }
-        if (station != null) {
-            val changed = stationChanged(station)
-            updateStationIdentity(station)
-            clearPerStationStateIfChanged(changed)
-            pendingPlaybackMetadata?.matching(station)?.let { pending ->
-                applyPlaybackMetadata(pending.title, pending.artist)
-                pendingPlaybackMetadata = null
-            }
-            if (!suppressLastPlayedPersist) {
-                persistLastPlayedStation(station, queue)
-            }
-        }
-        _playbackUiState.value = _playbackUiState.value.reducePlaybackSync(
+        val transition = reducePlaybackTransition(
+            current = _playbackUiState.value,
             station = station,
+            queue = queue,
             isPlaying = isPlaying,
             isBuffering = playbackState == Player.STATE_BUFFERING && playWhenReady,
-            queue = queue,
+            bitrateKbps = bitrateKbps,
+            pendingMetadata = pendingPlaybackMetadata,
+            suppressPersist = suppressLastPlayedPersist,
         )
+        // Effects, in the order the previous inline implementation applied them: the visible
+        // order first, then the identity the favourites/pager logic keys off, then the two
+        // things that reach outside this ViewModel.
+        if (queue.isNotEmpty()) {
+            favoritesOrder.remember(queue, favoritesSnapshot())
+        }
+        currentStationIdState.value = transition.identity.stationId
+        ephemeralStationState.value = transition.identity.ephemeralStation
+        _playbackUiState.value = transition.state
+        transition.applyPendingMetadata?.let { pending ->
+            pendingPlaybackMetadata = null
+            applyPlaybackMetadata(pending.title, pending.artist)
+        }
+        if (transition.shouldPersist) {
+            persistLastPlayedStation(requireNotNull(station), queue)
+        }
     }
 
     private fun resolveStation(mediaItem: MediaItem?): Station? =
@@ -825,24 +895,17 @@ class MainViewModel @Inject constructor(
 
     private fun setCurrentStation(station: Station?) {
         val changed = stationChanged(station)
-        updateStationIdentity(station)
-        _playbackUiState.value = _playbackUiState.value.copy(station = station)
-        clearPerStationStateIfChanged(changed)
-    }
-
-    private fun updateStationIdentity(station: Station?) {
         val identity = PlaybackStationIdentity.of(station)
         currentStationIdState.value = identity.stationId
         ephemeralStationState.value = identity.ephemeralStation
+        _playbackUiState.value = _playbackUiState.value.copy(station = station)
+        if (changed) {
+            _playbackUiState.value = _playbackUiState.value.clearedPerStationState()
+        }
     }
 
     private fun stationChanged(station: Station?): Boolean =
         playbackStationChanged(_playbackUiState.value.station, station)
-
-    private fun clearPerStationStateIfChanged(changed: Boolean) {
-        if (!changed) return
-        _playbackUiState.value = _playbackUiState.value.clearedPerStationState()
-    }
 
     private fun refreshCurrentStation(station: Station) {
         if (_playbackUiState.value.station?.id == station.id) {
@@ -865,7 +928,7 @@ class MainViewModel @Inject constructor(
         // user-edited logo while supplying the registry fallback for imported rows whose old
         // local artwork path no longer exists (including the mini-player).
         val playbackPlan = buildPlaybackQueuePlan(station, queue, allStationsState.value)
-        activeFavoritesOrderState.value = favoritesOrder(playbackPlan.requestedQueue)
+        favoritesOrder.remember(playbackPlan.requestedQueue, favoritesSnapshot())
         setCurrentStation(playbackPlan.station)
         _playbackUiState.value = _playbackUiState.value.copy(
             queue = playbackPlan.playerQueue,
@@ -921,7 +984,7 @@ class MainViewModel @Inject constructor(
     fun stopAndClear() {
         suppressLastPlayedPersist = true
         playbackJob?.cancel()
-        activeFavoritesOrderState.value = null
+        favoritesOrder.clear()
         controller?.apply {
             stop()
             clearMediaItems()

@@ -1,6 +1,5 @@
 package com.shapeshed.aerial.ui
 
-import androidx.compose.ui.graphics.vector.ImageVector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

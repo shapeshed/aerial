@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.data.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository

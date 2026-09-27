@@ -12,9 +12,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
+import com.shapeshed.aerial.ui.MainActivity
 import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test

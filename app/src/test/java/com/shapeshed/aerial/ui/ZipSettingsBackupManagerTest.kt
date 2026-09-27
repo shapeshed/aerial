@@ -3,8 +3,8 @@ package com.shapeshed.aerial.ui
 import android.content.ContentResolver
 import android.content.Context
 import androidx.datastore.preferences.core.mutablePreferencesOf
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.data.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.SHOW_STREAM_BITRATE_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.testing.MemoryDataStore
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test

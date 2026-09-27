@@ -1,7 +1,8 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.playback
 
 import androidx.media3.common.MediaItem
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.playback.stationNameFromMediaMetadata
 
 /** Resolves a Media3 item to a saved station or reconstructs an ephemeral station. */
 internal fun stationFromMediaItem(mediaItem: MediaItem?, stations: List<Station>): Station? {

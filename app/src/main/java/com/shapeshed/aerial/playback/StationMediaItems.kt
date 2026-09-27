@@ -1,4 +1,4 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.playback
 
 import android.content.Context
 import android.net.Uri
@@ -6,13 +6,10 @@ import android.os.Bundle
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.bauerStreamUrl
-import com.shapeshed.aerial.ui.appIconBitmap
-import com.shapeshed.aerial.ui.cachedRemoteArtworkUri
-import com.shapeshed.aerial.ui.computeTrackDisplay
-import com.shapeshed.aerial.ui.localLogoArtworkUri
 import java.io.File
 
 internal fun stationNameFromMediaMetadata(stationName: String?, metadataTitle: CharSequence?): String =

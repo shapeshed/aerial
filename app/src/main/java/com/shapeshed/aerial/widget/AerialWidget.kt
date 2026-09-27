@@ -24,17 +24,25 @@ import androidx.media3.session.SessionToken
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
-import com.shapeshed.aerial.AerialApp
-import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.data.LastPlayedStationSnapshot
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.Station
-import com.shapeshed.aerial.toPlayableMediaItem
-import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.ui.computeTrackDisplay
-import com.shapeshed.aerial.ui.hasCircularArtwork
-import com.shapeshed.aerial.ui.toTransparentBitmap
+import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.di.ApplicationScope
+import com.shapeshed.aerial.playback.WidgetPlaybackState
+import com.shapeshed.aerial.playback.WidgetPlaybackStore
+import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.playback.computeTrackDisplay
+import com.shapeshed.aerial.playback.hasCircularArtwork
+import com.shapeshed.aerial.playback.toPlayableMediaItem
+import com.shapeshed.aerial.playback.toSystemPlayableMediaItem
+import com.shapeshed.aerial.playback.toTransparentBitmap
+import com.shapeshed.aerial.ui.MainActivity
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -47,23 +55,27 @@ internal fun stationsForWidget(stations: List<Station>): List<Station> = station
     .sortedBy { it.name.lowercase() }
     .toList()
 
-internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> Boolean = { true }) {
-    val app = context.applicationContext as AerialApp
-    val favorites = stationsForWidget(app.repository.getAll().first())
-    val playback = WidgetPlaybackStore.read(app)
-    val station = selectedStation(app, favorites, playback.mediaId)
-    val artwork = station?.let { stationArtwork(app, it) }
+internal suspend fun updateAerialWidgets(
+    context: Context,
+    repository: StationRepository,
+    snapshotStore: PlaybackSnapshotStore,
+    shouldPublish: () -> Boolean = { true },
+) {
+    val favorites = stationsForWidget(repository.getAll().first())
+    val playback = WidgetPlaybackStore.read(context)
+    val station = selectedStation(favorites, playback.mediaId, snapshotStore)
+    val artwork = station?.let { stationArtwork(context, it) }
     val playbackDisplay = station?.let {
         computeTrackDisplay(
             stationName = it.name,
             trackTitle = playback.trackTitle?.takeIf(::isMeaningfulWidgetMetadata),
             trackArtist = playback.trackArtist?.takeIf(::isMeaningfulWidgetMetadata),
-            liveRadio = app.getString(R.string.live_radio),
+            liveRadio = context.getString(R.string.live_radio),
         )
     }
     val layouts = mapOf(
         widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_stick,
             station,
             artwork,
@@ -74,7 +86,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_STICK_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_stick,
             station,
             artwork,
@@ -85,7 +97,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_narrow,
             station,
             artwork,
@@ -95,7 +107,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_WAFER_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_narrow,
             station,
             artwork,
@@ -105,7 +117,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player,
             station,
             artwork,
@@ -115,7 +127,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_TALL_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player,
             station,
             artwork,
@@ -125,7 +137,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             hasText = false,
         ),
         widgetSize(WIDGET_NARROW_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_expanded,
             station,
             artwork,
@@ -134,7 +146,7 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
             playback,
         ),
         widgetSize(WIDGET_WIDE_WIDTH_DP, WIDGET_PANE_HEIGHT_DP) to createWidgetViews(
-            app,
+            context,
             R.layout.widget_player_expanded,
             station,
             artwork,
@@ -144,11 +156,11 @@ internal suspend fun updateAerialWidgets(context: Context, shouldPublish: () -> 
         ),
     )
     if (!shouldPublish()) return
-    AppWidgetManager.getInstance(app).updateWidgetLayouts(app, layouts)
+    AppWidgetManager.getInstance(context).updateWidgetLayouts(context, layouts)
 }
 
 internal fun createWidgetViews(
-    app: AerialApp,
+    context: Context,
     layoutId: Int,
     station: Station?,
     artwork: Bitmap?,
@@ -157,9 +169,9 @@ internal fun createWidgetViews(
     playback: WidgetPlaybackState,
     hasArtwork: Boolean = true,
     hasText: Boolean = true,
-): RemoteViews = RemoteViews(app.packageName, layoutId).apply {
+): RemoteViews = RemoteViews(context.packageName, layoutId).apply {
     if (hasText) {
-        setTextViewText(R.id.widget_station_name, displayTitle ?: app.getString(R.string.widget_empty))
+        setTextViewText(R.id.widget_station_name, displayTitle ?: context.getString(R.string.widget_empty))
         setViewVisibility(
             R.id.widget_live_radio,
             if (station == null) android.view.View.GONE else android.view.View.VISIBLE,
@@ -180,7 +192,7 @@ internal fun createWidgetViews(
     )
     setContentDescription(
         R.id.widget_play_pause,
-        app.getString(if (playback.isPlaying) R.string.widget_pause else R.string.widget_play),
+        context.getString(if (playback.isPlaying) R.string.widget_pause else R.string.widget_play),
     )
     setViewVisibility(
         R.id.widget_previous,
@@ -201,19 +213,19 @@ internal fun createWidgetViews(
     )
     setOnClickPendingIntent(
         R.id.widget_previous,
-        widgetPendingIntent(app, ACTION_WIDGET_PREVIOUS, 1),
+        widgetPendingIntent(context, ACTION_WIDGET_PREVIOUS, 1),
     )
     setOnClickPendingIntent(
         R.id.widget_play_pause,
-        widgetPendingIntent(app, ACTION_WIDGET_TOGGLE, 2),
+        widgetPendingIntent(context, ACTION_WIDGET_TOGGLE, 2),
     )
     setOnClickPendingIntent(
         R.id.widget_next,
-        widgetPendingIntent(app, ACTION_WIDGET_NEXT, 3),
+        widgetPendingIntent(context, ACTION_WIDGET_NEXT, 3),
     )
     setOnClickPendingIntent(
         android.R.id.background,
-        widgetOpenAppPendingIntent(app),
+        widgetOpenAppPendingIntent(context),
     )
 }
 
@@ -276,10 +288,13 @@ private fun widgetOpenAppPendingIntent(context: Context): PendingIntent = Pendin
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-private suspend fun selectedStation(app: AerialApp, favorites: List<Station>, mediaId: String?): Station? =
-    favorites.firstOrNull { it.id.toString() == mediaId }
-        ?: PlaybackSnapshotStore(app.settingsDataStore).read()?.station
-        ?: favorites.firstOrNull()
+internal suspend fun selectedStation(
+    favorites: List<Station>,
+    mediaId: String?,
+    snapshotStore: PlaybackSnapshotStore,
+): Station? = favorites.firstOrNull { it.id.toString() == mediaId }
+    ?: snapshotStore.read()?.station
+    ?: favorites.firstOrNull()
 
 private suspend fun stationArtwork(context: Context, station: Station): Bitmap? =
     withTimeoutOrNull(ARTWORK_TIMEOUT_MS) {
@@ -331,7 +346,7 @@ private fun Bitmap.maskedForWidget(context: Context): Bitmap {
     return result
 }
 
-private suspend fun withController(context: Context, block: suspend (MediaController) -> Unit) =
+internal suspend fun withController(context: Context, block: suspend (MediaController) -> Unit) =
     withContext(Dispatchers.Main.immediate) {
         val appContext = context.applicationContext
         val controller = MediaController.Builder(
@@ -345,10 +360,8 @@ private suspend fun withController(context: Context, block: suspend (MediaContro
         }
     }
 
-private suspend fun favorites(context: Context): List<Station> {
-    val app = context.applicationContext as AerialApp
-    return stationsForWidget(app.repository.getAll().first())
-}
+private suspend fun favorites(repository: StationRepository): List<Station> =
+    stationsForWidget(repository.getAll().first())
 
 private fun setStationQueue(context: Context, controller: MediaController, stations: List<Station>, index: Int) {
     controller.setMediaItems(
@@ -360,7 +373,12 @@ private fun setStationQueue(context: Context, controller: MediaController, stati
     controller.play()
 }
 
-private suspend fun handleWidgetPlaybackAction(context: Context, action: String?) {
+internal suspend fun handleWidgetPlaybackAction(
+    context: Context,
+    repository: StationRepository,
+    snapshotStore: PlaybackSnapshotStore,
+    action: String?,
+) {
     withController(context) { controller ->
         when (action) {
             ACTION_WIDGET_PREVIOUS -> if (controller.hasPreviousMediaItem()) {
@@ -376,33 +394,66 @@ private suspend fun handleWidgetPlaybackAction(context: Context, action: String?
             ACTION_WIDGET_TOGGLE -> when {
                 controller.playWhenReady -> controller.pause()
                 controller.currentMediaItem != null -> controller.play()
-                else -> restoreWidgetQueue(context, controller)
+                else -> restoreWidgetQueue(context, controller, repository, snapshotStore)
             }
         }
     }
 }
 
-private suspend fun restoreWidgetQueue(context: Context, controller: MediaController) {
-    val app = context.applicationContext as AerialApp
-    val snapshot = PlaybackSnapshotStore(app.settingsDataStore).read()
-    val stations = snapshot?.queue?.takeIf { it.isNotEmpty() }
-        ?: snapshot?.station?.let(::listOf)
-        ?: favorites(context).firstOrNull()?.let(::listOf)
-        ?: return
-    val selected = snapshot?.station?.let { current ->
-        stations.indexOfFirst { it.matches(current) }.takeIf { it >= 0 }
-    } ?: 0
-    setStationQueue(context, controller, stations, selected)
+private suspend fun restoreWidgetQueue(
+    context: Context,
+    controller: MediaController,
+    repository: StationRepository,
+    snapshotStore: PlaybackSnapshotStore,
+) {
+    val plan = widgetRestorePlan(snapshotStore.read(), favorites(repository)) ?: return
+    setStationQueue(context, controller, plan.stations, plan.selectedIndex)
 }
 
+/** The queue to restore into the session, and which entry to start on. */
+internal data class WidgetRestorePlan(val stations: List<Station>, val selectedIndex: Int)
+
+/**
+ * Decides what the play button should start when nothing is loaded: the persisted queue if there
+ * is one, else the persisted station on its own, else the first favourite.
+ *
+ * The selected index is the persisted station's position in that queue, so resuming picks up where
+ * the user left off rather than restarting the list. If the station is no longer in the queue the
+ * index falls back to the start.
+ */
+internal fun widgetRestorePlan(snapshot: LastPlayedStationSnapshot?, favorites: List<Station>): WidgetRestorePlan? {
+    val stations = snapshot?.queue?.takeIf { it.isNotEmpty() }
+        ?: snapshot?.station?.let(::listOf)
+        ?: favorites.firstOrNull()?.let(::listOf)
+        ?: return null
+    val selectedIndex = snapshot?.station?.let { current ->
+        stations.indexOfFirst { it.matches(current) }.takeIf { it >= 0 }
+    } ?: 0
+    return WidgetRestorePlan(stations, selectedIndex)
+}
+
+/**
+ * Handles the widget's play/pause/previous/next buttons. The session work is injected through
+ * [WidgetUpdater] so the receiver has no reach for the application object graph.
+ */
+@AndroidEntryPoint
 class AerialWidgetActionReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var widgetUpdater: WidgetUpdater
+
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
+
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
-        (context.applicationContext as AerialApp).applicationScope.launch {
+        val action = intent.action
+        applicationScope.launch {
             try {
-                handleWidgetPlaybackAction(context.applicationContext, intent.action)
+                widgetUpdater.handlePlaybackAction(action)
             } catch (error: Throwable) {
-                Log.e(TAG, "Playback action failed: ${intent.action}", error)
+                Log.e(TAG, "Playback action failed: $action", error)
             } finally {
                 pendingResult.finish()
             }
@@ -410,9 +461,14 @@ class AerialWidgetActionReceiver : BroadcastReceiver() {
     }
 }
 
+@AndroidEntryPoint
 class AerialWidgetReceiver : AppWidgetProvider() {
+
+    @Inject
+    lateinit var widgetUpdater: WidgetUpdater
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        requestAerialWidgetUpdate(context)
+        widgetUpdater.request()
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -421,7 +477,7 @@ class AerialWidgetReceiver : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle?,
     ) {
-        requestAerialWidgetUpdate(context)
+        widgetUpdater.request()
     }
 }
 

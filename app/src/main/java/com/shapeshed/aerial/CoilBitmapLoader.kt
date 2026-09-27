@@ -10,7 +10,7 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.google.common.util.concurrent.ListenableFuture
-import com.shapeshed.aerial.ui.toOpaqueBitmap
+import com.shapeshed.aerial.playback.toOpaqueBitmap
 import kotlinx.coroutines.Dispatchers
 
 // Media3's default BitmapLoader fetches artwork with its own bare HTTP stack and decodes it

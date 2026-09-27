@@ -96,6 +96,7 @@ internal fun MainSearchOverlay(
             RegistrySearchResults(
                 favoriteResults = search.results.favoriteStations,
                 results = search.results.registryStations,
+                isSearching = search.results.isSearching,
                 savedStreamUrls = savedStreamUrls,
                 savedRegistryKeys = savedRegistryKeys,
                 currentStation = playback.station,

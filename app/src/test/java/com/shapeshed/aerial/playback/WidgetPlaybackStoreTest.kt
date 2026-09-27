@@ -1,6 +1,8 @@
-package com.shapeshed.aerial.widget
+package com.shapeshed.aerial.playback
 
 import android.content.Context
+import com.shapeshed.aerial.playback.WidgetPlaybackState
+import com.shapeshed.aerial.playback.WidgetPlaybackStore
 import com.shapeshed.aerial.testing.FakeSharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
