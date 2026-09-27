@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -39,6 +40,17 @@ internal class SearchStateHolder(
 ) {
     private val _registryResults = MutableStateFlow<List<RegistryStation>>(emptyList())
     val registryResults: StateFlow<List<RegistryStation>> = _registryResults.asStateFlow()
+
+    /**
+     * True while a query has been published but its results have not landed.
+     *
+     * Without this the results lists are simply empty for the debounce window plus the query
+     * itself — around half a second on a cold FTS index — and the UI renders that as "No stations
+     * found". Telling the user a station does not exist before the search has run is worse than
+     * showing nothing, so the empty state is suppressed while this is set.
+     */
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
 
     private val _favoriteResults = MutableStateFlow<List<Station>>(emptyList())
     val favoriteResults: StateFlow<List<Station>> = _favoriteResults.asStateFlow()
@@ -60,6 +72,7 @@ internal class SearchStateHolder(
 
     init {
         searchRequests
+            .onEach { request -> _isSearching.value = !request.query.isBlank() }
             .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
             .mapLatest { request ->
@@ -73,6 +86,9 @@ internal class SearchStateHolder(
                     request.countries,
                     request.tags,
                 )
+                // Cleared only after both lists are assigned, so a collection stopped halfway
+                // through mapLatest leaves it set for the request that replaces it.
+                _isSearching.value = false
             }
             .launchIn(scope)
     }

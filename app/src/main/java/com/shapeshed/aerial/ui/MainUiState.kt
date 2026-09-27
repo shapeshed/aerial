@@ -60,6 +60,11 @@ data class SearchResultsUiState(
     val registryStations: List<RegistryStation> = emptyList(),
     val favoriteStations: List<Station> = emptyList(),
     val recentQueries: List<String> = emptyList(),
+    /**
+     * A query is in flight, so the result lists are not yet meaningful. The UI shows neither the
+     * results nor "nothing found" while this is set.
+     */
+    val isSearching: Boolean = false,
 )
 
 @Immutable

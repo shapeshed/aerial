@@ -494,6 +494,7 @@ class MainViewModel @Inject constructor(
 
     val registrySearchResults: StateFlow<List<RegistryStation>> = searchStateHolder.registryResults
     val favoriteSearchResults: StateFlow<List<Station>> = searchStateHolder.favoriteResults
+    val searchIsSearching: StateFlow<Boolean> = searchStateHolder.isSearching
     val selectedCountries: StateFlow<Set<String>> = searchStateHolder.selectedCountries
     val selectedTags: StateFlow<Set<String>> = searchStateHolder.selectedTags
 
@@ -631,7 +632,10 @@ class MainViewModel @Inject constructor(
         registrySearchResults,
         favoriteSearchResults,
         recentSearches,
-    ) { registry, favorites, recent -> SearchResultsUiState(registry, favorites, recent) }
+        searchIsSearching,
+    ) { registry, favorites, recent, searching ->
+        SearchResultsUiState(registry, favorites, recent, isSearching = searching)
+    }
 
     private val searchFiltersUiState = combine(
         allTags,

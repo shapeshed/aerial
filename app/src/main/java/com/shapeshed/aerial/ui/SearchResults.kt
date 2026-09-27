@@ -229,10 +229,16 @@ internal fun RegistrySearchResults(
     bottomPadding: androidx.compose.ui.unit.Dp,
     state: androidx.compose.foundation.lazy.grid.LazyGridState,
     header: @Composable () -> Unit,
+    isSearching: Boolean = false,
     onAddManually: (() -> Unit)? = null,
 ) {
     if (favoriteResults.isEmpty() && results.isEmpty()) {
-        EmptySearchResults(header = header, onAddManually = onAddManually)
+        // The debounce plus the FTS query is around half a second, and until it finishes an
+        // empty list means "not looked yet", not "nothing exists". Saying otherwise is worse
+        // than briefly showing nothing.
+        if (!isSearching) {
+            EmptySearchResults(header = header, onAddManually = onAddManually)
+        }
     } else {
         LazyVerticalGrid(
             state = state,
