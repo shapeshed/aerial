@@ -23,6 +23,10 @@ ij_kotlin_allow_trailing_comma_on_call_site = true
 # PascalCase, so do not flag functions annotated with these as naming violations.
 ktlint_code_style = android_studio
 ktlint_function_naming_ignore_when_annotated_with = Composable, Preview, PreviewTest
+# The android_studio code style leaves this standard rule off by default, so
+# unused imports were accumulating silently. Enable it explicitly: a stale
+# import is dead weight that hides which symbols a file actually depends on.
+ktlint_standard_no-unused-imports = enabled
 
 [*.{gradle,toml}]
 indent_size = 4

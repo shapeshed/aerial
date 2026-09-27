@@ -8,7 +8,6 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
-import androidx.datastore.preferences.core.edit
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -65,14 +64,12 @@ import com.shapeshed.aerial.data.streamMetadataFrames
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
 import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
 import com.shapeshed.aerial.widget.widgetNavigationAvailability
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

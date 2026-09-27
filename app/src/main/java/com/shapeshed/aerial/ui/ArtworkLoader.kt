@@ -4,7 +4,6 @@ import android.content.Context
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
-import coil3.size.Size
 import java.io.File
 import java.util.concurrent.CancellationException
 
