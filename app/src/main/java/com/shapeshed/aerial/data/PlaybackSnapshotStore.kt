@@ -3,10 +3,19 @@ package com.shapeshed.aerial.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 
-/** DataStore boundary for the station and queue used by playback restoration. */
-class PlaybackSnapshotStore(private val dataStore: DataStore<Preferences>) {
+/**
+ * DataStore boundary for the station and queue used by playback restoration.
+ *
+ * `@Singleton` because it is shared by the media service, the widget and the UI; each of them
+ * previously built its own instance from the same DataStore, which is harmless today only
+ * because the store holds no state of its own.
+ */
+@Singleton
+class PlaybackSnapshotStore @Inject constructor(private val dataStore: DataStore<Preferences>) {
     suspend fun read(): LastPlayedStationSnapshot? =
         dataStore.data.first()[LAST_PLAYED_STATION_KEY]?.let(::lastPlayedStationSnapshot)
 

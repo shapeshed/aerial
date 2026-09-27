@@ -127,7 +127,7 @@ class AerialWidgetRemoteViewsTest {
                 eraseColor(Color.MAGENTA)
             }
             inflated = createWidgetViews(
-                app = app,
+                context = app,
                 layoutId = layout.id,
                 station = station,
                 artwork = artwork,

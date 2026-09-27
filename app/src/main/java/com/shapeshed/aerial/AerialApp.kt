@@ -8,53 +8,29 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
-import coil3.network.okhttp.OkHttpNetworkFetcherFactory
-import coil3.svg.SvgDecoder
-import com.shapeshed.aerial.data.AERIAL_USER_AGENT
-import com.shapeshed.aerial.data.NetworkMonitor
-import com.shapeshed.aerial.data.RegistryDatabase
-import com.shapeshed.aerial.data.RegistryRepository
-import com.shapeshed.aerial.data.RoomTransactor
-import com.shapeshed.aerial.data.StationDatabase
-import com.shapeshed.aerial.data.StationRepository
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import okhttp3.OkHttpClient
+import javax.inject.Inject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
 val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
+/**
+ * Hilt host. Deliberately holds no collaborators of its own: the object graph lives in
+ * [com.shapeshed.aerial.ui.UiModule] and is reached through injection, so a component can never
+ * quietly pick up a second instance of something (the bug this class used to allow, where
+ * `networkMonitor` here and the one Hilt provided were different objects).
+ *
+ * The one exception is Coil: [SingletonImageLoader.Factory] is a Coil service-provider interface,
+ * not a DI seam, so it is the one place the application has to hand a graph object back out.
+ */
 @HiltAndroidApp
 class AerialApp :
     Application(),
     SingletonImageLoader.Factory {
-    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .header("User-Agent", AERIAL_USER_AGENT)
-                    .build(),
-            )
-        }
-        .build()
-    private val db by lazy { StationDatabase.get(this) }
-    private val registryDb by lazy { RegistryDatabase.get(this, BuildConfig.VERSION_CODE) }
-    val repository by lazy { StationRepository(db.stationDao(), db.playHistoryDao(), RoomTransactor(db)) }
-    val registryRepository by lazy { RegistryRepository(registryDb.registryDao()) }
-    val settingsDataStore get() = dataStore
-    val networkMonitor by lazy { NetworkMonitor(this) }
-    override fun newImageLoader(context: Context): ImageLoader {
-        // Some hosts (e.g. Wikimedia) reject requests with no/generic User-Agent (403),
-        // so station logos are fetched with the same identified client used elsewhere.
-        return ImageLoader.Builder(context)
-            .components {
-                add(SvgDecoder.Factory())
-                add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
-            }
-            .build()
-    }
+
+    @Inject
+    lateinit var imageLoader: ImageLoader
+
+    override fun newImageLoader(context: Context): ImageLoader = imageLoader
 }

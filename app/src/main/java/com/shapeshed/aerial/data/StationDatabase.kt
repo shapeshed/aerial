@@ -17,17 +17,17 @@ abstract class StationDatabase : RoomDatabase() {
     abstract fun playHistoryDao(): PlayHistoryDao
 
     companion object {
-        @Volatile private var instance: StationDatabase? = null
-
-        fun get(context: Context): StationDatabase = instance ?: synchronized(this) {
+        /**
+         * Builds the station database. Singleton lifetime is owned by Hilt (see `UiModule`), so
+         * this must not be called more than once per process.
+         */
+        internal fun create(context: Context): StationDatabase =
             Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
                 // Every supported schema version has an explicit migration path. Do not add a
                 // destructive fallback here: this database contains user favourites and history.
                 // Future version bumps MUST add an explicit Migration before releasing.
                 .addMigrations(*supportedMigrations)
                 .build()
-                .also { instance = it }
-        }
 
         internal val supportedMigrations: Array<Migration>
             get() = arrayOf(

@@ -8,6 +8,8 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -62,8 +64,10 @@ import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.streamMetadataChanges
 import com.shapeshed.aerial.data.streamMetadataFrames
 import com.shapeshed.aerial.widget.WidgetPlaybackStore
-import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import com.shapeshed.aerial.widget.WidgetUpdater
 import com.shapeshed.aerial.widget.widgetNavigationAvailability
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,8 +78,24 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 @OptIn(UnstableApi::class)
 class PlayerService : MediaLibraryService() {
+
+    @Inject
+    lateinit var repository: StationRepository
+
+    @Inject
+    lateinit var registryRepository: RegistryRepository
+
+    @Inject
+    lateinit var dataStore: DataStore<Preferences>
+
+    @Inject
+    lateinit var snapshotStore: PlaybackSnapshotStore
+
+    @Inject
+    lateinit var widgetUpdater: WidgetUpdater
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
@@ -84,12 +104,9 @@ class PlayerService : MediaLibraryService() {
     private lateinit var player: ExoPlayer
     private lateinit var sessionPlayer: Player
     private lateinit var mediaSession: MediaLibrarySession
-    private lateinit var repository: StationRepository
-    private lateinit var registryRepository: RegistryRepository
     private lateinit var artworkResolver: StationArtworkResolver
     private lateinit var mediaBrowseTree: MediaBrowseTree
     private lateinit var sessionCoordinator: PlaybackSessionCoordinator
-    private val playbackSnapshotStore by lazy { PlaybackSnapshotStore(dataStore) }
     private var stations: List<Station> = emptyList()
     private var lastRecordedStationKey: String? = null
     private var lastIcyTitle: String? = null
@@ -108,15 +125,13 @@ class PlayerService : MediaLibraryService() {
                 it.setSmallIcon(R.drawable.ic_notification)
             },
         )
-        repository = (application as AerialApp).repository
-        registryRepository = (application as AerialApp).registryRepository
         artworkResolver = StationArtworkResolver(registryRepository)
         mediaBrowseTree = MediaBrowseTree(this, repository, registryRepository)
         sessionCoordinator = PlaybackSessionCoordinator(
             context = this,
             browseTree = mediaBrowseTree,
             repository = repository,
-            snapshotStore = playbackSnapshotStore,
+            snapshotStore = snapshotStore,
             artworkResolver = artworkResolver,
         )
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
@@ -193,7 +208,7 @@ class PlayerService : MediaLibraryService() {
             repository.getAll().collectLatest { updatedStations ->
                 stations = updatedStations
                 updateFavoriteButton()
-                requestAerialWidgetUpdate(this@PlayerService)
+                widgetUpdater.request()
             }
         }
         serviceScope.launch {
@@ -263,7 +278,7 @@ class PlayerService : MediaLibraryService() {
                     parsedTrack.title ?: title,
                     parsedTrack.artist,
                 )
-                requestAerialWidgetUpdate(this@PlayerService)
+                widgetUpdater.request()
                 replaceCurrentMediaItem(
                     item,
                     index = player.currentMediaItemIndex,
@@ -287,7 +302,7 @@ class PlayerService : MediaLibraryService() {
                     id3Title,
                     changes.id3Artist,
                 )
-                requestAerialWidgetUpdate(this@PlayerService)
+                widgetUpdater.request()
                 replaceCurrentMediaItem(
                     item,
                     index = player.currentMediaItemIndex,
@@ -501,14 +516,14 @@ class PlayerService : MediaLibraryService() {
             navigation.previous,
             navigation.next,
         )
-        requestAerialWidgetUpdate(this)
+        widgetUpdater.request()
     }
 
     private fun persistPlaybackSnapshot() {
         val current = currentStation() ?: return
         val queue = (0 until player.mediaItemCount)
             .mapNotNull { index -> stationFromMediaItem(player.getMediaItemAt(index), stations) }
-        serviceScope.launch { playbackSnapshotStore.write(current, queue) }
+        serviceScope.launch { snapshotStore.write(current, queue) }
     }
 
     private fun replaceCurrentMediaItem(
@@ -562,7 +577,7 @@ class PlayerService : MediaLibraryService() {
 
     override fun onDestroy() {
         WidgetPlaybackStore.markStopped(this)
-        requestAerialWidgetUpdate(this)
+        widgetUpdater.request()
         serviceScope.cancel()
         SleepTimerStore.set(null)
         player.removeListener(icyListener)

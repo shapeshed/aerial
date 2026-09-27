@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- The home-screen widget's connectivity monitoring no longer registers a
+  duplicate network callback. Hilt now owns the whole object graph, so the
+  `NetworkMonitor` the app used is the same instance everywhere instead of
+  being built twice.
+
+### Changed
+
+- Dependency injection is complete: the media service and the home-screen
+  widget receivers receive their collaborators through Hilt instead of
+  casting `Application`, and `AerialApp` no longer caches collaborators of its
+  own. This is internal only and does not change behaviour.
+- ktlint now fails the build on unused imports, which the `android_studio`
+  code style left unchecked by default.
+
 ## [0.7.3] - 2026-09-25
 
 ### Added

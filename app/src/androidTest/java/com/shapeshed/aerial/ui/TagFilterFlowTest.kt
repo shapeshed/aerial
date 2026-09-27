@@ -39,6 +39,7 @@ class TagFilterFlowTest {
     @Before
     fun setUp() {
         val app = AerialTestEnvironment.app()
+        val graph = AerialTestEnvironment.graph()
 
         stations = listOf(
             registryStation("Rock Station", "rock"),
@@ -47,11 +48,11 @@ class TagFilterFlowTest {
         )
         viewModel = MainViewModel(
             app,
-            app.repository,
-            app.registryRepository,
-            app.settingsDataStore,
-            app.networkMonitor,
-            StringProvider { app.getString(it) },
+            graph.repository(),
+            graph.registryRepository(),
+            graph.settingsDataStore(),
+            graph.networkMonitor(),
+            graph.stringProvider(),
         )
     }
 

@@ -44,7 +44,7 @@ import com.shapeshed.aerial.data.resolveQueueStart
 import com.shapeshed.aerial.stationFromMediaItem
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.widget.requestAerialWidgetUpdate
+import com.shapeshed.aerial.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -74,6 +74,15 @@ private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val RECENTLY_PLAYED_LIMIT = 10
 
+/**
+ * Stand-in used when a [MainViewModel] is constructed without Hilt (previews and tests that do not
+ * care about the widget). Production always injects the real updater from `UiModule`.
+ */
+internal object NoopWidgetUpdater : WidgetUpdater {
+    override fun request() = Unit
+    override suspend fun handlePlaybackAction(action: String?) = Unit
+}
+
 @HiltViewModel
 class MainViewModel @Inject constructor(
     application: Application,
@@ -88,6 +97,8 @@ class MainViewModel @Inject constructor(
     private val artworkLoader: ArtworkLoader = CoilArtworkLoader(application),
     private val mediaControllerGateway: MediaControllerGateway = DefaultMediaControllerGateway(),
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    @Suppress("VisibleForTests")
+    private val widgetUpdater: WidgetUpdater = NoopWidgetUpdater,
 ) : AndroidViewModel(application) {
 
     val isOnline = networkMonitor.isOnline
@@ -648,7 +659,7 @@ class MainViewModel @Inject constructor(
                 currentStationIdState.value = id
                 allStationsState.first { list -> list.any { it.id == id } }
                 setCurrentStation(repository.getById(id) ?: station.copy(id = id, isFavorite = true))
-                requestAerialWidgetUpdate(getApplication())
+                widgetUpdater.request()
                 return@launch
             }
             if (!station.isFavorite) {
@@ -671,7 +682,7 @@ class MainViewModel @Inject constructor(
             if (!isCurrent) {
                 withContext(ioDispatcher) { deleteStationArtworkFiles(station.logoPath) }
             }
-            requestAerialWidgetUpdate(getApplication())
+            widgetUpdater.request()
         }
     }
 
@@ -682,7 +693,7 @@ class MainViewModel @Inject constructor(
                 currentStationIdState.value = id
                 ephemeralStationState.value = null
             }
-            requestAerialWidgetUpdate(getApplication())
+            widgetUpdater.request()
         }
     }
 

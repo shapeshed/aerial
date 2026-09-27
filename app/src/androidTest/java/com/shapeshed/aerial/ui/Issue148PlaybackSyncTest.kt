@@ -8,6 +8,7 @@ import com.shapeshed.aerial.data.LAST_PLAYED_STATION_KEY
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.lastPlayedStationSnapshot
 import com.shapeshed.aerial.testing.AerialTestEnvironment
+import com.shapeshed.aerial.testing.AerialTestEnvironment.AerialGraph
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
 import com.shapeshed.aerial.toPlayableMediaItem
 import kotlinx.coroutines.Dispatchers
@@ -31,18 +32,10 @@ class Issue148PlaybackSyncTest {
     @Test
     fun stationTransitionClearsPreviousMetadataInTheSameSnapshot() = runBlocking {
         val app = AerialTestEnvironment.app()
+        val graph = AerialTestEnvironment.graph()
         val left = station("Metadata left", "metadata-left")
         val right = station("Metadata right", "metadata-right")
-        val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(
-                app,
-                app.repository,
-                app.registryRepository,
-                app.settingsDataStore,
-                app.networkMonitor,
-                StringProvider { app.getString(it) },
-            )
-        }
+        val viewModel = newViewModel(app, graph)
 
         withContext(Dispatchers.Main) {
             viewModel.handlePlaybackEvents(left.toPlayableMediaItem(app), isPlaying = true)
@@ -60,24 +53,16 @@ class Issue148PlaybackSyncTest {
     @Test
     fun playbackSnapshotKeepsStationQueueAndPlayStateCoherent() = runBlocking {
         val app = AerialTestEnvironment.app()
-        val leftId = app.repository.insertOrGetExisting(station("Snapshot left", "snapshot-left"))
-        val rightId = app.repository.insertOrGetExisting(station("Snapshot right", "snapshot-right"))
-        val left = app.repository.getById(leftId)!!
-        val right = app.repository.getById(rightId)!!
+        val graph = AerialTestEnvironment.graph()
+        val leftId = graph.repository().insertOrGetExisting(station("Snapshot left", "snapshot-left"))
+        val rightId = graph.repository().insertOrGetExisting(station("Snapshot right", "snapshot-right"))
+        val left = graph.repository().getById(leftId)!!
+        val right = graph.repository().getById(rightId)!!
         val queue = listOf(left, right)
-        app.settingsDataStore.edit { preferences ->
+        graph.settingsDataStore().edit { preferences ->
             preferences.remove(LAST_PLAYED_STATION_KEY)
         }
-        val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(
-                app,
-                app.repository,
-                app.registryRepository,
-                app.settingsDataStore,
-                app.networkMonitor,
-                StringProvider { app.getString(it) },
-            )
-        }
+        val viewModel = newViewModel(app, graph)
         withTimeout(5_000) {
             viewModel.stations.first { stations -> stations.count { it.id in setOf(leftId, rightId) } == 2 }
         }
@@ -116,26 +101,18 @@ class Issue148PlaybackSyncTest {
     @Test
     fun immediatePlayStateAfterExternalTransitionPersistsTransitionedStation() = runBlocking {
         val app = AerialTestEnvironment.app()
+        val graph = AerialTestEnvironment.graph()
         val left = station("Left station", "left")
         val right = station("Right station", "right")
-        val leftId = app.repository.insertOrGetExisting(left)
-        val rightId = app.repository.insertOrGetExisting(right)
-        val savedLeft = app.repository.getById(leftId)!!
-        val savedRight = app.repository.getById(rightId)!!
-        app.settingsDataStore.edit { preferences ->
+        val leftId = graph.repository().insertOrGetExisting(left)
+        val rightId = graph.repository().insertOrGetExisting(right)
+        val savedLeft = graph.repository().getById(leftId)!!
+        val savedRight = graph.repository().getById(rightId)!!
+        graph.settingsDataStore().edit { preferences ->
             preferences.remove(LAST_PLAYED_STATION_KEY)
         }
 
-        val viewModel = withContext(Dispatchers.Main) {
-            MainViewModel(
-                app,
-                app.repository,
-                app.registryRepository,
-                app.settingsDataStore,
-                app.networkMonitor,
-                StringProvider { app.getString(it) },
-            )
-        }
+        val viewModel = newViewModel(app, graph)
         val collection = launch(Dispatchers.Main) { viewModel.playbackUiState.collect {} }
         withTimeout(5_000) {
             viewModel.stations.first { stations ->
@@ -165,7 +142,7 @@ class Issue148PlaybackSyncTest {
             )
         }
 
-        val persisted = awaitPersistedStation(app, rightId)
+        val persisted = awaitPersistedStation(graph, rightId)
         assertEquals(
             "The persisted station must follow the MediaSession transition",
             rightId,
@@ -181,10 +158,10 @@ class Issue148PlaybackSyncTest {
         }
     }
 
-    private suspend fun awaitPersistedStation(app: AerialApp, expectedId: Long): Long {
+    private suspend fun awaitPersistedStation(graph: AerialGraph, expectedId: Long): Long {
         var lastId: Long? = null
         repeat(100) {
-            val json = app.settingsDataStore.data.first()[LAST_PLAYED_STATION_KEY]
+            val json = graph.settingsDataStore().data.first()[LAST_PLAYED_STATION_KEY]
             val id = json?.let(::lastPlayedStationSnapshot)?.station?.id
             if (id == expectedId) return id
             lastId = id
@@ -192,6 +169,18 @@ class Issue148PlaybackSyncTest {
         }
         return lastId ?: error("No last-played station was persisted")
     }
+
+    private suspend fun newViewModel(app: AerialApp, graph: AerialGraph): MainViewModel =
+        withContext(Dispatchers.Main) {
+            MainViewModel(
+                application = app,
+                repository = graph.repository(),
+                registryRepository = graph.registryRepository(),
+                dataStore = graph.settingsDataStore(),
+                networkMonitor = graph.networkMonitor(),
+                strings = graph.stringProvider(),
+            )
+        }
 
     private fun station(name: String, providerId: String) = Station(
         name = name,
