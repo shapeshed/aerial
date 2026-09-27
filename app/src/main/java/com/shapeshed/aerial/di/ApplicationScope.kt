@@ -1,4 +1,4 @@
-package com.shapeshed.aerial.ui
+package com.shapeshed.aerial.di
 
 import javax.inject.Qualifier
 

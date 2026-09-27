@@ -152,6 +152,12 @@ android {
             // Some framework calls (e.g. Uri.parse, used by media3's MediaItem.Builder) would
             // otherwise throw "not mocked" in plain JUnit tests with no Robolectric.
             returnDefaultValues = true
+            all {
+                // PackageLayeringTest reads the main sources to assert the package graph stays
+                // acyclic. Point it at the tree explicitly rather than relying on the working
+                // directory Gradle happens to use.
+                systemProperty "aerial.mainSourceDir", layout.projectDirectory.dir("src/main/java/com/shapeshed/aerial").asFile.absolutePath
+            }
         }
     }
 }

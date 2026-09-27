@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.shapeshed.aerial.SHOW_HOME_KEY
-import com.shapeshed.aerial.SHOW_STREAM_BITRATE_KEY
+import com.shapeshed.aerial.data.SHOW_HOME_KEY
+import com.shapeshed.aerial.data.SHOW_STREAM_BITRATE_KEY
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow

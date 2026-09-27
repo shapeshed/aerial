@@ -4,7 +4,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.dataStore
-import com.shapeshed.aerial.ui.AerialGraph
+import com.shapeshed.aerial.di.AerialGraph
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.runBlocking
 

@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -12,8 +11,6 @@ import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-val SHOW_STREAM_BITRATE_KEY = booleanPreferencesKey("show_stream_bitrate")
-val SHOW_HOME_KEY = booleanPreferencesKey("show_home")
 
 /**
  * Hilt host. Deliberately holds no collaborators of its own: the object graph lives in

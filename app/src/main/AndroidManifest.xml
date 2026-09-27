@@ -31,7 +31,7 @@
              content:// artwork URIs, so those consumers can cache decoded icons by URI.
              Read-only and restricted to the registry_artwork cache directory. -->
         <provider
-            android:name=".ArtworkProvider"
+            android:name=".playback.ArtworkProvider"
             android:authorities="${applicationId}.artwork"
             android:exported="true"
             android:grantUriPermissions="false"
@@ -48,7 +48,7 @@
         </service>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.Aerial.Splash"

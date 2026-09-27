@@ -12,9 +12,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
+import com.shapeshed.aerial.ui.MainActivity
 import org.junit.Rule
 import org.junit.Test
 

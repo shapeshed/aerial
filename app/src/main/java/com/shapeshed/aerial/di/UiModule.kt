@@ -1,4 +1,4 @@
-package com.shapeshed.aerial.ui
+package com.shapeshed.aerial.di
 
 import android.app.Application
 import android.content.Context
@@ -19,6 +19,13 @@ import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.Transactor
 import com.shapeshed.aerial.dataStore
 import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.ui.ArtworkLoader
+import com.shapeshed.aerial.ui.CoilArtworkLoader
+import com.shapeshed.aerial.ui.DefaultMediaControllerGateway
+import com.shapeshed.aerial.ui.MediaControllerGateway
+import com.shapeshed.aerial.ui.SettingsBackupManager
+import com.shapeshed.aerial.ui.StringProvider
+import com.shapeshed.aerial.ui.ZipSettingsBackupManager
 import com.shapeshed.aerial.widget.DefaultWidgetUpdater
 import dagger.Module
 import dagger.Provides

@@ -1,4 +1,4 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.playback
 
 import android.content.Context
 import androidx.media3.common.MediaMetadata

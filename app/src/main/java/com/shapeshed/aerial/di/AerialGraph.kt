@@ -1,4 +1,4 @@
-package com.shapeshed.aerial.ui
+package com.shapeshed.aerial.di
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -7,6 +7,7 @@ import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.ui.StringProvider
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent

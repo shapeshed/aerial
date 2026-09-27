@@ -4,8 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.di.ApplicationScope
 import com.shapeshed.aerial.playback.WidgetUpdater
-import com.shapeshed.aerial.ui.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException

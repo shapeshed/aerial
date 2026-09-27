@@ -1,4 +1,4 @@
-package com.shapeshed.aerial
+package com.shapeshed.aerial.playback
 
 import androidx.media3.common.MediaItem
 import com.shapeshed.aerial.data.Station
