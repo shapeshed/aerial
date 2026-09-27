@@ -59,8 +59,6 @@ internal fun logoModelFor(path: String): Any? = when {
     else -> null
 }
 
-internal const val GRID_LOGO_INSET_FRACTION = 0.85f
-
 @Composable
 internal fun ForYouStationCard(
     station: com.shapeshed.aerial.data.RegistryStation,
@@ -98,28 +96,6 @@ internal fun ForYouStationCard(
             )
         }
     }
-}
-
-// Circular station logo on a plate. The plate shows through transparent regions of third-party
-// artwork so every logo sits on a consistent background, and it is never a visible ring because
-// the artwork fills the circle. Stations without a usable logo keep a tonal circle behind the
-// fallback content instead of the plate.
-@Composable
-fun StationLogoCircle(
-    logoModel: Any?,
-    size: Dp,
-    modifier: Modifier = Modifier,
-    fallbackBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    opaqueArtworkBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
-    fallback: @Composable () -> Unit,
-) {
-    StationLogoContent(
-        logoModel = logoModel,
-        modifier = modifier.size(size),
-        fallbackBackground = fallbackBackground,
-        opaqueArtworkBackground = opaqueArtworkBackground,
-        fallback = fallback,
-    )
 }
 
 // Square station logo surface shared by grids, lists, search results, and player artwork.
@@ -189,72 +165,6 @@ fun StationLogoSurface(
                             fallbackBackground
                         },
                         artworkShape,
-                    ),
-            )
-        } else {
-            fallback()
-        }
-    }
-}
-
-@Composable
-internal fun StationLogoContent(
-    logoModel: Any?,
-    fallbackBackground: androidx.compose.ui.graphics.Color,
-    opaqueArtworkBackground: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier,
-    fallback: @Composable () -> Unit,
-) {
-    val context = LocalContext.current
-    val imageLoader = remember(context) { SingletonImageLoader.get(context) }
-    var logoFailed by remember(logoModel) { mutableStateOf(false) }
-    var logoIsLight by remember(logoModel) { mutableStateOf(false) }
-    var logoPrefersLightPlate by remember(logoModel) { mutableStateOf(false) }
-    var logoHasTransparentMargin by remember(logoModel) { mutableStateOf(false) }
-    var loadedLogo by remember(logoModel) { mutableStateOf<coil3.Image?>(null) }
-    LaunchedEffect(logoModel, loadedLogo) {
-        val image = loadedLogo ?: return@LaunchedEffect
-        logoIsLight = sharedLogoAppearanceAnalyzer
-            .analyze(logoModel.toString(), image)
-            .also {
-                logoPrefersLightPlate = it.prefersLightPlate
-                logoHasTransparentMargin = it.hasTransparentMargin
-            }
-            .isLight
-    }
-    val showLogo = logoModel != null && !logoFailed
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .clip(CircleShape)
-            .background(
-                // The outer circle is the row's tonal surface; adaptive artwork color is
-                // applied only to the inset image circle below so the border remains visible.
-                fallbackBackground,
-            ),
-    ) {
-        if (showLogo) {
-            AsyncImage(
-                model = logoModel,
-                imageLoader = imageLoader,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                onError = { logoFailed = true },
-                onSuccess = { state -> loadedLogo = state.result.image },
-                modifier = Modifier
-                    .fillMaxSize(GRID_LOGO_INSET_FRACTION)
-                    .clip(CircleShape)
-                    .background(
-                        if (logoHasTransparentMargin) {
-                            artworkPlateColor(
-                                logoIsLight,
-                                logoPrefersLightPlate,
-                                hasTransparentMargin = true,
-                            )
-                        } else {
-                            opaqueArtworkBackground
-                        },
-                        CircleShape,
                     ),
             )
         } else {

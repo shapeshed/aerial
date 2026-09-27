@@ -171,18 +171,6 @@ internal fun Station.savedKey(): RegistryStationKey? = RegistryStationKey(provid
     it.provider.isNotBlank() && it.providerId.isNotBlank()
 }
 
-private fun RegistryStation.toPlaybackStation(): Station = Station(
-    name = name,
-    streamUrl = streamUrl,
-    logoPath = logoUrl,
-    provider = provider,
-    providerId = providerId,
-    tags = tags,
-    description = description,
-    country = country,
-    countryCode = countryCode,
-)
-
 enum class HomeViewMode {
     Cards,
     List,
