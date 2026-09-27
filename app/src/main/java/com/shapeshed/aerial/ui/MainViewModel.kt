@@ -784,12 +784,9 @@ class MainViewModel @Inject constructor(
             }
         }
         override fun onPlayerError(error: PlaybackException) {
-            _playbackUiState.value = _playbackUiState.value.copy(
-                isPlaying = false,
-                isBuffering = false,
-            )
-            _playbackUiState.value = _playbackUiState.value.copy(
-                error = strings.get(playbackErrorMessageRes(error.errorCode)),
+            _playbackUiState.value = reducePlaybackError(
+                _playbackUiState.value,
+                strings.get(playbackErrorMessageRes(error.errorCode)),
             )
         }
 
@@ -844,10 +841,7 @@ class MainViewModel @Inject constructor(
             liveRadioLabel = liveRadio(),
             stationNames = playback.stationNamesForMetadataFilter(allStationsState.value),
         )
-        _playbackUiState.value = _playbackUiState.value.copy(
-            trackTitle = normalized.title,
-            trackArtist = normalized.artist,
-        )
+        _playbackUiState.value = reduceTrackMetadata(_playbackUiState.value, normalized.title, normalized.artist)
     }
 
     private fun syncPlaybackState(player: Player?, resolvedStation: Station? = null) {
@@ -860,8 +854,8 @@ class MainViewModel @Inject constructor(
             resolvedStation = resolvedStation,
             queue = (0 until player.mediaItemCount)
                 .mapNotNull { index -> resolveStation(player.getMediaItemAt(index)) },
+            bitrateKbps = currentBitrateKbps(player.currentTracks),
         )
-        updateCurrentBitrate(player.currentTracks)
     }
 
     private fun syncPlaybackState(
@@ -871,29 +865,35 @@ class MainViewModel @Inject constructor(
         playWhenReady: Boolean,
         resolvedStation: Station? = null,
         queue: List<Station> = emptyList(),
+        bitrateKbps: Int? = null,
     ) {
         val station = resolvedStation ?: resolveStation(mediaItem)
+        val transition = reducePlaybackTransition(
+            current = _playbackUiState.value,
+            station = station,
+            queue = queue,
+            isPlaying = isPlaying,
+            isBuffering = playbackState == Player.STATE_BUFFERING && playWhenReady,
+            bitrateKbps = bitrateKbps,
+            pendingMetadata = pendingPlaybackMetadata,
+            suppressPersist = suppressLastPlayedPersist,
+        )
+        // Effects, in the order the previous inline implementation applied them: the visible
+        // order first, then the identity the favourites/pager logic keys off, then the two
+        // things that reach outside this ViewModel.
         if (queue.isNotEmpty()) {
             activeFavoritesOrderState.value = favoritesOrder(queue)
         }
-        if (station != null) {
-            val changed = stationChanged(station)
-            updateStationIdentity(station)
-            clearPerStationStateIfChanged(changed)
-            pendingPlaybackMetadata?.matching(station)?.let { pending ->
-                applyPlaybackMetadata(pending.title, pending.artist)
-                pendingPlaybackMetadata = null
-            }
-            if (!suppressLastPlayedPersist) {
-                persistLastPlayedStation(station, queue)
-            }
+        currentStationIdState.value = transition.identity.stationId
+        ephemeralStationState.value = transition.identity.ephemeralStation
+        _playbackUiState.value = transition.state
+        transition.applyPendingMetadata?.let { pending ->
+            pendingPlaybackMetadata = null
+            applyPlaybackMetadata(pending.title, pending.artist)
         }
-        _playbackUiState.value = _playbackUiState.value.reducePlaybackSync(
-            station = station,
-            isPlaying = isPlaying,
-            isBuffering = playbackState == Player.STATE_BUFFERING && playWhenReady,
-            queue = queue,
-        )
+        if (transition.shouldPersist) {
+            persistLastPlayedStation(requireNotNull(station), queue)
+        }
     }
 
     private fun resolveStation(mediaItem: MediaItem?): Station? =
@@ -901,24 +901,17 @@ class MainViewModel @Inject constructor(
 
     private fun setCurrentStation(station: Station?) {
         val changed = stationChanged(station)
-        updateStationIdentity(station)
-        _playbackUiState.value = _playbackUiState.value.copy(station = station)
-        clearPerStationStateIfChanged(changed)
-    }
-
-    private fun updateStationIdentity(station: Station?) {
         val identity = PlaybackStationIdentity.of(station)
         currentStationIdState.value = identity.stationId
         ephemeralStationState.value = identity.ephemeralStation
+        _playbackUiState.value = _playbackUiState.value.copy(station = station)
+        if (changed) {
+            _playbackUiState.value = _playbackUiState.value.clearedPerStationState()
+        }
     }
 
     private fun stationChanged(station: Station?): Boolean =
         playbackStationChanged(_playbackUiState.value.station, station)
-
-    private fun clearPerStationStateIfChanged(changed: Boolean) {
-        if (!changed) return
-        _playbackUiState.value = _playbackUiState.value.clearedPerStationState()
-    }
 
     private fun refreshCurrentStation(station: Station) {
         if (_playbackUiState.value.station?.id == station.id) {
