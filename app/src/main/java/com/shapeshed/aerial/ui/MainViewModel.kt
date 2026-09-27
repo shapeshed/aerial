@@ -335,17 +335,32 @@ class MainViewModel @Inject constructor(
 
     /** Keeps next/previous aligned with the order currently shown in the favourites tab. */
     private fun refreshActiveFavoritesQueue(sort: FavoritesSort) {
+        reorderActiveFavoritesQueue(
+            favorites = allStationsState.value.filter(Station::isFavorite),
+            sort = sort,
+            skipIfUnchanged = false,
+        )
+    }
+
+    /**
+     * Applies a reordered favourites list to everything that has to agree on the order: the
+     * visible list, the next/previous queue, the session's playlist, and the persisted snapshot.
+     *
+     * Both the sort control and a play updating a station's row can change that order, and they
+     * used to have separate copies of these steps. Applying them piecemeal is how those four
+     * drift apart — the queue would follow a new sort while the session still held the old one.
+     */
+    private fun reorderActiveFavoritesQueue(favorites: List<Station>, sort: FavoritesSort, skipIfUnchanged: Boolean) {
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
 
-        val favorites = allStationsState.value.filter(Station::isFavorite)
-        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
-            ?: return
-        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
-        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
-        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
-        val currentStation = _playbackUiState.value.station ?: return
-        persistLastPlayedStation(currentStation, reorderedQueue)
+        val reordered = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort) ?: return
+        if (skipIfUnchanged && reordered.map(Station::id) == activeQueue.map(Station::id)) return
+
+        activeFavoritesOrderState.value = reordered.map(Station::id)
+        _playbackUiState.value = _playbackUiState.value.copy(queue = reordered)
+        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reordered) }
+        _playbackUiState.value.station?.let { persistLastPlayedStation(it, reordered) }
     }
 
     val stations: StateFlow<List<Station>> = combine(allStationsState, _favoritesSort, activeFavoritesOrderState) {
@@ -401,20 +416,19 @@ class MainViewModel @Inject constructor(
      * A play updates [Station.lastPlayedAt] or [Station.playCount] asynchronously in Room. When
      * a play-dependent Favorites sort is active, keep both the visible list and the next/previous
      * queue aligned with that newer row order instead of letting the queue snapshot freeze it.
+     *
+     * [reorderActiveFavoritesQueue] does the applying; this only decides whether it applies.
+     * Skipping an unchanged order matters here because this runs on every station-list emission,
+     * and a play rewrites rows that Room re-emits whether or not the order actually moved.
      */
     private fun refreshActiveFavoritesQueueForStationUpdate(stations: List<Station>) {
         val sort = _favoritesSort.value
         if (sort != FavoritesSort.LAST_PLAYED && sort != FavoritesSort.MOST_PLAYED) return
-        val activeQueue = _playbackUiState.value.queue
-        if (activeQueue.size < 2) return
-        val favorites = stations.filter(Station::isFavorite)
-        val reorderedQueue = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
-            ?: return
-        if (reorderedQueue.map(Station::id) == activeQueue.map(Station::id)) return
-        activeFavoritesOrderState.value = reorderedQueue.map(Station::id)
-        _playbackUiState.value = _playbackUiState.value.copy(queue = reorderedQueue)
-        controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reorderedQueue) }
-        _playbackUiState.value.station?.let { persistLastPlayedStation(it, reorderedQueue) }
+        reorderActiveFavoritesQueue(
+            favorites = stations.filter(Station::isFavorite),
+            sort = sort,
+            skipIfUnchanged = true,
+        )
     }
 
     // Single derived "what's playing" summary. Recomputes whenever stream metadata or the
