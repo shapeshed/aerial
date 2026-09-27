@@ -3,6 +3,7 @@ package com.shapeshed.aerial.ui
 import android.app.Application
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -51,6 +52,7 @@ import com.shapeshed.aerial.playback.toSystemPlayableMediaItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +64,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -72,10 +75,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
 private const val RECENTLY_PLAYED_LIMIT = 10
+private const val TAG = "MainViewModel"
 
 /**
  * Stand-in used when a [MainViewModel] is constructed without Hilt (previews and tests that do not
@@ -113,8 +118,14 @@ class MainViewModel @Inject constructor(
         dataStore = dataStore,
     )
 
-    private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    private val _startupState = MutableStateFlow<AppStartupState>(AppStartupState.Loading)
+    val startupState: StateFlow<AppStartupState> = _startupState.asStateFlow()
+
+    // The splash screen only needs "may I dismiss yet", so derive that rather than keeping a
+    // second flag that could disagree with the state above.
+    val isInitialized: StateFlow<Boolean> = _startupState
+        .map { it.settled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _allTags = MutableStateFlow<List<String>>(emptyList())
     val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
@@ -153,7 +164,14 @@ class MainViewModel @Inject constructor(
     private fun initialize() {
         viewModelScope.launch {
             withContext(ioDispatcher) {
-                migrateImportedArtwork()
+                try {
+                    migrateImportedArtwork()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    // Best-effort housekeeping; never let it stop the app from opening.
+                    Log.w(TAG, "Artwork migration skipped", error)
+                }
             }
         }
         viewModelScope.launch {
@@ -174,15 +192,41 @@ class MainViewModel @Inject constructor(
                         }
                     }
                 }
+                // A failing history query must not leave the splash screen waiting on a signal
+                // that will never arrive; the gate below settles on the timeout either way.
+                .catch { error ->
+                    Log.w(TAG, "Recently played history unavailable", error)
+                    recentlyPlayedFirstLoad.complete(Unit)
+                }
                 .collect {
                     _recentlyPlayedStations.value = it
+                    // complete() is a no-op once signalled, so re-emissions are harmless.
                     recentlyPlayedFirstLoad.complete(Unit)
                 }
         }
         viewModelScope.launch {
-            repository.getAll().first()
-            recentlyPlayedFirstLoad.await()
-            _isInitialized.value = true
+            // Each source reports "resolved" rather than failing. A failed child would cancel
+            // this coroutine through structured concurrency and the state below would never be
+            // set, which is the same indefinite splash as never resolving at all.
+            val stationsLoaded = async {
+                try {
+                    repository.getAll().first()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    Log.w(TAG, "Station list unavailable; opening anyway", error)
+                }
+            }
+            val historyLoaded = async { recentlyPlayedFirstLoad.await() }
+            val ready = withTimeoutOrNull(STARTUP_CONTENT_TIMEOUT_MS) {
+                awaitAll(stationsLoaded, historyLoaded)
+            }
+            _startupState.value = if (ready == null) {
+                Log.w(TAG, "Home content not ready within ${STARTUP_CONTENT_TIMEOUT_MS}ms; opening anyway")
+                AppStartupState.GaveUp(STARTUP_CONTENT_TIMEOUT_MS)
+            } else {
+                AppStartupState.Ready
+            }
         }
         viewModelScope.launch {
             restoreLastPlayedStation()
@@ -246,6 +290,10 @@ class MainViewModel @Inject constructor(
     private val allStationsState: StateFlow<List<Station>> = repository.getAll()
         .map { stations -> stations.map { recoverStationArtwork(it) } }
         .flowOn(ioDispatcher)
+        // A failed read is a broken database, not a reason to take the process down: the UI
+        // shows an empty list and the user can still reach settings. Without this the shared
+        // flow's collecting coroutine dies, and the exception is unhandled.
+        .catch { error -> Log.w(TAG, "Station list unavailable", error) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private suspend fun recoverStationArtwork(station: Station): Station {
