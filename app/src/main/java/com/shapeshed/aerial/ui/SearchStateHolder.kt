@@ -70,9 +70,26 @@ internal class SearchStateHolder(
     private val searchRequests = MutableStateFlow(SearchRequest("", emptySet(), emptySet()))
     private var userChangedFilters = false
 
+    /**
+     * The query the current result lists belong to, or null if nothing has been searched yet.
+     *
+     * Tracked separately from the requests because a filter change re-publishes the query that is
+     * already on screen. Those results are about to be recomputed, but they are not wrong, and
+     * [isSearching] must not claim otherwise.
+     */
+    private var resultsQuery: String? = null
+
     init {
         searchRequests
-            .onEach { request -> _isSearching.value = !request.query.isBlank() }
+            .onEach { request ->
+                // Only a query we have no results for counts as searching. A filter change
+                // re-publishes the current query, and reporting that as a search in progress
+                // blanks the result area for the debounce window — taking away controls the
+                // user was in the middle of reaching for.
+                if (request.query.isNotBlank() && resultsQuery != request.query) {
+                    _isSearching.value = true
+                }
+            }
             .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
             .mapLatest { request ->
@@ -86,6 +103,9 @@ internal class SearchStateHolder(
                     request.countries,
                     request.tags,
                 )
+                // Recorded before the flag clears, so a request that re-publishes this query
+                // knows the results are already on screen.
+                resultsQuery = request.query
                 // Cleared only after both lists are assigned, so a collection stopped halfway
                 // through mapLatest leaves it set for the request that replaces it.
                 _isSearching.value = false

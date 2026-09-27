@@ -137,6 +137,31 @@ class SearchStateHolderTest {
     }
 
     @Test
+    fun aFilterChangeDoesNotPutResultsThatAlreadyLandedBackIntoSearching() = runTest {
+        val holder = holder()
+
+        holder.search("zzzz")
+        advanceTimeBy(250)
+        runCurrent()
+        assertFalse(holder.isSearching.value)
+
+        // Restoring filters re-publishes the current query, because the results have to be
+        // recomputed for the new country and tag set. The results already on screen must stay
+        // there while that happens: blanking them for the debounce window takes the whole
+        // result area away, including any control the user was in the middle of reaching for.
+        holder.restoreFilters(
+            mutablePreferencesOf(stringPreferencesKey("search_countries") to "GB"),
+        )
+        runCurrent()
+
+        assertFalse(
+            "a filter change recomputes results, but must not claim the search has not run",
+            holder.isSearching.value,
+        )
+        scope.cancel()
+    }
+
+    @Test
     fun aSupersededQueryDoesNotReportItselfSettled() = runTest {
         // mapLatest cancels the in-flight query. The flag must stay set for the request that
         // replaced it rather than being cleared by the cancelled one.
