@@ -5,9 +5,9 @@ for Aerial.
 
 ## Requirements
 
-- JDK 17 or newer (builds target Java 17 bytecode; CI uses JDK 25)
-- Android SDK with platform 37 installed
-- Android Studio or the Gradle wrapper
+- JDK 17 or newer (the build targets Java 17 bytecode; CI uses JDK 25)
+- Android SDK with platform 37 and build-tools 36 installed
+- Android Studio or the Gradle wrapper (Gradle 9.6)
 
 Plugin and dependency versions are managed centrally in
 [`gradle/libs.versions.toml`](gradle/libs.versions.toml). Add or update versions
@@ -30,14 +30,45 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Test And Lint
 
+The full local gate used by CI is:
+
 ```sh
-./gradlew test lint
+./gradlew quality
 ```
+
+`quality` compiles the debug sources, runs Android lint and ktlint, runs the
+`deviceTest` unit tests, and enforces the JaCoCo coverage gate. The separate
+suites are documented in [docs/testing.md](docs/testing.md); the most useful
+ones are:
+
+```sh
+# Compose screenshot validation without a device
+./gradlew validateDebugScreenshotTest
+
+# Isolated instrumented tests on an attached device or emulator
+./scripts/check-device-ready.sh
+./gradlew connectedDeviceTestAndroidTest
+```
+
+Screenshot references are validated on every pull request. Refresh them after
+an intentional UI change — and when the version label changes — with:
+
+```sh
+./gradlew updateDebugScreenshotTest
+```
+
+Review the rendered previews before committing the updated references.
 
 For the release build path, run:
 
 ```sh
 ./gradlew test lint assembleRelease bundleRelease
+```
+
+The release build runs the R8 shrinker. To verify the keep rules as well, run:
+
+```sh
+./gradlew assembleRelease analyzeReleaseR8Config
 ```
 
 Without signing environment variables, the release APK produced locally is
@@ -116,8 +147,10 @@ JSON.GZ files are ignored and should not be committed.
 
 ## Release Process
 
-GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs unit
-tests, Android lint, and a debug APK build.
+GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs the
+quality gate, Compose screenshot validation, a debug APK build, a minified
+release build with R8 configuration analysis, and isolated instrumented tests
+on an emulator.
 
 The release workflow runs when a version tag is pushed and can also be started
 manually from GitHub Actions. Local release preparation does not tag, push, or
@@ -135,16 +168,22 @@ scripts/bump-version.sh 0.1.2
 
 3. Update `CHANGELOG.md`.
 4. Update `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
-5. Refresh screenshots if the UI changed.
+5. Refresh screenshots if the UI changed, including the Compose screenshot
+   references when the version label changes:
+
+   ```sh
+   ./gradlew updateDebugScreenshotTest
+   ```
 6. Run release preparation:
 
 ```sh
 scripts/prepare-release.sh
 ```
 
-The release preparation script refreshes the Aerial registry cache, runs
-`test lint assembleRelease bundleRelease`, validates the Fastlane changelog, copies
-`.fdroid.yml` to the local fdroiddata checkout, and runs:
+The release preparation script runs `test lint assembleRelease bundleRelease`,
+verifies the built APK's embedded versionCode against the committed source
+(`scripts/verify-release-version-code.sh`), validates the Fastlane changelog,
+copies `.fdroid.yml` to the local fdroiddata checkout, and runs:
 
 ```sh
 fdroid rewritemeta com.shapeshed.aerial
@@ -230,18 +269,21 @@ is no manual upload step.
 
 The release workflow (`.github/workflows/release.yml`) builds an AAB when a
 `v*` tag is pushed and publishes it to the **production** track at 100%
-rollout. There is no beta or internal testing track in use — nightly builds
+rollout. Only stable tags publish to Play: prerelease-style tags such as
+`v0.7.3-rc1` (any tag containing a hyphen) build a draft GitHub release but
+skip the Play step, so release-pipeline changes can be validated safely.
+There is no beta or internal testing track in use — nightly builds
 (`.github/workflows/nightly.yml`) only produce a GitHub release APK, they do
 not publish to Play. Use the GitHub `nightly` release, or an F-Droid build
 from source, for pre-release testing instead.
 
-Version codes are resolved automatically against Play
-(`resolutionStrategy = AUTO` in `app/build.gradle`) whenever Play credentials
-are present, so the checked-in `versionCode` does not need to be bumped for
-each release. When no credentials are configured — local builds without
-`AERIAL_PLAY_SERVICE_ACCOUNT_JSON_FILE` set, and F-Droid's reproducible
-build — the plugin falls back to the static checked-in `versionCode`, with no
-network call and no credentials required.
+The committed `versionCode` in `app/build.gradle` is authoritative for every
+artifact and must be bumped for each release. The Play publisher's
+`resolutionStrategy` is set to `FAIL` in `app/build.gradle`, so publishing
+fails on a conflict instead of rewriting the built versionCode. That is what
+keeps the released APK reproducible: F-Droid builds the tagged source and
+compares it against the reference APK published on the GitHub release, so the
+two must carry the same versionCode.
 
 Required GitHub repository secret:
 
@@ -296,6 +338,20 @@ F-Droid builds should use the unsigned release path:
 ```
 
 The release build must not require local signing environment variables.
+
+F-Droid verifies reproducible builds: it builds the tagged source and compares
+the result against the reference APK published on the GitHub release
+(`Binaries` in `.fdroid.yml`), retaining the signature named by
+`AllowedAPKSigningKeys`. The released APK must therefore match the tagged
+source (apart from the signature), which means the committed `versionCode`
+must never be rewritten during the release build and the build must be
+deterministic. `scripts/prepare-release.sh` verifies the versionCode; do not
+reintroduce Play-resolved or auto-incremented version codes.
+
+F-Droid's `checkupdates` bot detects new tags automatically and opens a merge
+request against `metadata/com.shapeshed.aerial.yml` in the `fdroiddata`
+repository. The bot only publishes a version once its build matches the
+released APK.
 
 ## Android Auto
 

@@ -1,0 +1,5 @@
+- Updated Estonian and Polish translations.
+- Empty search results are now scrollable.
+- The mini player now matches the media notification.
+- Fixed keyboard and navigation bar insets when editing stations.
+- Hardened artwork handling.

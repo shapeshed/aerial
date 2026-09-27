@@ -20,6 +20,8 @@ import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.testing.MemoryDataStore
 import java.io.File
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +30,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -36,6 +40,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.atLeastOnce
@@ -75,6 +80,29 @@ class MainViewModelStateTest {
             R.string.playback_failed,
             playbackErrorMessageRes(PlaybackException.ERROR_CODE_UNSPECIFIED),
         )
+    }
+
+    @Test
+    fun stationArtworkRecoveryRunsOnTheIoDispatcher() = runTest {
+        val repository = mock<StationRepository>()
+        val registryRepository = mock<RegistryRepository>()
+        whenever(repository.getAll()).thenReturn(flowOf(listOf(station(1, "Mango Radio"))))
+        whenever(repository.recentlyPlayedAsFlow(any())).thenReturn(flowOf(emptyList()))
+        val ioScheduler = TestCoroutineScheduler()
+        val ioDispatcher = RecordingDispatcher(StandardTestDispatcher(ioScheduler))
+        val viewModel = viewModel(
+            repository,
+            registryRepository,
+            ioDispatcher = ioDispatcher,
+        )
+
+        val collection = backgroundScope.launch { viewModel.stations.collect {} }
+        runCurrent()
+        ioScheduler.advanceUntilIdle()
+        runCurrent()
+
+        assertTrue(ioDispatcher.dispatchCount > 0)
+        collection.cancel()
     }
 
     @Test
@@ -131,6 +159,8 @@ class MainViewModelStateTest {
 
         viewModel.searchRegistry("mango")
         viewModel.setCountryFilter("GB")
+        advanceTimeBy(250)
+        runCurrent()
 
         assertEquals(setOf("GB"), viewModel.selectedCountries.first { it.isNotEmpty() })
         assertEquals(listOf(registryStation), viewModel.registrySearchResults.first { it.isNotEmpty() })
@@ -666,6 +696,7 @@ class MainViewModelStateTest {
         registryRepository: RegistryRepository,
         dataStore: DataStore<Preferences> = MemoryDataStore(),
         artworkLoader: ArtworkLoader = CoilArtworkLoader(mock()),
+        ioDispatcher: CoroutineDispatcher = mainDispatcher,
     ): MainViewModel {
         val app = mock<Application>()
         val network = mock<NetworkMonitor>()
@@ -680,7 +711,17 @@ class MainViewModelStateTest {
             networkMonitor = network,
             strings = strings,
             artworkLoader = artworkLoader,
+            ioDispatcher = ioDispatcher,
         ).also(viewModels::add)
+    }
+
+    private class RecordingDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        var dispatchCount = 0
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            dispatchCount++
+            delegate.dispatch(context, block)
+        }
     }
 
     private class RecordingArtworkLoader(private val path: String) : ArtworkLoader {

@@ -54,6 +54,7 @@ class StationEditViewModel @AssistedInject internal constructor(
     val isEditing: Boolean = stationId != null
 
     private var logoCopyJob: Job? = null
+    private var saveJob: Job? = null
     private var existingStation: Station? = null
 
     init {
@@ -90,6 +91,7 @@ class StationEditViewModel @AssistedInject internal constructor(
     }
 
     fun onLogoPicked(context: Context, uri: Uri): Job {
+        logoCopyJob?.cancel()
         val job = viewModelScope.launch {
             try {
                 val destination = withContext(Dispatchers.IO) { logoImporter(context, uri) }
@@ -111,7 +113,8 @@ class StationEditViewModel @AssistedInject internal constructor(
 
     fun save(onDone: () -> Unit) {
         if (_name.value.isBlank() || _streamUrl.value.isBlank()) return
-        viewModelScope.launch {
+        if (saveJob?.isActive == true) return
+        saveJob = viewModelScope.launch {
             logoCopyJob?.join() // wait for any in-progress copy before reading the path
             val station = (
                 existingStation ?: Station(

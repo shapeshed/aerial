@@ -111,6 +111,22 @@ class ZipSettingsBackupManagerTest {
     }
 
     @Test
+    fun importRejectsOversizedLogoEntry(): Unit = runBlocking {
+        val resolver = mock<ContentResolver>()
+        whenever(context.contentResolver).thenReturn(resolver)
+        val oversizedLogo = ByteArray(2 * 1024 * 1024)
+        whenever(resolver.openInputStream(any()))
+            .thenReturn(ByteArrayInputStream(zipWithLogo(oversizedLogo)))
+        val repository = mock<StationRepository>()
+        val manager = ZipSettingsBackupManager(context, repository, MemoryDataStore())
+
+        val result = manager.import(mock())
+
+        assertTrue("result=$result", result is BackupOperationResult.Failure)
+        verify(repository, never()).upsertImported(any())
+    }
+
+    @Test
     fun importReturnsFailureForUnsupportedBackupVersion() = runBlocking {
         val resolver = mock<ContentResolver>()
         whenever(context.contentResolver).thenReturn(resolver)
@@ -177,6 +193,22 @@ class ZipSettingsBackupManagerTest {
         val repository = mock<StationRepository>()
         whenever(repository.getAll()).thenReturn(flowOf(stations.toList()))
         return repository
+    }
+
+    private fun zipWithLogo(payload: ByteArray): ByteArray {
+        val manifest = """
+            {"version":1,"app":"Aerial","settings":{},"stations":[]}
+        """.trimIndent()
+        return ByteArrayOutputStream().also { out ->
+            ZipOutputStream(out).use { zip ->
+                zip.putNextEntry(ZipEntry("logos/oversized.png"))
+                zip.write(payload)
+                zip.closeEntry()
+                zip.putNextEntry(ZipEntry("backup.json"))
+                zip.write(manifest.toByteArray())
+                zip.closeEntry()
+            }
+        }.toByteArray()
     }
 
     private fun zipWithVersion(version: Int, settingsJson: String = "{}"): ByteArray {

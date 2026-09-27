@@ -18,6 +18,31 @@ class StreamMetadataFrames(
     val id3Artwork: ByteArray?,
 )
 
+/** Metadata values that changed since the previous update, with each source decided independently. */
+data class StreamMetadataChanges(
+    val icyTitle: String?,
+    val id3Title: String?,
+    val id3Artist: String?,
+    val id3Artwork: ByteArray?,
+)
+
+fun streamMetadataChanges(
+    frames: StreamMetadataFrames,
+    lastIcyTitle: String?,
+    lastId3Title: String?,
+): StreamMetadataChanges {
+    val icyTitle = frames.icyTitle
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() && it != lastIcyTitle }
+    val id3Changed = frames.id3Title?.takeIf { it.isNotBlank() && it != lastId3Title }
+    return StreamMetadataChanges(
+        icyTitle = icyTitle,
+        id3Title = id3Changed,
+        id3Artist = id3Changed?.let { frames.id3Artist },
+        id3Artwork = id3Changed?.let { frames.id3Artwork },
+    )
+}
+
 @OptIn(UnstableApi::class)
 fun streamMetadataFrames(metadata: Metadata): StreamMetadataFrames {
     var icyTitle: String? = null

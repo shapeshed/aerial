@@ -21,17 +21,21 @@ abstract class StationDatabase : RoomDatabase() {
 
         fun get(context: Context): StationDatabase = instance ?: synchronized(this) {
             Room.databaseBuilder(context, StationDatabase::class.java, "aerial.db")
-                // Explicit migrations cover versions 6–9 → 10.
-                // Any user still on v5 or below will have their data wiped by the fallback.
-                // Future version bumps MUST add an explicit Migration before relying on this fallback.
+                // Every supported schema version has an explicit migration path. Do not add a
+                // destructive fallback here: this database contains user favourites and history.
+                // Future version bumps MUST add an explicit Migration before releasing.
                 .addMigrations(*supportedMigrations)
-                .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
                 .also { instance = it }
         }
 
         internal val supportedMigrations: Array<Migration>
             get() = arrayOf(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_10,
                 MIGRATION_6_10,
                 MIGRATION_7_10,
                 MIGRATION_8_10,
@@ -43,6 +47,47 @@ abstract class StationDatabase : RoomDatabase() {
                 MIGRATION_14_15,
                 MIGRATION_15_16,
             )
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE stations ADD COLUMN iconEmoji TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE stations ADD COLUMN logoPath TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE stations_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "name TEXT NOT NULL, streamUrl TEXT NOT NULL, logoPath TEXT NOT NULL DEFAULT '')",
+                )
+                db.execSQL(
+                    "INSERT INTO stations_new (id, name, streamUrl, logoPath) " +
+                        "SELECT id, name, streamUrl, logoPath FROM stations",
+                )
+                db.execSQL("DROP TABLE stations")
+                db.execSQL("ALTER TABLE stations_new RENAME TO stations")
+            }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE stations ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE stations ADD COLUMN radioBrowserUuid TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_5_10 = object : Migration(5, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                migrateStationsWithoutProviderColumns(db)
+                createRegistryTable(db)
+            }
+        }
 
         private val MIGRATION_6_10 = object : Migration(6, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {

@@ -5,12 +5,15 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import java.io.File
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -20,7 +23,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -79,6 +85,60 @@ class StationEditViewModelTest {
         copyJob.join()
 
         assertTrue(copyJob.isCancelled)
+        val clear = ViewModel::class.java.getDeclaredMethod("clear\$lifecycle_viewmodel")
+        clear.invoke(viewModel)
+    }
+
+    @Test
+    fun latestLogoImportWinsWhenAnOlderImportFinishesLast() = runTest {
+        val firstImport = CompletableDeferred<File?>()
+        val secondImport = CompletableDeferred<File?>()
+        val firstStarted = CompletableDeferred<Unit>()
+        var importCount = 0
+        val firstFile = File("/tmp/aerial-first-logo.png")
+        val secondFile = File("/tmp/aerial-second-logo.png")
+        val viewModel = StationEditViewModel(
+            repository = mock(),
+            registryRepository = mock(),
+            stationId = null,
+            logoImporter = { _, _ ->
+                if (importCount++ == 0) {
+                    firstStarted.complete(Unit)
+                    firstImport.await()
+                } else {
+                    secondImport.await()
+                }
+            },
+        )
+
+        val firstJob = viewModel.onLogoPicked(mock(), mock())
+        firstStarted.await()
+        val secondJob = viewModel.onLogoPicked(mock(), mock())
+
+        secondImport.complete(secondFile)
+        secondJob.join()
+        firstImport.complete(firstFile)
+        firstJob.join()
+
+        assertEquals(secondFile.absolutePath, viewModel.logoPath.value)
+
+        val clear = ViewModel::class.java.getDeclaredMethod("clear\$lifecycle_viewmodel")
+        clear.invoke(viewModel)
+    }
+
+    @Test
+    fun repeatedSaveInsertsOnlyOneStation() = runTest {
+        val repository = mock<StationRepository>()
+        val viewModel = StationEditViewModel(repository, mock(), stationId = null)
+        viewModel.onNameChange("Mango Radio")
+        viewModel.onStreamUrlChange("https://stream.example/mango")
+
+        viewModel.save {}
+        viewModel.save {}
+        advanceUntilIdle()
+
+        verify(repository, times(1)).insert(any())
+
         val clear = ViewModel::class.java.getDeclaredMethod("clear\$lifecycle_viewmodel")
         clear.invoke(viewModel)
     }

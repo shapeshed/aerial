@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-25
+
+### Added
+
+- Estonian and Polish translation updates via Weblate.
+
+### Fixed
+
+- Empty search results are now scrollable.
+- The mini player now shows the same title and artist as the media notification.
+- Station editing now handles the keyboard and navigation bar insets correctly.
+- The artwork provider is now read-only and no longer grants URI permissions.
+
 ## [0.7.2] - 2026-09-21
 
 ### Added

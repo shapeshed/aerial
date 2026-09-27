@@ -42,6 +42,26 @@ class StreamMetadataTest {
     }
 
     @Test
+    fun repeatedIcyTitleDoesNotSuppressNewId3Metadata() {
+        val frames = StreamMetadataFrames(
+            icyTitle = "Artist - Track",
+            id3Title = "New ID3 Title",
+            id3Artist = "ID3 Artist",
+            id3Artwork = null,
+        )
+
+        val changes = streamMetadataChanges(
+            frames = frames,
+            lastIcyTitle = "Artist - Track",
+            lastId3Title = "Old ID3 Title",
+        )
+
+        assertNull(changes.icyTitle)
+        assertEquals("New ID3 Title", changes.id3Title)
+        assertEquals("ID3 Artist", changes.id3Artist)
+    }
+
+    @Test
     fun extractsId3Artwork() {
         val artwork = byteArrayOf(1, 2, 3)
 

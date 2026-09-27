@@ -56,6 +56,7 @@ internal class SearchStateHolder(
     private data class SearchRequest(val query: String, val countries: Set<String>, val tags: Set<String>)
 
     private val searchRequests = MutableStateFlow(SearchRequest("", emptySet(), emptySet()))
+    private var userChangedFilters = false
 
     init {
         searchRequests
@@ -77,8 +78,13 @@ internal class SearchStateHolder(
     }
 
     fun restoreFilters(preferences: Preferences) {
-        _selectedCountries.value = preferences[SEARCH_COUNTRIES_KEY].toFilterSet()
-        _selectedTags.value = preferences[SEARCH_TAGS_KEY].toFilterSet()
+        if (userChangedFilters) return
+        val countries = preferences[SEARCH_COUNTRIES_KEY].toFilterSet()
+        val tags = preferences[SEARCH_TAGS_KEY].toFilterSet()
+        val changed = _selectedCountries.value != countries || _selectedTags.value != tags
+        _selectedCountries.value = countries
+        _selectedTags.value = tags
+        if (changed) publishSearchRequest()
     }
 
     fun search(query: String) {
@@ -140,6 +146,7 @@ internal class SearchStateHolder(
     }
 
     private fun filtersChanged() {
+        userChangedFilters = true
         persistFilters()
         publishSearchRequest()
     }
