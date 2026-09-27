@@ -1,11 +1,13 @@
 package com.shapeshed.aerial.testing
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.widget.AerialWidgetActionReceiver
 import com.shapeshed.aerial.widget.AerialWidgetReceiver
 import com.shapeshed.aerial.widget.DefaultWidgetUpdater
 import com.shapeshed.aerial.widget.WidgetUpdater
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -68,11 +70,38 @@ class DependencyGraphTest {
         assertHiltEntryPoint("AerialWidgetActionReceiver", AerialWidgetActionReceiver::class.java)
     }
 
-    private fun assertHiltEntryPoint(name: String, type: Class<*>) {
-        val superclass = type.superclass
+    @Test
+    fun aerialAppNoLongerExposesTheObjectGraph() {
+        // The bug this migration fixed: `AerialApp` cached collaborators as public fields while
+        // `UiModule` bound the same types separately, so two `NetworkMonitor`s existed. Any
+        // collaborator that reappears as a field on the application can drift from the graph
+        // again, so assert none of them are there.
+        val fields = AerialApp::class.java.declaredFields.map { it.name }
+
+        // Guard against the assertion below passing because the reflection found nothing at all.
         assertTrue(
-            "$name must be a Hilt entry point but extends ${superclass?.name}",
-            superclass?.simpleName?.startsWith("Hilt_") == true,
+            "reflection must see AerialApp's own fields, got $fields",
+            fields.contains("imageLoader"),
+        )
+        assertEquals(
+            "AerialApp must hold no collaborators; bind them in UiModule instead",
+            emptyList<String>(),
+            GRAPH_MEMBERS_ON_APPLICATION.filter(fields::contains),
+        )
+    }
+
+    @Test
+    fun coilResolvesTheGraphsImageLoaderRatherThanBuildingASecond() {
+        // `AerialApp` is Coil's `SingletonImageLoader.Factory`, so this is the one place the
+        // application hands a graph object back out. If it built its own loader instead, Compose,
+        // the widget and Media3's bitmap loader would stop sharing an image cache and the SVG /
+        // User-Agent behaviour that `UiModule` configures would apply to only some of them.
+        val app = AerialTestEnvironment.app()
+
+        assertSame(
+            "Coil must use the same ImageLoader the graph holds",
+            AerialTestEnvironment.graph().imageLoader(),
+            app.newImageLoader(app),
         )
     }
 
@@ -82,5 +111,25 @@ class DependencyGraphTest {
         // depend on, rather than on the concrete class.
         val updater: WidgetUpdater = AerialTestEnvironment.graph().widgetUpdater()
         updater.request()
+    }
+
+    private fun assertHiltEntryPoint(name: String, type: Class<*>) {
+        val superclass = type.superclass
+        assertTrue(
+            "$name must be a Hilt entry point but extends ${superclass?.name}",
+            superclass?.simpleName?.startsWith("Hilt_") == true,
+        )
+    }
+
+    private companion object {
+        /** Collaborators `AerialApp` used to cache, and must never cache again. */
+        val GRAPH_MEMBERS_ON_APPLICATION = listOf(
+            "repository",
+            "registryRepository",
+            "settingsDataStore",
+            "networkMonitor",
+            "okHttpClient",
+            "applicationScope",
+        )
     }
 }

@@ -27,6 +27,7 @@ import coil3.request.SuccessResult
 import com.shapeshed.aerial.MainActivity
 import com.shapeshed.aerial.PlayerService
 import com.shapeshed.aerial.R
+import com.shapeshed.aerial.data.LastPlayedStationSnapshot
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
@@ -284,7 +285,7 @@ private fun widgetOpenAppPendingIntent(context: Context): PendingIntent = Pendin
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 )
 
-private suspend fun selectedStation(
+internal suspend fun selectedStation(
     favorites: List<Station>,
     mediaId: String?,
     snapshotStore: PlaybackSnapshotStore,
@@ -402,15 +403,30 @@ private suspend fun restoreWidgetQueue(
     repository: StationRepository,
     snapshotStore: PlaybackSnapshotStore,
 ) {
-    val snapshot = snapshotStore.read()
+    val plan = widgetRestorePlan(snapshotStore.read(), favorites(repository)) ?: return
+    setStationQueue(context, controller, plan.stations, plan.selectedIndex)
+}
+
+/** The queue to restore into the session, and which entry to start on. */
+internal data class WidgetRestorePlan(val stations: List<Station>, val selectedIndex: Int)
+
+/**
+ * Decides what the play button should start when nothing is loaded: the persisted queue if there
+ * is one, else the persisted station on its own, else the first favourite.
+ *
+ * The selected index is the persisted station's position in that queue, so resuming picks up where
+ * the user left off rather than restarting the list. If the station is no longer in the queue the
+ * index falls back to the start.
+ */
+internal fun widgetRestorePlan(snapshot: LastPlayedStationSnapshot?, favorites: List<Station>): WidgetRestorePlan? {
     val stations = snapshot?.queue?.takeIf { it.isNotEmpty() }
         ?: snapshot?.station?.let(::listOf)
-        ?: favorites(repository).firstOrNull()?.let(::listOf)
-        ?: return
-    val selected = snapshot?.station?.let { current ->
+        ?: favorites.firstOrNull()?.let(::listOf)
+        ?: return null
+    val selectedIndex = snapshot?.station?.let { current ->
         stations.indexOfFirst { it.matches(current) }.takeIf { it >= 0 }
     } ?: 0
-    setStationQueue(context, controller, stations, selected)
+    return WidgetRestorePlan(stations, selectedIndex)
 }
 
 /**
