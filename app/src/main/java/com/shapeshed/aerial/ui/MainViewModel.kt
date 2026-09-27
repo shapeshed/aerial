@@ -25,7 +25,6 @@ import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
 import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
-import com.shapeshed.aerial.data.FavoritesQueueCoordinator
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
@@ -317,13 +316,10 @@ class MainViewModel @Inject constructor(
     private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
-    private val activeFavoritesOrderState = MutableStateFlow<List<Long>?>(null)
-    private val favoritesQueueCoordinator = FavoritesQueueCoordinator()
+    private val favoritesOrder = FavoritesOrder()
 
-    private fun favoritesOrder(queue: List<Station>): List<Long>? {
-        val favorites = allStationsState.value.filter(Station::isFavorite)
-        return favoritesQueueCoordinator.persistedOrder(queue, favorites)
-    }
+    /** Favourites as the list should show them right now, given the active order override. */
+    private fun favoritesSnapshot(): List<Station> = allStationsState.value.filter(Station::isFavorite)
 
     fun setFavoritesSort(sort: FavoritesSort) {
         _favoritesSort.value = sort
@@ -354,22 +350,16 @@ class MainViewModel @Inject constructor(
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
 
-        val reordered = favoritesQueueCoordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort) ?: return
+        val reordered = favoritesOrder.reorderIfFavoritesQueue(activeQueue, favorites, sort) ?: return
         if (skipIfUnchanged && reordered.map(Station::id) == activeQueue.map(Station::id)) return
 
-        activeFavoritesOrderState.value = reordered.map(Station::id)
+        favoritesOrder.adopt(reordered.map(Station::id))
         _playbackUiState.value = _playbackUiState.value.copy(queue = reordered)
         controller?.let { player -> reorderPlayerPlaylist(player, activeQueue, reordered) }
         _playbackUiState.value.station?.let { persistLastPlayedStation(it, reordered) }
     }
 
-    val stations: StateFlow<List<Station>> = combine(allStationsState, _favoritesSort, activeFavoritesOrderState) {
-            list,
-            sort,
-            activeOrder,
-        ->
-        favoritesQueueCoordinator.sortForDisplay(list, sort, activeOrder)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val stations: StateFlow<List<Station>> = favoritesOrder.display(allStationsState, _favoritesSort, viewModelScope)
 
     private val currentStationIdState = MutableStateFlow<Long?>(null)
     private val ephemeralStationState = MutableStateFlow<Station?>(null)
@@ -476,7 +466,7 @@ class MainViewModel @Inject constructor(
 
     fun setSelectedHomeTab(tab: Int) {
         _selectedHomeTab.value = tab
-        if (tab != 1) activeFavoritesOrderState.value = null
+        if (tab != 1) favoritesOrder.clear()
         viewModelScope.launch {
             dataStore.edit { prefs -> prefs[LAST_HOME_TAB_KEY] = tab }
         }
@@ -882,7 +872,7 @@ class MainViewModel @Inject constructor(
         // order first, then the identity the favourites/pager logic keys off, then the two
         // things that reach outside this ViewModel.
         if (queue.isNotEmpty()) {
-            activeFavoritesOrderState.value = favoritesOrder(queue)
+            favoritesOrder.remember(queue, favoritesSnapshot())
         }
         currentStationIdState.value = transition.identity.stationId
         ephemeralStationState.value = transition.identity.ephemeralStation
@@ -934,7 +924,7 @@ class MainViewModel @Inject constructor(
         // user-edited logo while supplying the registry fallback for imported rows whose old
         // local artwork path no longer exists (including the mini-player).
         val playbackPlan = buildPlaybackQueuePlan(station, queue, allStationsState.value)
-        activeFavoritesOrderState.value = favoritesOrder(playbackPlan.requestedQueue)
+        favoritesOrder.remember(playbackPlan.requestedQueue, favoritesSnapshot())
         setCurrentStation(playbackPlan.station)
         _playbackUiState.value = _playbackUiState.value.copy(
             queue = playbackPlan.playerQueue,
@@ -990,7 +980,7 @@ class MainViewModel @Inject constructor(
     fun stopAndClear() {
         suppressLastPlayedPersist = true
         playbackJob?.cancel()
-        activeFavoritesOrderState.value = null
+        favoritesOrder.clear()
         controller?.apply {
             stop()
             clearMediaItems()
