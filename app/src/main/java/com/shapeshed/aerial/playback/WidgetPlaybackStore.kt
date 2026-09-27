@@ -1,4 +1,4 @@
-package com.shapeshed.aerial.widget
+package com.shapeshed.aerial.playback
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -13,8 +13,9 @@ internal data class WidgetPlaybackState(
 )
 
 /**
- * Persists the widget's playback state. The [Context] overloads are the production surface; the
- * [SharedPreferences] overloads are the seam JVM tests drive directly, mirroring the widget's
+ * Persists the last playback state the media session reported, so the widget can render itself
+ * without connecting to a session just to draw. The [Context] overloads are the production
+ * surface; the [SharedPreferences] overloads are the seam JVM tests drive directly, mirroring the
  * observable behaviour without an Android runtime.
  */
 internal object WidgetPlaybackStore {

@@ -41,10 +41,12 @@ import com.shapeshed.aerial.data.buildPlaybackQueuePlan
 import com.shapeshed.aerial.data.normalizeTrackMetadata
 import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.resolveQueueStart
+import com.shapeshed.aerial.playback.NowPlayingDisplay
+import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.playback.computeNowPlayingDisplay
 import com.shapeshed.aerial.stationFromMediaItem
 import com.shapeshed.aerial.toEphemeralStation
 import com.shapeshed.aerial.toSystemPlayableMediaItem
-import com.shapeshed.aerial.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject

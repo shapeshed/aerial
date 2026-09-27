@@ -63,9 +63,9 @@ import com.shapeshed.aerial.data.parseTrackMetadata
 import com.shapeshed.aerial.data.resolveStreamUrl
 import com.shapeshed.aerial.data.streamMetadataChanges
 import com.shapeshed.aerial.data.streamMetadataFrames
-import com.shapeshed.aerial.widget.WidgetPlaybackStore
-import com.shapeshed.aerial.widget.WidgetUpdater
-import com.shapeshed.aerial.widget.widgetNavigationAvailability
+import com.shapeshed.aerial.playback.WidgetPlaybackStore
+import com.shapeshed.aerial.playback.WidgetUpdater
+import com.shapeshed.aerial.playback.widgetNavigationAvailability
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope

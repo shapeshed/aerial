@@ -1,5 +1,6 @@
 package com.shapeshed.aerial.ui
 
+import com.shapeshed.aerial.playback.hasTransparentMargin
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

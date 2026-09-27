@@ -9,9 +9,9 @@ import androidx.media3.common.MediaMetadata
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.bauerStreamUrl
+import com.shapeshed.aerial.playback.computeTrackDisplay
 import com.shapeshed.aerial.ui.appIconBitmap
 import com.shapeshed.aerial.ui.cachedRemoteArtworkUri
-import com.shapeshed.aerial.ui.computeTrackDisplay
 import com.shapeshed.aerial.ui.localLogoArtworkUri
 import java.io.File
 

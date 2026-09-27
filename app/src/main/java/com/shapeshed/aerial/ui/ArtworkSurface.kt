@@ -4,6 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import com.shapeshed.aerial.playback.hasTransparentMargin
+import com.shapeshed.aerial.playback.prefersLightPlate
 
 /**
  * Shared Material 3 plate for transparent station artwork.

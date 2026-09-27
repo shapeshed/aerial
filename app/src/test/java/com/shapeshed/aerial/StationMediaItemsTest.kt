@@ -3,7 +3,7 @@ package com.shapeshed.aerial
 import android.content.Context
 import androidx.media3.common.MediaMetadata
 import com.shapeshed.aerial.data.Station
-import com.shapeshed.aerial.ui.computeTrackDisplay
+import com.shapeshed.aerial.playback.computeTrackDisplay
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.any

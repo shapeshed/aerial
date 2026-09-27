@@ -16,8 +16,8 @@ import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
+import com.shapeshed.aerial.playback.WidgetUpdater
 import com.shapeshed.aerial.testing.MemoryDataStore
-import com.shapeshed.aerial.widget.WidgetUpdater
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher

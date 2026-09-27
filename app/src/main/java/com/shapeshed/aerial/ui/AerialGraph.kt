@@ -6,7 +6,7 @@ import coil3.ImageLoader
 import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.RegistryRepository
 import com.shapeshed.aerial.data.StationRepository
-import com.shapeshed.aerial.widget.WidgetUpdater
+import com.shapeshed.aerial.playback.WidgetUpdater
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent

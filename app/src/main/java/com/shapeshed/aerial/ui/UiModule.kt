@@ -18,8 +18,8 @@ import com.shapeshed.aerial.data.StationDatabase
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.Transactor
 import com.shapeshed.aerial.dataStore
+import com.shapeshed.aerial.playback.WidgetUpdater
 import com.shapeshed.aerial.widget.DefaultWidgetUpdater
-import com.shapeshed.aerial.widget.WidgetUpdater
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

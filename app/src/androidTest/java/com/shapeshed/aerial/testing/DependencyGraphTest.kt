@@ -3,10 +3,10 @@ package com.shapeshed.aerial.testing
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.PlayerService
+import com.shapeshed.aerial.playback.WidgetUpdater
 import com.shapeshed.aerial.widget.AerialWidgetActionReceiver
 import com.shapeshed.aerial.widget.AerialWidgetReceiver
 import com.shapeshed.aerial.widget.DefaultWidgetUpdater
-import com.shapeshed.aerial.widget.WidgetUpdater
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame

@@ -15,6 +15,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.shapeshed.aerial.AerialApp
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.playback.WidgetPlaybackState
 import com.shapeshed.aerial.testing.AerialTestEnvironment
 import com.shapeshed.aerial.testing.AerialTestEnvironmentRule
 import org.junit.Assert.assertEquals

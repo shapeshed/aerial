@@ -4,6 +4,7 @@ import android.content.Context
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import com.shapeshed.aerial.playback.toOpaqueBitmap
 import java.io.File
 import java.util.concurrent.CancellationException
 

@@ -36,6 +36,9 @@ import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import com.shapeshed.aerial.data.RegistryStation
 import com.shapeshed.aerial.data.Station
+import com.shapeshed.aerial.playback.hasCircularArtwork
+import com.shapeshed.aerial.playback.hasTransparentMargin
+import com.shapeshed.aerial.playback.prefersLightPlate
 import java.io.File
 
 internal fun String.avatarInitial(): String {
