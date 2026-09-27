@@ -134,4 +134,11 @@
     <string name="playback_format_unsupported">Формат потока не поддерживается</string>
     <string name="previous_station">Предыдущая станция</string>
     <string name="station_options">Параметры станции</string>
+    <string name="widget_name">Aerial избранные</string>
+    <string name="widget_empty">Добавь избранные станций, чтобы увидеть их сдесь</string>
+    <string name="widget_previous">Предыдущее</string>
+    <string name="widget_play">Воспроизвести</string>
+    <string name="widget_pause">Пауза</string>
+    <string name="widget_next">Следующее</string>
+    <string name="section_display">Показать</string>
 </resources>
