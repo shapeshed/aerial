@@ -1,3 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="widget_name">Aerial suosikit</string>
+    <string name="widget_empty">Lisää suosikkiradioasemia nähdäksesi ne täällä</string>
+    <string name="widget_previous">Edellinen</string>
+    <string name="widget_play">Soita</string>
+    <string name="widget_pause">Keskeytä</string>
+    <string name="widget_next">Seuraava</string>
+    <string name="action_back">Takaisin</string>
+    <string name="action_remove">Poista</string>
+    <string name="action_cancel">Peruuta</string>
+    <string name="action_clear">Tyhjennä</string>
+    <string name="action_save">Tallenna</string>
+    <string name="action_edit">Muokkaa</string>
+    <string name="save_all">Tallenna kaikki</string>
+    <string name="search_hint">Etsi asemia</string>
+    <string name="clear_search">Tyhjennä haku</string>
+    <string name="settings">Asetukset</string>
+    <string name="buffering">Ladataan…</string>
+    <string name="play">Soita</string>
+    <string name="pause">Keskeytä</string>
+    <string name="stop">Pysäytä</string>
+    <string name="filter_country">Maa</string>
+    <string name="filter_genre">Genre</string>
+    <string name="search_countries">Etsi maita</string>
+    <string name="search_genres">Etsi genrejä</string>
+    <string name="clear_all">Tyhjennä kaikki</string>
 </resources>
