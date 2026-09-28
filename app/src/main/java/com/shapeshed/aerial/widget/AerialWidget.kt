@@ -19,6 +19,8 @@ import android.util.Log
 import android.util.SizeF
 import android.widget.RemoteViews
 import androidx.concurrent.futures.await
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import coil3.SingletonImageLoader
@@ -315,16 +317,14 @@ private fun Bitmap.scaledForWidget(): Bitmap {
     val largestSide = maxOf(width, height)
     if (largestSide <= MAX_ARTWORK_SIZE_PX) return this
     val scale = MAX_ARTWORK_SIZE_PX.toFloat() / largestSide
-    return Bitmap.createScaledBitmap(
-        this,
+    return scale(
         (width * scale).toInt().coerceAtLeast(1),
         (height * scale).toInt().coerceAtLeast(1),
-        true,
     )
 }
 
 private fun Bitmap.maskedForWidget(context: Context): Bitmap {
-    val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val result = createBitmap(width, height)
     val canvas = Canvas(result)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         shader = BitmapShader(this@maskedForWidget, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)

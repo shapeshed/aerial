@@ -6,6 +6,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Backup posture: platform backup is off, and dataExtractionRules states that explicitly for
+      Android 12+ rather than relying on allowBackup="false" alone, which does not fully govern
+      device-to-device transfer on every OEM build. Aerial ships its own Export/Import backup.
+
+      DataExtractionRules is suppressed on this element because the check only reports that
+      dataExtractionRules is inert below API 31, which is expected and harmless — the
+      allowBackup deprecation it originally flagged has been addressed by the rules file. The
+      suppression is scoped to this element and named, not a global disable.
+    -->
     <application
         android:name=".AerialApp"
         android:allowBackup="false"
@@ -15,7 +25,9 @@
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:localeConfig="@xml/locales_config"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         tools:targetApi="tiramisu"
+        tools:ignore="DataExtractionRules"
         android:theme="@style/Theme.Aerial">
 
         <!-- Declares Aerial as a media app for Android Auto / Android Automotive OS. -->

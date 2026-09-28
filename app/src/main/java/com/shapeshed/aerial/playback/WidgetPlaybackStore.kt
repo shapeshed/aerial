@@ -2,6 +2,7 @@ package com.shapeshed.aerial.playback
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 internal data class WidgetPlaybackState(
     val mediaId: String?,
@@ -49,42 +50,33 @@ internal object WidgetPlaybackStore {
         canSkipNext: Boolean,
     ) {
         val stationChanged = preferences.getString(MEDIA_ID, null) != mediaId
-        preferences
-            .edit()
-            .apply {
-                if (mediaId == null) remove(MEDIA_ID) else putString(MEDIA_ID, mediaId)
-                putBoolean(IS_PLAYING, isPlaying)
-                putBoolean(CAN_SKIP_PREVIOUS, canSkipPrevious)
-                putBoolean(CAN_SKIP_NEXT, canSkipNext)
-                if (stationChanged) {
-                    remove(TRACK_TITLE)
-                    remove(TRACK_ARTIST)
-                }
+        preferences.edit {
+            if (mediaId == null) remove(MEDIA_ID) else putString(MEDIA_ID, mediaId)
+            putBoolean(IS_PLAYING, isPlaying)
+            putBoolean(CAN_SKIP_PREVIOUS, canSkipPrevious)
+            putBoolean(CAN_SKIP_NEXT, canSkipNext)
+            if (stationChanged) {
+                remove(TRACK_TITLE)
+                remove(TRACK_ARTIST)
             }
-            .apply()
+        }
     }
 
     fun writeMetadata(context: Context, mediaId: String?, title: String?, artist: String?) =
         writeMetadata(preferences(context), mediaId, title, artist)
 
     internal fun writeMetadata(preferences: SharedPreferences, mediaId: String?, title: String?, artist: String?) {
-        preferences
-            .edit()
-            .apply {
-                if (mediaId == null) remove(MEDIA_ID) else putString(MEDIA_ID, mediaId)
-                if (title.isNullOrBlank()) remove(TRACK_TITLE) else putString(TRACK_TITLE, title)
-                if (artist.isNullOrBlank()) remove(TRACK_ARTIST) else putString(TRACK_ARTIST, artist)
-            }
-            .apply()
+        preferences.edit {
+            if (mediaId == null) remove(MEDIA_ID) else putString(MEDIA_ID, mediaId)
+            if (title.isNullOrBlank()) remove(TRACK_TITLE) else putString(TRACK_TITLE, title)
+            if (artist.isNullOrBlank()) remove(TRACK_ARTIST) else putString(TRACK_ARTIST, artist)
+        }
     }
 
     fun markStopped(context: Context) = markStopped(preferences(context))
 
     internal fun markStopped(preferences: SharedPreferences) {
-        preferences
-            .edit()
-            .putBoolean(IS_PLAYING, false)
-            .apply()
+        preferences.edit { putBoolean(IS_PLAYING, false) }
     }
 
     private fun preferences(context: Context): SharedPreferences =

@@ -51,6 +51,18 @@ jobs:
       - name: Verify minified release and R8 configuration
         run: ./gradlew assembleRelease analyzeReleaseR8Config
 
+      # The gate documented in AGENTS.md and docs/testing.md. CI previously ran only the
+      # granular steps above, so two things it names were never exercised on a pull request:
+      # `bundleRelease`, which produces the artifact actually shipped to Play, and `lint`
+      # across all variants rather than lintDebug. The deviceTest lint variants are where a
+      # KSP dependency gap lived, which is why it could sit unnoticed here.
+      #
+      # Cheap to add: the earlier steps in this job have already built and tested everything
+      # this re-runs, so Gradle reports those tasks up-to-date and only the missing pieces do
+      # work. Run last so the fast feedback above is not held up behind it.
+      - name: Run the documented release gate
+        run: ./gradlew test lint assembleRelease bundleRelease
+
       - name: Upload debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

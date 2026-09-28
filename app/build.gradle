@@ -145,6 +145,22 @@ android {
         // AGP 9.3's documented/default Gradle line is 9.5.x. Keep the release-tested wrapper
         // rather than following lint's generic suggestion to use a newer Gradle release.
         disable 'MissingTranslation', 'AndroidGradlePluginVersion'
+        // Dependency upgrades are Renovate's job, and it opens a PR for each one. This lint
+        // check reports the same fact on every build, so keeping it only trains people to
+        // ignore the lint output. Renovate is configured for this repository.
+        disable 'NewerVersionAvailable'
+        // es/fr/it/pt define a `many` plural category, which is correct CLDR for those
+        // languages (compact values such as 1000000). English has no `many` category, so
+        // adding one to the default plurals just moves the warning to UnusedQuantity —
+        // the two checks are in tension and neither is satisfied. Android falls back to
+        // `other` in English, so the translations are reachable and correct as they are.
+        disable 'MissingQuantity'
+        // The suite is at zero warnings, so hold it there. Without this, warnings cannot fail
+        // the build and only ever accumulate — nothing surfaces them until someone reads a
+        // report. A new AGP release adding a check will fail here, which is intended: the fix
+        // is to disable the check with a reason (as above) or to fix the finding, not to let
+        // the count drift upward unnoticed.
+        warningsAsErrors = true
     }
 
     testOptions {
@@ -199,11 +215,20 @@ tasks.configureEach {
         dependsOn(generateRegistryAsset)
     }
 
-    // AGP's device-test lint models include release KSP sources but do not declare the
-    // producer dependency. Without this edge the documented combined release gate can
-    // race Room/KSP regeneration and fail with a transient FileNotFoundException.
-    if (name in ["lintAnalyzeDeviceTestUnitTest", "lintAnalyzeDeviceTestAndroidTest"]) {
-        dependsOn("kspReleaseKotlin")
+    // AGP's device-test lint models read generated Room/Hilt sources but do not declare the
+    // producer dependency, so the documented combined release gate can race KSP regeneration
+    // and fail with a transient FileNotFoundException.
+    //
+    // Naming one task was not enough: there are ten ksp* tasks, one per variant, and the
+    // earlier edge hardcoded kspReleaseKotlin, leaving the deviceTest family unordered against
+    // the very lint tasks that consume them. Depend on the whole family instead, so the graph
+    // is correct by construction rather than by enumerating variants that may be added later.
+    //
+    // The local build cache masks this: ksp* resolves FROM-CACHE and the race does not happen
+    // on a warm machine. It only bites on a cold cache, which is why it presents as an
+    // unreproducible flake rather than a missing edge.
+    if (name.startsWith("lintAnalyze")) {
+        dependsOn(tasks.matching { it.name.startsWith("ksp") })
     }
 }
 
