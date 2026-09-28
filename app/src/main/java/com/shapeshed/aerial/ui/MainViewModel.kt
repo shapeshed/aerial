@@ -66,7 +66,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -78,7 +77,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 private val HOME_CARDS_VIEW_KEY = booleanPreferencesKey("home_cards_view")
 private val LAST_HOME_TAB_KEY = intPreferencesKey("last_home_tab")
-private const val RECENTLY_PLAYED_LIMIT = 10
+
 private const val TAG = "MainViewModel"
 
 /**
@@ -126,39 +125,23 @@ class MainViewModel @Inject constructor(
         .map { it.settled }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    private val _allTags = MutableStateFlow<List<String>>(emptyList())
-    val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
+    private val discovery = DiscoveryStateHolder(
+        scope = viewModelScope,
+        repository = repository,
+        registryRepository = registryRepository,
+    )
 
-    private val _featuredStations = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val featuredStations: StateFlow<List<RegistryStation>> = _featuredStations.asStateFlow()
-
-    // For You is loaded for the device locale's country: a curated selection where one
-    // exists, otherwise a random sample of that country's stations with artwork. Keyed by
-    // country (distinctUntilChanged below) so the random pick stays stable for the session.
-    private val forYouCountryState = MutableStateFlow("GB")
-    private val _forYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val forYouStations: StateFlow<List<RegistryStation>> = _forYouStations.asStateFlow()
+    val allTags: StateFlow<List<String>> = discovery.allTags
+    val featuredStations: StateFlow<List<RegistryStation>> = discovery.featuredStations
+    val forYouStations: StateFlow<List<RegistryStation>> = discovery.forYouStations
+    val defaultStations: StateFlow<List<RegistryStation>> = discovery.defaultStations
+    val curatedMoodStations: StateFlow<Map<String, List<RegistryStation>>> = discovery.curatedMoodStations
+    val availableCountries: StateFlow<List<String>> = discovery.availableCountries
+    val recentlyPlayedStations: StateFlow<List<RegistryStation>> = discovery.recentlyPlayedStations
 
     fun setForYouCountry(countryCode: String) {
-        if (countryCode.isNotBlank()) forYouCountryState.value = countryCode
+        discovery.setForYouCountry(countryCode)
     }
-
-    private val _defaultStations = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val defaultStations: StateFlow<List<RegistryStation>> = _defaultStations.asStateFlow()
-
-    private val _curatedMoodStations = MutableStateFlow<Map<String, List<RegistryStation>>>(emptyMap())
-    val curatedMoodStations: StateFlow<Map<String, List<RegistryStation>>> = _curatedMoodStations.asStateFlow()
-
-    // Recently played stations for the home screen, same source as Android Auto's Recently
-    // Played folder: the play_history table resolved against the registry (entries whose
-    // station is no longer in the registry are skipped). Room re-emits on every recorded
-    // play, so the row reorders live. The first resolution gates isInitialized (and so the
-    // splash screen) below: the home list's scroll position is restored against the first
-    // composition, so this section must already be present in it rather than streaming in
-    // afterwards and shifting the restored position.
-    private val _recentlyPlayedStations = MutableStateFlow<List<RegistryStation>>(emptyList())
-    val recentlyPlayedStations: StateFlow<List<RegistryStation>> = _recentlyPlayedStations.asStateFlow()
-    private val recentlyPlayedFirstLoad = CompletableDeferred<Unit>()
 
     private fun initialize() {
         viewModelScope.launch {
@@ -174,36 +157,6 @@ class MainViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            repository.recentlyPlayedAsFlow(RECENTLY_PLAYED_LIMIT)
-                .map { entries ->
-                    entries.mapNotNull { entry ->
-                        val registryStation = registryRepository.getByProviderId(entry.provider, entry.providerId)
-                            ?: return@mapNotNull null
-                        // The registry's own copy may have no logo, or one the user has
-                        // replaced locally (e.g. a custom-uploaded SVG) — prefer the user's
-                        // saved station's artwork when this station is saved locally.
-                        val localLogoPath = repository.findMatching(registryStation)?.logoPath.orEmpty()
-                        val artworkPath = recentlyPlayedLogoPath(localLogoPath, registryStation.logoUrl)
-                        if (artworkPath != registryStation.logoUrl) {
-                            registryStation.copy(logoUrl = artworkPath)
-                        } else {
-                            registryStation
-                        }
-                    }
-                }
-                // A failing history query must not leave the splash screen waiting on a signal
-                // that will never arrive; the gate below settles on the timeout either way.
-                .catch { error ->
-                    Log.w(TAG, "Recently played history unavailable", error)
-                    recentlyPlayedFirstLoad.complete(Unit)
-                }
-                .collect {
-                    _recentlyPlayedStations.value = it
-                    // complete() is a no-op once signalled, so re-emissions are harmless.
-                    recentlyPlayedFirstLoad.complete(Unit)
-                }
-        }
-        viewModelScope.launch {
             // Each source reports "resolved" rather than failing. A failed child would cancel
             // this coroutine through structured concurrency and the state below would never be
             // set, which is the same indefinite splash as never resolving at all.
@@ -216,7 +169,7 @@ class MainViewModel @Inject constructor(
                     Log.w(TAG, "Station list unavailable; opening anyway", error)
                 }
             }
-            val historyLoaded = async { recentlyPlayedFirstLoad.await() }
+            val historyLoaded = async { discovery.awaitFirstRecentlyPlayed() }
             val ready = withTimeoutOrNull(STARTUP_CONTENT_TIMEOUT_MS) {
                 awaitAll(stationsLoaded, historyLoaded)
             }
@@ -230,28 +183,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             restoreLastPlayedStation()
         }
-        viewModelScope.launch {
-            registryRepository.countAsFlow()
-                .filter { it > 0 }
-                .distinctUntilChanged()
-                .collect {
-                    _featuredStations.value = registryRepository.featuredStations()
-                    _defaultStations.value = registryRepository.defaultStations()
-                    _curatedMoodStations.value = registryRepository.curatedMoodStations()
-                    _availableCountries.value = registryRepository.availableCountryCodes()
-                    _allTags.value = registryRepository.availableTags()
-                }
-        }
-        viewModelScope.launch {
-            combine(
-                registryRepository.countAsFlow().filter { it > 0 }.distinctUntilChanged(),
-                forYouCountryState,
-            ) { _, country -> country }
-                .distinctUntilChanged()
-                .collect { country ->
-                    _forYouStations.value = registryRepository.forYouStations(country)
-                }
-        }
+        discovery.start()
         viewModelScope.launch {
             val prefs = dataStore.data.first()
             searchStateHolder.restoreFilters(prefs)
@@ -497,9 +429,6 @@ class MainViewModel @Inject constructor(
     val searchIsSearching: StateFlow<Boolean> = searchStateHolder.isSearching
     val selectedCountries: StateFlow<Set<String>> = searchStateHolder.selectedCountries
     val selectedTags: StateFlow<Set<String>> = searchStateHolder.selectedTags
-
-    private val _availableCountries = MutableStateFlow<List<String>>(emptyList())
-    val availableCountries: StateFlow<List<String>> = _availableCountries.asStateFlow()
 
     fun searchRegistry(query: String) {
         searchStateHolder.search(query)
