@@ -553,11 +553,18 @@ cycle is ever proposed** — documented exceptions become habits.
 
 ### 11.3 Maintainability — one clear offender left
 
-`ui/MainViewModel.kt` is **1,121 lines**, still the largest file in the project by 2×.
-PR #278 extracted `SearchStateHolder`, a favourites-ordering holder, and a
-playback-transition decider, which took it from god object to merely large. The
-decomposition is not finished. Next largest: `NowPlayingScreen.kt` (665),
-`PlayerService.kt` (622), `FavoritesContent.kt` (615), `MainScreen.kt` (604).
+`ui/MainViewModel.kt` is **1,121 lines** at the `c791959` snapshot, still the largest
+file in the project by 2×. PR #278 extracted `SearchStateHolder`, a favourites-ordering
+holder, and a playback-transition decider, which took it from god object to merely large.
+`DiscoveryStateHolder` (PR #281) took it to **1,050**. The decomposition is not finished.
+Next largest: `NowPlayingScreen.kt` (665), `PlayerService.kt` (622),
+`FavoritesContent.kt` (615), `MainScreen.kt` (604).
+
+The favourites cluster (~130 lines) looks like the next obvious candidate and is not a good
+one: it is entangled with `_playbackUiState` and the media controller, so extracting it moves
+the coupling rather than removing it. The playback session lifecycle is the larger remaining
+concern and the one worth attacking, phased pure-decision-first as the existing
+`PlaybackQueuePolicy` precedent does.
 
 144 lines of genuinely dead code were removed in PR #278, in a four-step cascade where
 each removal orphaned the next: `toPlaybackStation` → `StationLogoCircle` →
@@ -621,8 +628,10 @@ behavioural. They are not a substitute for the scenario tests above.
 
 ### 11.6 Recommended next work, in priority order
 
-1. **Finish decomposing `MainViewModel`.** 1,121 lines, largest file by 2×. Follow the
-   seams already proven by the holder extractions in PR #278.
+1. **Finish decomposing `MainViewModel`.** 1,050 lines after `DiscoveryStateHolder`
+   (PR #281), still the largest file by 2×. Follow the seams already proven by the holder
+   extractions. Take the playback session lifecycle next, not the favourites cluster —
+   see §11.3 for why.
 2. ~~**Give the coverage floor headroom.**~~ **DONE** on
    `chore/coverage-floor-headroom` (`10e5337`) — floor 0.32 → 0.30, headroom 1.7pp →
    3.7pp. Gate verified to still fail when unsatisfiable.
@@ -631,8 +640,23 @@ behavioural. They are not a substitute for the scenario tests above.
    rendering are worth more than another 200 tests of ViewModel plumbing. Note §10's
    "deliberately not covered" list — the widget block needs a device or Robolectric,
    and the instrumented suite is the right home for it.
-4. **Add scenario tests for the two manually-verified UX fixes** (search empty-state
-   suppression, Settings `None` transitions) if either is likely to be touched again.
+4. **Scenario tests for the manually-verified UX fixes** — but only one of the two is
+   worth writing. The **search empty-state suppression** is: `isSearching` semantics are
+   ours rather than the library's, and they already regressed once (§11.4b). The
+   **Settings `None` transitions** are not, and it is worth recording why so nobody
+   re-proposes it:
+
+   - asserting the transition metadata map restates the code rather than testing it —
+     it fails only if the function is edited, and the fix is to make the assertion match
+   - the drift being guarded against is a Nav3-plus-`AdaptiveNavigationShell`
+     interaction; reading a metadata map back cannot see it
+   - `MainActivityNavigationTest.settingsOpensFromMainRouteAndBackReturnsToMainRoute`
+     already covers the part that *can* be asserted: back works and the stack is intact
+
+   What remains uncovered is only "no drift during the animation", and no practical test
+   distinguishes that from correct behaviour. This fix is verified by before/after screen
+   recordings at 20fps, not by a regression test, and that is a real gap — but closing it
+   with a tautological assertion would be worse than leaving it open.
 
 ### 11.7 Still open, deliberately
 
