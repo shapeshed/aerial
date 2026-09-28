@@ -635,11 +635,29 @@ behavioural. They are not a substitute for the scenario tests above.
 2. ~~**Give the coverage floor headroom.**~~ **DONE** on
    `chore/coverage-floor-headroom` (`10e5337`) — floor 0.32 → 0.30, headroom 1.7pp →
    3.7pp. Gate verified to still fail when unsatisfiable.
-3. **Cover untested *risk*, not untested *volume*.** `PlayerService` behaviour
-   (audio focus, media session, notification channel) and widget `RemoteViews`
-   rendering are worth more than another 200 tests of ViewModel plumbing. Note §10's
-   "deliberately not covered" list — the widget block needs a device or Robolectric,
-   and the instrumented suite is the right home for it.
+3. ~~**Cover untested *risk*, not untested *volume*.**~~ **REVISED — largely already
+   done; the premise was wrong.** This item recommended covering `PlayerService` behaviour
+   and widget `RemoteViews` rendering. Measured per-class coverage says otherwise, and the
+   measurement is the thing to trust:
+
+   | Block | JVM unit coverage | Already covered by |
+   |---|---|---|
+   | `PlayerService$icyListener$1` | 0 of 76 lines | every pure function it calls is tested — `parseTrackMetadata` (`IcyUtilsTest`), `streamMetadataChanges`/`streamMetadataFrames` (`StreamMetadataTest`), `stationNameFromMediaMetadata` (`StationMediaItemsTest`, 97.3%) |
+   | `PlayerService$librarySessionCallback$1` | 0 of 37 lines | `MediaSessionQueueExpansionTest` (4 instrumented) |
+   | `AerialWidgetKt` | 31.6% (74/234) | `AerialWidgetRemoteViewsTest` (5 instrumented) |
+   | `PlaybackSessionCoordinator` | 0 of 52 lines | `PlaybackSessionPaginationTest`, `DefaultWidgetUpdaterTest` |
+
+   The 0% figures are **structural, not a logic gap**. `icyListener` is an anonymous
+   `Player.Listener`, so its uncovered lines are glue that needs a live `Player` and a real
+   audio stream; the decisions it makes are already extracted and tested. Writing tests to
+   raise those numbers would mean driving real audio, which is slow and flaky, and would buy
+   coverage of wiring rather than of behaviour.
+
+   What remains genuinely uncovered is the *interaction* between `PlayerService`, Media3 and
+   Glance, and the only honest way to check that is running the app — which the minified
+   release smoke test and the media session registration check in `AGENTS.md` already do.
+   **Recommendation: do not manufacture tests here.** Revisit only if a concrete bug or
+   feature lands in one of these blocks.
 4. **Scenario tests for the manually-verified UX fixes** — but only one of the two is
    worth writing. The **search empty-state suppression** is: `isSearching` semantics are
    ours rather than the library's, and they already regressed once (§11.4b). The
