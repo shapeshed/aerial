@@ -524,10 +524,10 @@ specifically a *scenario* gap rather than a line-count gap.
 | JVM unit tests | 368 in 65 classes, 0 failures |
 | Instrumented tests | 52, 0 failures |
 | Screenshot goldens | 51 |
-| JaCoCo line | 32.7% |
-| JaCoCo branch | 32.1% |
-| JaCoCo class | 58.7% |
-| JaCoCo method | 38.3% |
+| JaCoCo line | 33.7% |
+| JaCoCo branch | 32.9% |
+| JaCoCo class | 60.0% |
+| JaCoCo method | 39.8% |
 | Android lint | 17 warnings, 0 errors |
 
 Lint warnings are all cosmetic (`UseKtx` ×5, `MissingQuantity` ×4) or i18n debt
@@ -565,7 +565,7 @@ each removal orphaned the next: `toPlaybackStation` → `StationLogoCircle` →
 
 ### 11.4 Test coverage — the weak dimension
 
-The *count* is healthy; the underlying ratio is not. At 32.7% line coverage roughly
+The *count* is healthy; the underlying ratio is not. At 33.7% line coverage roughly
 two-thirds of main code is unexercised, and the untested bulk includes the highest-risk
 areas: `PlayerService` (622 lines, audio focus / media session / notification channels),
 `NowPlayingScreen` (665), `AerialWidget` (494, Glance `RemoteViews`).
@@ -573,11 +573,24 @@ areas: `PlayerService` (622 lines, audio focus / media session / notification ch
 Two problems worth acting on:
 
 **(a) The coverage gate has almost no headroom.** `app/build.gradle` sets
-`violationRules` `LINE minimum = 0.32` against a measured 32.7% — a **0.7 percentage
-point** margin, roughly 45 lines of main code. Adding any substantial file without
+`violationRules` `LINE minimum = 0.32` against a measured 33.7% — a **1.7 percentage
+point** margin, roughly 117 lines of main code. Adding any substantial file without
 tests fails the build. That punishes *adding code* rather than *adding untested code*,
 which is backwards: the gate should catch regression, not obstruct work. Lower the
 floor to ~0.30 so there is room to move, or re-derive it with headroom.
+
+*Addressed* on `chore/coverage-floor-headroom` (`10e5337`, unmerged at time of
+writing): the floor is 0.30, giving 3.7 points. The rule was checked rather than
+assumed — at 0.99 the task fails with `lines covered ratio is 0.33`, so it still
+bites.
+
+A note on how the numbers above were arrived at, because it nearly went the other
+way: an earlier reading gave 32.7% and implied a 0.7-point margin, which made the
+case look stronger. That XML was stale. Re-measuring with `--rerun-tasks` on both
+the report *and* the verification gives 33.7%. The conclusion survives — the gate
+was still too tight for a refactor to pass — but the margin was overstated, and
+reading a coverage figure out of whatever report happens to be on disk is not
+sound. §12's commands are only trustworthy when the report is regenerated.
 
 **(b) The scenario gap is real and was demonstrated.** All 368 unit tests missed a
 regression that shipped in PR #278: `isSearching` was set on *every* request emission,
@@ -610,7 +623,9 @@ behavioural. They are not a substitute for the scenario tests above.
 
 1. **Finish decomposing `MainViewModel`.** 1,121 lines, largest file by 2×. Follow the
    seams already proven by the holder extractions in PR #278.
-2. **Give the coverage floor headroom.** 0.7pp is a trap, not a gate. Prefer ~0.30.
+2. ~~**Give the coverage floor headroom.**~~ **DONE** on
+   `chore/coverage-floor-headroom` (`10e5337`) — floor 0.32 → 0.30, headroom 1.7pp →
+   3.7pp. Gate verified to still fail when unsatisfiable.
 3. **Cover untested *risk*, not untested *volume*.** `PlayerService` behaviour
    (audio focus, media session, notification channel) and widget `RemoteViews`
    rendering are worth more than another 200 tests of ViewModel plumbing. Note §10's
@@ -637,7 +652,11 @@ behavioural. They are not a substitute for the scenario tests above.
 ## 12. Re-measuring §11
 
 ```sh
-# Coverage by counter type (JaCoCo, generated classes excluded)
+# Coverage by counter type (JaCoCo, generated classes excluded).
+# REGENERATE FIRST. The XML left on disk can be stale and will happily
+# report a number a point away from the truth, which is enough to invert
+# a conclusion drawn from it.
+./gradlew :app:jacocoDeviceTestUnitTestReport --rerun-tasks
 python3 -c "
 import xml.etree.ElementTree as ET, glob
 for f in glob.glob('app/build/reports/jacoco/*/*.xml'):
