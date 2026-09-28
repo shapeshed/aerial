@@ -505,3 +505,252 @@ Appended after the fact so the plan stays trustworthy; earlier phases are left a
   `onEvents` adapter) could not be driven in a JVM test — `Player.Events` built from
   a `FlagSet` does not report `containsAny` — and it only delegates to the already
   tested `reducePlaybackSync`. Left as is rather than fought.
+
+## 11. State assessment after PR #278 (2026-09-27, merged as `c791959`)
+
+Appended after the fact, same as §10. Snapshot taken on `main` at `c791959` after
+merging the Hilt-migration / layering / search-UX work. Numbers below are measured,
+not estimated; see §12 for how to re-measure them.
+
+### 11.1 Where things stand
+
+Mechanically in good shape: architecture is enforced rather than documented, lint is
+error-free, and the full gate is green. The weak dimension is test coverage, and
+specifically a *scenario* gap rather than a line-count gap.
+
+| Metric | Value |
+|---|---|
+| Main Kotlin files / lines | 101 / 12,844 |
+| JVM unit tests | 368 in 65 classes, 0 failures |
+| Instrumented tests | 52, 0 failures |
+| Screenshot goldens | 51 |
+| JaCoCo line | 33.7% |
+| JaCoCo branch | 32.9% |
+| JaCoCo class | 60.0% |
+| JaCoCo method | 39.8% |
+| Android lint | 17 warnings, 0 errors |
+
+Lint warnings are all cosmetic (`UseKtx` ×5, `MissingQuantity` ×4) or i18n debt
+(`Untranslatable` ×3, `UnusedTranslation` ×1), plus one `NewerVersionAvailable` and
+one `DataExtractionRules`.
+
+### 11.2 Quality — the real win
+
+The gain from PR #278 was not any individual fix; it was that two classes of mistake
+are now build failures rather than review comments:
+
+- `PackageLayeringTest` makes a package-layering violation (or a new dependency cycle)
+  fail the build. The layering was previously convention only.
+- `DependencyGraphTest` catches dependency-wiring errors that are invisible at compile
+  time. An `@EntryPoint` declared in `androidTest` instead of `main` compiled cleanly
+  and threw `ClassCastException` at runtime across nine tests before it was caught.
+
+One dependency cycle remains, documented and justified in the test:
+`PlayerService` ↔ `MainActivity`/`MediaControllerGateway` must name each other. The
+alternative was a deep-link `VIEW` filter, which would have weakened the manifest
+security posture described in `AGENTS.md`. **Re-read that justification if a second
+cycle is ever proposed** — documented exceptions become habits.
+
+### 11.3 Maintainability — one clear offender left
+
+`ui/MainViewModel.kt` is **1,121 lines** at the `c791959` snapshot, still the largest
+file in the project by 2×. PR #278 extracted `SearchStateHolder`, a favourites-ordering
+holder, and a playback-transition decider, which took it from god object to merely large.
+`DiscoveryStateHolder` (PR #281) took it to **1,050**. The decomposition is not finished.
+Next largest: `NowPlayingScreen.kt` (665), `PlayerService.kt` (622),
+`FavoritesContent.kt` (615), `MainScreen.kt` (604).
+
+The favourites cluster (~130 lines) looks like the next obvious candidate and is not a good
+one: it is entangled with `_playbackUiState` and the media controller, so extracting it moves
+the coupling rather than removing it. The playback session lifecycle is the larger remaining
+concern and the one worth attacking, phased pure-decision-first as the existing
+`PlaybackQueuePolicy` precedent does.
+
+144 lines of genuinely dead code were removed in PR #278, in a four-step cascade where
+each removal orphaned the next: `toPlaybackStation` → `StationLogoCircle` →
+`StationLogoContent` → `GRID_LOGO_INSET_FRACTION`.
+
+### 11.4 Test coverage — the weak dimension
+
+The *count* is healthy; the underlying ratio is not. At 33.7% line coverage roughly
+two-thirds of main code is unexercised, and the untested bulk includes the highest-risk
+areas: `PlayerService` (622 lines, audio focus / media session / notification channels),
+`NowPlayingScreen` (665), `AerialWidget` (494, Glance `RemoteViews`).
+
+Two problems worth acting on:
+
+**(a) The coverage gate has almost no headroom.** `app/build.gradle` sets
+`violationRules` `LINE minimum = 0.32` against a measured 33.7% — a **1.7 percentage
+point** margin, roughly 117 lines of main code. Adding any substantial file without
+tests fails the build. That punishes *adding code* rather than *adding untested code*,
+which is backwards: the gate should catch regression, not obstruct work. Lower the
+floor to ~0.30 so there is room to move, or re-derive it with headroom.
+
+*Addressed* on `chore/coverage-floor-headroom` (`10e5337`, unmerged at time of
+writing): the floor is 0.30, giving 3.7 points. The rule was checked rather than
+assumed — at 0.99 the task fails with `lines covered ratio is 0.33`, so it still
+bites.
+
+A note on how the numbers above were arrived at, because it nearly went the other
+way: an earlier reading gave 32.7% and implied a 0.7-point margin, which made the
+case look stronger. That XML was stale. Re-measuring with `--rerun-tasks` on both
+the report *and* the verification gives 33.7%. The conclusion survives — the gate
+was still too tight for a refactor to pass — but the margin was overstated, and
+reading a coverage figure out of whatever report happens to be on disk is not
+sound. §12's commands are only trustworthy when the report is regenerated.
+
+**(b) The scenario gap is real and was demonstrated.** All 368 unit tests missed a
+regression that shipped in PR #278: `isSearching` was set on *every* request emission,
+so a filter change blanked results that had already landed, taking the
+"Add your own station" control with them. It survived local testing because on a Pixel
+9 Pro XL the whole sequence takes ~3s, and it was caught only by the slow two-core API
+34 CI emulator timing out at 30s. The suite had tests for `isSearching` being true,
+false, on a blank query, and on a superseded query — but none for *a filter change
+after results had landed*. Line coverage would not have caught it either.
+
+This is the argument for scenario-based tests over volume: 200 more ViewModel tests
+would not have found it, one well-chosen scenario did.
+
+### 11.5 What the tooling actually earned
+
+Of the five bugs fixed in the PR #278 work, **four were found by tests and lint rather
+than by reading code** — the duplicate `NetworkMonitor` (two `ConnectivityManager`
+callbacks), the unbounded startup that could hang the splash forever, `null` bitrate
+clearing the reading instead of meaning "not reported", and the `isSearching` blink.
+
+The remaining one — plus the search "no stations found" flash and the predictive-back
+animation — came from the user, were reproduced by manual measurement (screen
+recordings at 20fps on a Pixel 9 Pro XL, before and after), and **have no regression
+test**. If either regresses, nothing will catch it.
+
+The screenshot goldens are excellent at catching visual drift and catch nothing
+behavioural. They are not a substitute for the scenario tests above.
+
+### 11.6 Recommended next work, in priority order
+
+1. **Finish decomposing `MainViewModel`.** 1,050 lines after `DiscoveryStateHolder`
+   (PR #281), still the largest file by 2×. Follow the seams already proven by the holder
+   extractions. Take the playback session lifecycle next, not the favourites cluster —
+   see §11.3 for why.
+2. ~~**Give the coverage floor headroom.**~~ **DONE** on
+   `chore/coverage-floor-headroom` (`10e5337`) — floor 0.32 → 0.30, headroom 1.7pp →
+   3.7pp. Gate verified to still fail when unsatisfiable.
+3. ~~**Cover untested *risk*, not untested *volume*.**~~ **REVISED — largely already
+   done; the premise was wrong.** This item recommended covering `PlayerService` behaviour
+   and widget `RemoteViews` rendering. Measured per-class coverage says otherwise, and the
+   measurement is the thing to trust:
+
+   | Block | JVM unit coverage | Already covered by |
+   |---|---|---|
+   | `PlayerService$icyListener$1` | 0 of 76 lines | every pure function it calls is tested — `parseTrackMetadata` (`IcyUtilsTest`), `streamMetadataChanges`/`streamMetadataFrames` (`StreamMetadataTest`), `stationNameFromMediaMetadata` (`StationMediaItemsTest`, 97.3%) |
+   | `PlayerService$librarySessionCallback$1` | 0 of 37 lines | `MediaSessionQueueExpansionTest` (4 instrumented) |
+   | `AerialWidgetKt` | 31.6% (74/234) | `AerialWidgetRemoteViewsTest` (5 instrumented) |
+   | `PlaybackSessionCoordinator` | 0 of 52 lines | `PlaybackSessionPaginationTest`, `DefaultWidgetUpdaterTest` |
+
+   The 0% figures are **structural, not a logic gap**. `icyListener` is an anonymous
+   `Player.Listener`, so its uncovered lines are glue that needs a live `Player` and a real
+   audio stream; the decisions it makes are already extracted and tested. Writing tests to
+   raise those numbers would mean driving real audio, which is slow and flaky, and would buy
+   coverage of wiring rather than of behaviour.
+
+   What remains genuinely uncovered is the *interaction* between `PlayerService`, Media3 and
+   Glance, and the only honest way to check that is running the app — which the minified
+   release smoke test and the media session registration check in `AGENTS.md` already do.
+   **Recommendation: do not manufacture tests here.** Revisit only if a concrete bug or
+   feature lands in one of these blocks.
+4. **Scenario tests for the manually-verified UX fixes** — but only one of the two is
+   worth writing. The **search empty-state suppression** is: `isSearching` semantics are
+   ours rather than the library's, and they already regressed once (§11.4b). The
+   **Settings `None` transitions** are not, and it is worth recording why so nobody
+   re-proposes it:
+
+   - asserting the transition metadata map restates the code rather than testing it —
+     it fails only if the function is edited, and the fix is to make the assertion match
+   - the drift being guarded against is a Nav3-plus-`AdaptiveNavigationShell`
+     interaction; reading a metadata map back cannot see it
+   - `MainActivityNavigationTest.settingsOpensFromMainRouteAndBackReturnsToMainRoute`
+     already covers the part that *can* be asserted: back works and the stack is intact
+
+   What remains uncovered is only "no drift during the animation", and no practical test
+   distinguishes that from correct behaviour. This fix is verified by before/after screen
+   recordings at 20fps, not by a regression test, and that is a real gap — but closing it
+   with a tautological assertion would be worse than leaving it open.
+
+### 11.7 Closed, deliberately
+
+- **`AddStation` and `EditStation` keep the default Nav3 transitions.** They are
+  full-screen destinations on the same shell and so share the animation-timeline
+  mismatch `Settings` had, but the maintainer reviewed this on device and is content
+  with it. Station edit is a sub-flow of search, where a slide arguably reads better
+  than a cut. Decided 2026-09-28; do not re-raise it without a complaint.
+- **The navigation bar's spring-in during a back gesture is fine.** It was never
+  captured in a recording because the commit lands between two frames at 20fps, which
+  read as an unverified loose end. The maintainer has since seen it on device: the bar
+  springs back and that is the expected `NavigationSuiteScaffold` behaviour. The
+  `None` transition on `Settings` removed the *content* animation the bar was
+  disagreeing with, which was the whole bug. What remains is library animation, not
+  ours, and it does not need changing.
+- **`docs/audits/COMPOSE-AUDIT-REPORT.md:95` still names `StationLogoCircle`**, deleted
+  in PR #278. Left alone on purpose: it is a dated 2026-09-03 snapshot, and rewriting a
+  dated audit to match current code is how those documents stop being worth keeping.
+
+Both animation items resolve the same way, and it is worth naming why so this is not
+re-litigated: the drift the maintainer reported was ours — a content transition on our
+route fighting a bar animation on a `Boolean` edge we control. The surviving spring is
+Nav3's and `NavigationSuiteScaffold`'s. Fixing library behaviour that already looks
+right is not an improvement.
+
+## 12. Re-measuring §11
+
+```sh
+# Coverage by counter type (JaCoCo, generated classes excluded).
+# REGENERATE FIRST. The XML left on disk can be stale and will happily
+# report a number a point away from the truth, which is enough to invert
+# a conclusion drawn from it.
+./gradlew :app:jacocoDeviceTestUnitTestReport --rerun-tasks
+python3 -c "
+import xml.etree.ElementTree as ET, glob
+for f in glob.glob('app/build/reports/jacoco/*/*.xml'):
+    r = ET.parse(f).getroot()
+    for c in r.findall('counter'):
+        t, m = int(c.get('missed')), int(c.get('covered'))
+        print(f\"{c.get('type'):11} {m/(m+t)*100:5.1f}%  ({m}/{t+m})\")
+"
+
+# Test counts, and the coverage floor itself
+./gradlew test
+python3 -c "
+import glob, xml.etree.ElementTree as ET
+for label, pat in (('unit','app/build/test-results/test*UnitTest/*.xml'),
+                   ('instrumented','app/build/outputs/androidTest-results/connected/**/*.xml')):
+    tot = fail = 0
+    for f in glob.glob(pat, recursive=True):
+        r = ET.parse(f).getroot()
+        tot += int(r.get('tests',0)); fail += int(r.get('failures',0))+int(r.get('errors',0))
+    print(f'{label:14} {tot} tests, {fail} failures')
+"
+find app/src/screenshotTestDebug/reference -name '*.png' | wc -l   # goldens
+grep -n 'minimum' app/build.gradle                                   # coverage floor
+
+# Lint, by rule
+python3 -c "
+import xml.etree.ElementTree as ET
+from collections import Counter
+r = ET.parse('app/build/reports/lint-results-debug.xml').getroot()
+for (i, s), n in Counter((i.get('id'), i.get('severity')) for i in r.iter('issue')).most_common():
+    print(f'{n:4} {s:9} {i}')
+"
+
+# Largest main files, for the decomposition backlog
+find app/src/main/java -name '*.kt' -exec wc -l {} + | sort -rn | head -10
+
+# Dead top-level declarations: sweep every source set, no lookbehind.
+# A lookbehind of (?<![\w.]) hides `receiver.name(...)` extension calls and
+# produces false "dead code" reports; this bit three times during PR #278.
+```
+
+For dead-code sweeps specifically, count references *including* dot-qualified calls and
+excluding each declaration's own line, then re-run after every removal until it reports
+zero. A single pass under-reports: removing one dead declaration can orphan the next,
+as happened with the `StationLogoCircle` → `StationLogoContent` →
+`GRID_LOGO_INSET_FRACTION` cascade.
