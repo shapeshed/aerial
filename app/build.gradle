@@ -199,11 +199,20 @@ tasks.configureEach {
         dependsOn(generateRegistryAsset)
     }
 
-    // AGP's device-test lint models include release KSP sources but do not declare the
-    // producer dependency. Without this edge the documented combined release gate can
-    // race Room/KSP regeneration and fail with a transient FileNotFoundException.
-    if (name in ["lintAnalyzeDeviceTestUnitTest", "lintAnalyzeDeviceTestAndroidTest"]) {
-        dependsOn("kspReleaseKotlin")
+    // AGP's device-test lint models read generated Room/Hilt sources but do not declare the
+    // producer dependency, so the documented combined release gate can race KSP regeneration
+    // and fail with a transient FileNotFoundException.
+    //
+    // Naming one task was not enough: there are ten ksp* tasks, one per variant, and the
+    // earlier edge hardcoded kspReleaseKotlin, leaving the deviceTest family unordered against
+    // the very lint tasks that consume them. Depend on the whole family instead, so the graph
+    // is correct by construction rather than by enumerating variants that may be added later.
+    //
+    // The local build cache masks this: ksp* resolves FROM-CACHE and the race does not happen
+    // on a warm machine. It only bites on a cold cache, which is why it presents as an
+    // unreproducible flake rather than a missing edge.
+    if (name.startsWith("lintAnalyze")) {
+        dependsOn(tasks.matching { it.name.startsWith("ksp") })
     }
 }
 
