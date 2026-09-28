@@ -676,20 +676,29 @@ behavioural. They are not a substitute for the scenario tests above.
    recordings at 20fps, not by a regression test, and that is a real gap — but closing it
    with a tautological assertion would be worse than leaving it open.
 
-### 11.7 Still open, deliberately
+### 11.7 Closed, deliberately
 
-- `AddStation` and `EditStation` keep the default Nav3 transitions. They are
+- **`AddStation` and `EditStation` keep the default Nav3 transitions.** They are
   full-screen destinations on the same shell and so share the animation-timeline
-  mismatch that `Settings` had, but changing station-edit UX is a product decision,
-  not a bug fix.
-- The navigation bar's own spring-in during a committed back gesture was never
-  captured (the commit lands between two frames at 20fps). The `None` transition
-  removes the *content* animation that the bar was disagreeing with; the bar's own
-  animation is separate and lives in `AdaptiveNavigationShell`. If it still looks
-  wrong, that is where to look.
-- `docs/audits/COMPOSE-AUDIT-REPORT.md:95` still names `StationLogoCircle`, deleted in
-  PR #278. Left alone on purpose: it is a dated 2026-09-03 snapshot, and rewriting a
+  mismatch `Settings` had, but the maintainer reviewed this on device and is content
+  with it. Station edit is a sub-flow of search, where a slide arguably reads better
+  than a cut. Decided 2026-09-28; do not re-raise it without a complaint.
+- **The navigation bar's spring-in during a back gesture is fine.** It was never
+  captured in a recording because the commit lands between two frames at 20fps, which
+  read as an unverified loose end. The maintainer has since seen it on device: the bar
+  springs back and that is the expected `NavigationSuiteScaffold` behaviour. The
+  `None` transition on `Settings` removed the *content* animation the bar was
+  disagreeing with, which was the whole bug. What remains is library animation, not
+  ours, and it does not need changing.
+- **`docs/audits/COMPOSE-AUDIT-REPORT.md:95` still names `StationLogoCircle`**, deleted
+  in PR #278. Left alone on purpose: it is a dated 2026-09-03 snapshot, and rewriting a
   dated audit to match current code is how those documents stop being worth keeping.
+
+Both animation items resolve the same way, and it is worth naming why so this is not
+re-litigated: the drift the maintainer reported was ours — a content transition on our
+route fighting a bar animation on a `Boolean` edge we control. The surviving spring is
+Nav3's and `NavigationSuiteScaffold`'s. Fixing library behaviour that already looks
+right is not an improvement.
 
 ## 12. Re-measuring §11
 
