@@ -135,4 +135,9 @@
     <string name="playback_format_unsupported">Formato del flusso non supportato</string>
     <string name="previous_station">Stazione precedente</string>
     <string name="station_options">Opzioni della stazione</string>
+    <string name="widget_previous">Precedente</string>
+    <string name="widget_play">Riproduci</string>
+    <string name="widget_pause">Pausa</string>
+    <string name="widget_next">Successivo</string>
+    <string name="section_display">Visualizzazione</string>
 </resources>
