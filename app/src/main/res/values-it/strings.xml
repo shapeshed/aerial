@@ -140,4 +140,6 @@
     <string name="widget_pause">Pausa</string>
     <string name="widget_next">Successivo</string>
     <string name="section_display">Visualizzazione</string>
+    <string name="widget_name">Preferiti di Aerial</string>
+    <string name="widget_empty">Aggiungi stazioni ai preferiti per visualizzarle qui</string>
 </resources>
