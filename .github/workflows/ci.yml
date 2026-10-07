@@ -64,7 +64,7 @@ jobs:
         run: ./gradlew test lint assembleRelease bundleRelease
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aerial-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
@@ -125,7 +125,7 @@ jobs:
 
       - name: Upload unit coverage report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aerial-unit-coverage
           path: app/build/reports/jacoco/jacocoDeviceTestUnitTestReport
@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload local test reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aerial-local-test-reports
           path: app/build/test-results/test*UnitTest
@@ -141,7 +141,7 @@ jobs:
 
       - name: Upload instrumented test reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aerial-device-test-reports
           path: app/build/reports/androidTests/connected
