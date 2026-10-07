@@ -6,19 +6,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-10-07
+
+### Added
+
+- Finnish translation, contributed via Weblate.
+
 ### Fixed
 
-- The home-screen widget's connectivity monitoring no longer registers a
-  duplicate network callback. Hilt now owns the whole object graph, so the
-  `NetworkMonitor` the app used is the same instance everywhere instead of
-  being built twice.
+- Search no longer flashes "no stations found" while a search is still
+  running.
+- Results already on screen stay visible when the country or tag filters
+  change.
+- The navigation bar no longer animates against the back gesture when leaving
+  Settings.
+- The splash screen can no longer hang if a station source fails at startup.
+- Finnish and Polish can be selected in the in-app language picker on
+  Android 12 and below.
+- Stale playback requests are ignored, and importing a malformed settings
+  backup can no longer overwrite your data.
+- The home-screen widget no longer registers a duplicate network callback.
 
 ### Changed
 
-- Dependency injection is complete: the media service and the home-screen
-  widget receivers receive their collaborators through Hilt instead of
-  casting `Application`, and `AerialApp` no longer caches collaborators of its
-  own. This is internal only and does not change behaviour.
+- Updated the Italian, Russian, Estonian, Polish and English (United Kingdom)
+  translations.
+- Completed the migration to Hilt dependency injection across the app, media
+  service and home-screen widget.
+- Split home-screen search, discovery, favourites ordering, playback
+  transitions and startup into dedicated state holders, enforced package
+  layering in a test, debounced widget updates, and removed dead station-logo
+  code and the unused `POST_NOTIFICATIONS` permission.
 - ktlint now fails the build on unused imports, which the `android_studio`
   code style left unchecked by default.
 
