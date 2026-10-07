@@ -36,15 +36,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Generate registry database using F-Droid's build environment
-        run: |
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -v "$PWD:/workspace" -w /workspace \
-            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8 \
-            python3 scripts/generate-registry-db.py \
-              --input app/src/main/registry/registry.json \
-              --output app/build/generated/aerialRegistry/assets/registry.db.compressed \
-              --schema app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json
+        run: scripts/generate-registry-db-container.sh
 
       - name: Decode release keystore
         env:

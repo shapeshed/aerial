@@ -348,6 +348,18 @@ must never be rewritten during the release build and the build must be
 deterministic. `scripts/prepare-release.sh` verifies the versionCode; do not
 reintroduce Play-resolved or auto-incremented version codes.
 
+The bundled registry database is the most likely source of a reproducibility
+mismatch. It is generated from the checked-in
+`app/src/main/registry/registry.json` by `scripts/generate-registry-db.py`, and
+the release pipeline runs that script inside the pinned F-Droid buildserver
+image via `scripts/generate-registry-db-container.sh`, then builds with
+`-x generateRegistryAsset` so the local Gradle task cannot overwrite it.
+`.github/workflows/release.yml` calls the same script, so CI and local releases
+cannot drift. `scripts/prepare-release.sh` also runs
+`scripts/verify-reproducible-build.sh`, which builds the release APK twice from
+a clean tree with the Gradle build cache disabled and compares the hashes. Both
+steps need Docker; do not use `--local-registry` for a real release.
+
 F-Droid's `checkupdates` bot detects new tags automatically and opens a merge
 request against `metadata/com.shapeshed.aerial.yml` in the `fdroiddata`
 repository. The bot only publishes a version once its build matches the

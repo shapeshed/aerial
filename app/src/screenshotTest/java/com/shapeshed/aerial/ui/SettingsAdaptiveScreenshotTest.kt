@@ -32,7 +32,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
-import com.shapeshed.aerial.BuildConfig
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.RegistryStation
@@ -470,8 +469,9 @@ private fun SettingsScreenshotContent() {
         showStreamBitrate = true,
         showHome = true,
         snackbarHostState = SnackbarHostState(),
-        // Fixed label so the golden does not depend on the git dirty state.
-        versionLabel = stringResource(R.string.version_format, BuildConfig.VERSION_NAME),
+        // A fixed label, not BuildConfig.VERSION_NAME, so the golden is stable
+        // across version bumps and only changes when the screen itself does.
+        versionLabel = stringResource(R.string.version_format, "0.0.0"),
         onShowStreamBitrateChange = {},
         onShowHomeChange = {},
         onExport = {},

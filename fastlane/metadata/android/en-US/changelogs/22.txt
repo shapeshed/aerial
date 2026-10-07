@@ -1,0 +1,7 @@
+- Finnish added; Italian, Russian, Polish, Estonian and UK English updated.
+- Search no longer flashes "no stations found", and results stay when filters change.
+- Navigation bar no longer animates against the back gesture.
+- Splash screen can no longer hang if a station source fails at startup.
+- Finnish and Polish can be picked in the in-app language picker on Android 12 and below.
+- Hardened playback and settings backup imports.
+- Hilt dependency-injection migration and dead-code clean-up.
