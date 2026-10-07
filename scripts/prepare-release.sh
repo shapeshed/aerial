@@ -10,27 +10,46 @@ usage() {
 Prepare a local Aerial release candidate.
 
 Usage:
-  scripts/prepare-release.sh [--draft] [--skip-fdroid]
+  scripts/prepare-release.sh [--draft] [--skip-fdroid] [--skip-reproducible] [--local-registry]
 
 Runs:
+  - Generates the registry database in F-Droid's buildserver image
   - Gradle test/lint/release builds
   - Fastlane changelog/version checks
+  - Reproducible release APK verification
   - F-Droid metadata sync and validation
 
 Environment:
   FDROIDDATA_DIR=/home/go/src/gitlab.com/fdroid/fdroiddata
+  FDROID_BUILDSERVER_IMAGE  override the pinned buildserver image
+
+Options:
+  --local-registry     generate the registry with the local python3 instead
+                       of F-Droid's buildserver (not reproducible; dev only)
+  --skip-reproducible  skip the double-build reproducibility check
 USAGE
 }
 
 draft=false
 skip_fdroid=false
+skip_reproducible=false
+local_registry=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --draft) draft=true ;;
-    --skip-fdroid) skip_fdroid=true ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
+  --draft) draft=true ;;
+  --skip-fdroid) skip_fdroid=true ;;
+  --skip-reproducible) skip_reproducible=true ;;
+  --local-registry) local_registry=true ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    usage
+    exit 1
+    ;;
   esac
   shift
 done
@@ -81,9 +100,23 @@ if [[ ! -s "$NOTES_FILE" ]]; then
   fi
 fi
 
+if [[ "$local_registry" == true ]]; then
+  export AERIAL_REGISTRY_LOCAL=1
+fi
+
+echo "Generating the registry database with F-Droid's buildserver image..."
+"$ROOT_DIR/scripts/generate-registry-db-container.sh"
+
 echo "Running Gradle release gate..."
-"$ROOT_DIR/gradlew" -p "$ROOT_DIR" test lint assembleRelease bundleRelease
+"$ROOT_DIR/gradlew" -p "$ROOT_DIR" test lint assembleRelease bundleRelease -x generateRegistryAsset
 "$ROOT_DIR/scripts/verify-release-version-code.sh"
+
+if [[ "$skip_reproducible" == false ]]; then
+  echo "Verifying the release APK is reproducible..."
+  "$ROOT_DIR/scripts/verify-reproducible-build.sh"
+else
+  echo "Skipping reproducible build verification."
+fi
 
 if [[ "$skip_fdroid" == false ]]; then
   if [[ ! -d "$FDROIDDATA_DIR" ]]; then

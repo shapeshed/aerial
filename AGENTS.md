@@ -112,9 +112,42 @@ Before committing a release, run:
 scripts/prepare-release.sh
 ```
 
-This refreshes the bundled Aerial registry cache, runs the Gradle release
-gate, validates the Fastlane changelog, and runs F-Droid metadata validation
-against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available.
+This generates the bundled registry in F-Droid's buildserver Docker image,
+runs the Gradle release gate, verifies the release APK rebuilds byte-for-byte
+reproducibly, validates the Fastlane changelog, and runs F-Droid metadata
+validation against `/home/go/src/gitlab.com/fdroid/fdroiddata` when available.
+Docker must be usable by the account running the script.
+
+### F-Droid reproducible builds
+
+F-Droid builds the tagged source and compares it against the reference APK
+published on the GitHub release (`Binaries` in `.fdroid.yml`), keeping only the
+signature named by `AllowedAPKSigningKeys`. A mismatch means the version never
+reaches F-Droid. This is not hypothetical: 0.7.1 and 0.7.2 were blocked when
+the Play publisher's `ResolutionStrategy.AUTO` rewrote the `versionCode` during
+the release build, leaving the tagged source at 18/19 while the released APK
+was 19/20 (fixed in `a21928a`).
+
+Do not break this while preparing a release:
+
+- Keep the committed `versionCode` authoritative. Leave the Play publisher on
+  `ResolutionStrategy.FAIL` in `app/build.gradle`; never reintroduce `AUTO` or
+  any auto-incremented version code, which silently rewrites the built artifact.
+- Keep the build deterministic. Generate the bundled registry asset with
+  `scripts/generate-registry-db-container.sh`, which runs
+  `scripts/generate-registry-db.py` inside the pinned F-Droid buildserver image
+  that `.github/workflows/release.yml` also uses. Never let the local
+  `generateRegistryAsset` Gradle task produce a release artifact (the release
+  gate builds with `-x generateRegistryAsset`): a different Python or SQLite
+  changes the bytes and fails F-Droid's comparison. Commit only the uncompressed
+  `app/src/main/registry/registry.json`, never generated `.db.compressed` or
+  local `.json.gz` files, and do not add timestamps, unordered file globs, or
+  other non-deterministic build inputs.
+- Run `scripts/prepare-release.sh` before the tag is cut. It generates the
+  registry in the buildserver image, checks the `versionCode` with
+  `scripts/verify-release-version-code.sh`, and rebuilds the release APK twice
+  with `scripts/verify-reproducible-build.sh`. Do not bypass it, and never
+  release with `--local-registry`.
 
 Then commit when the local release candidate is ready. Do not tag, push, or
 upload to Google Play unless explicitly asked.
