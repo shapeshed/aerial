@@ -14,31 +14,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
-- Search no longer flashes "no stations found" while a search is still
-  running.
-- Results already on screen stay visible when the country or tag filters
-  change.
-- The navigation bar no longer animates against the back gesture when leaving
-  Settings.
+- Search no longer flashes "no stations found" while a search is still running.
+- Results already on screen stay visible when the country or tag filters change.
+- The navigation bar no longer animates against the back gesture when leaving Settings.
 - The splash screen can no longer hang if a station source fails at startup.
-- Finnish and Polish can be selected in the in-app language picker on
-  Android 12 and below.
-- Stale playback requests are ignored, and importing a malformed settings
-  backup can no longer overwrite your data.
+- Finnish and Polish can be selected in the in-app language picker on Android 12 and below.
+- Stale playback requests are ignored, and importing a malformed settings backup can no longer overwrite your data.
 - The home-screen widget no longer registers a duplicate network callback.
 
 ### Changed
 
-- Updated the Italian, Russian, Estonian, Polish and English (United Kingdom)
-  translations.
-- Completed the migration to Hilt dependency injection across the app, media
-  service and home-screen widget.
-- Split home-screen search, discovery, favourites ordering, playback
-  transitions and startup into dedicated state holders, enforced package
-  layering in a test, debounced widget updates, and removed dead station-logo
-  code and the unused `POST_NOTIFICATIONS` permission.
-- ktlint now fails the build on unused imports, which the `android_studio`
-  code style left unchecked by default.
+- Updated the Italian, Russian, Estonian, Polish and English (United Kingdom) translations.
+- Completed the migration to Hilt dependency injection across the app, media service and home-screen widget.
+- Split home-screen search, discovery, favourites ordering, playback transitions and startup into dedicated state holders, enforced package layering in a test, debounced widget updates, and removed dead station-logo code and the unused `POST_NOTIFICATIONS` permission.
+- ktlint now fails the build on unused imports, which the `android_studio` code style left unchecked by default.
 
 ## [0.7.3] - 2026-09-25
 
