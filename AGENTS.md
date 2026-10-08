@@ -100,6 +100,11 @@ For a release, update:
 - `CHANGELOG.md`
 - `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
 
+Write each changelog bullet on a single line. The release workflow publishes the
+`CHANGELOG.md` section verbatim as the GitHub release body, and GitHub renders a
+source newline inside a bullet as a hard line break, so wrapped bullets show up
+broken in the release notes.
+
 Use the bump helper when changing versions:
 
 ```sh
