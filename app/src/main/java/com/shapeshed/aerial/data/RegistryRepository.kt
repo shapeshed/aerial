@@ -17,11 +17,14 @@ private val FEATURED_STATIONS = listOf(
 private const val FOR_YOU_RANDOM_COUNT = 10
 
 private val UK_FOR_YOU_STATIONS = listOf(
-    MoodStationRef("Smooth Radio"),
+    // The Global-network nationals come from the `global` provider; the bare names
+    // used here before no longer exist (dedup folds the radio-browser copies into
+    // the provider entries, renamed "Smooth UK" / "Capital UK" / "Heart UK").
+    MoodStationRef("Smooth UK", "global", "3c4ddd8a-5f6c-4cde-842d-37e0ade102f7", displayName = "Smooth Radio"),
     MoodStationRef("Heart 80s", "global"),
     MoodStationRef("Heart UK", "global"),
-    MoodStationRef("Capital FM"),
-    MoodStationRef("Heart"),
+    MoodStationRef("Capital UK", "global", "436ee38a-381d-4323-a5d7-0fb0d4c126ca", displayName = "Capital FM"),
+    MoodStationRef("Heart London", "global", "5af71b40-104e-45ac-8940-c99418a5bafe", displayName = "Heart"),
     MoodStationRef("Greatest Hits Radio", "bauer"),
     MoodStationRef("BBC Radio 2", "bbc"),
     MoodStationRef("KISS", "bauer"),
@@ -62,7 +65,7 @@ private val CURATED_MOOD_STATIONS = mapOf(
         MoodStationRef("Radio Paradise Mellow Mix", "curated"),
         MoodStationRef("Skylab Radio", "radio-browser", "24273571-703e-4373-b715-d7e7680d7599"),
         MoodStationRef("OneLuvFM", "curated"),
-        MoodStationRef("FIP", "curated"),
+        MoodStationRef("FIP", "radio-france", "7"),
         MoodStationRef("Jazz Sakura (asia dream radio)", "curated"),
         MoodStationRef("Radio Samui Online", "curated"),
     ),
