@@ -17,11 +17,14 @@ private val FEATURED_STATIONS = listOf(
 private const val FOR_YOU_RANDOM_COUNT = 10
 
 private val UK_FOR_YOU_STATIONS = listOf(
-    MoodStationRef("Smooth Radio"),
+    // The Global-network nationals come from the `global` provider; the bare names
+    // used here before no longer exist (dedup folds the radio-browser copies into
+    // the provider entries, renamed "Smooth UK" / "Capital UK" / "Heart UK").
+    MoodStationRef("Smooth UK", "global", "3c4ddd8a-5f6c-4cde-842d-37e0ade102f7", displayName = "Smooth Radio"),
     MoodStationRef("Heart 80s", "global"),
     MoodStationRef("Heart UK", "global"),
-    MoodStationRef("Capital FM"),
-    MoodStationRef("Heart"),
+    MoodStationRef("Capital UK", "global", "436ee38a-381d-4323-a5d7-0fb0d4c126ca", displayName = "Capital FM"),
+    MoodStationRef("Heart London", "global", "5af71b40-104e-45ac-8940-c99418a5bafe", displayName = "Heart"),
     MoodStationRef("Greatest Hits Radio", "bauer"),
     MoodStationRef("BBC Radio 2", "bbc"),
     MoodStationRef("KISS", "bauer"),
@@ -56,21 +59,15 @@ private val CURATED_MOOD_STATIONS = mapOf(
         // Registry name is "ABC-Loungr" (an upstream typo) — this is now curated (see
         // stations.toml) so the corrected name and a real logo stick.
         MoodStationRef("ABC Lounge", "curated"),
-        // Registry name is all-lowercase ("nordic lodge copenhagen"); displayName just fixes
-        // capitalisation for this list.
-        MoodStationRef(
-            "nordic lodge copenhagen",
-            "radio-browser",
-            "2ee81587-dba9-4d68-82b3-a7b32aafc525",
-            displayName = "Nordic Lodge Copenhagen",
-        ),
+        // Curated so the corrected capitalisation and real logo stick.
+        MoodStationRef("Nordic Lodge Copenhagen", "curated"),
         MoodStationRef("Bossa Jazz Brasil", "curated"),
         MoodStationRef("Radio Paradise Mellow Mix", "curated"),
         MoodStationRef("Skylab Radio", "radio-browser", "24273571-703e-4373-b715-d7e7680d7599"),
         MoodStationRef("OneLuvFM", "curated"),
-        MoodStationRef("FIP", "curated"),
-        MoodStationRef("Jazz Sakura (asia dream radio)", "radio-browser", "9766d47a-68a3-4a30-8aec-c026f1ec6020"),
-        MoodStationRef("Radio Samui Online", "radio-browser", "86468748-3045-4b88-97ef-e6d266c901f5"),
+        MoodStationRef("FIP", "radio-france", "7"),
+        MoodStationRef("Jazz Sakura (asia dream radio)", "curated"),
+        MoodStationRef("Radio Samui Online", "curated"),
     ),
     // Ordered so logo colours flow rather than clash: navy/black/grey -> teal/cream ->
     // green -> yellow -> orange, with freeCodeCamp Code Radio fixed first as requested.
@@ -79,12 +76,14 @@ private val CURATED_MOOD_STATIONS = mapOf(
         MoodStationRef("Slow Focus | NTS", "radio-browser", "d5468df4-e6d0-11e9-a96c-52543be04c81"),
         MoodStationRef("Sheet Music | NTS", "radio-browser", "1e0ad463-0dbc-4913-b12d-7d0b7300882b"),
         MoodStationRef("Systrum Sistum - SSR1", "radio-browser", "37e6772a-5ab7-429d-84bc-fedc606cc8c4"),
-        MoodStationRef("SomaFM Beat Blender", "radio-browser", "960eb232-0601-11e8-ae97-52543be04c81"),
+        // SomaFM now has its own trusted provider, so the radio-browser copies were
+        // deduplicated away — reference the provider entry directly.
+        MoodStationRef("SomaFM Beat Blender", "somafm", "beatblender"),
         // No stable id in the "curated" bucket (providerId is always ""), so this one still
         // resolves by name.
         MoodStationRef("A Strangely Isolated Place", "curated"),
         MoodStationRef("Box Lofi Radio", "radio-browser", "a5213a32-d614-47bc-8d52-70a2b6eed8e1"),
-        MoodStationRef("SomaFM Groove Salad", "radio-browser", "960cf833-0601-11e8-ae97-52543be04c81"),
+        MoodStationRef("SomaFM Groove Salad", "somafm", "groovesalad"),
         MoodStationRef(
             "FluxFM Chillhop – Chill Beats and LoFi HipHop",
             "radio-browser",
@@ -95,18 +94,19 @@ private val CURATED_MOOD_STATIONS = mapOf(
     // Ordered so logo colours flow: dark blue/purple -> dark/orange -> teal/red -> lime green
     // -> white/blue -> white/black monochrome, with Dogglounge fixed first as requested.
     "morning" to listOf(
-        MoodStationRef("Dogglounge", "radio-browser", "1c41c07b-b995-11e8-aaf2-52543be04c81"),
-        MoodStationRef("D3EP Radio", "radio-browser", "d210ac34-0fee-4586-b9d6-24b84e2c0c4e"),
-        MoodStationRef("Oroko Radio", "radio-browser", "7babd377-ed7c-4a63-9778-47b0fd94983b"),
-        MoodStationRef("SomaFM Heavyweight Reggae", "radio-browser", "c5955cee-2cdf-40b2-8b5f-aa55bafddbef"),
+        // Curated entries (with the fixed logos) win over the radio-browser copies.
+        MoodStationRef("Dogglounge", "curated"),
+        MoodStationRef("D3EP Radio", "curated"),
+        MoodStationRef("Oroko Radio", "curated"),
+        MoodStationRef("SomaFM Heavyweight Reggae", "somafm", "reggae"),
         // Moved from workout — talky but upbeat, a better fit for a morning mix.
-        MoodStationRef("Pure Ibiza Radio", "radio-browser", "26edc6b6-d221-4814-a6a9-0dd5d5d365d2"),
+        MoodStationRef("Pure Ibiza Radio", "curated"),
         // Not in the bundled registry snapshot yet — added as a new curated entry (see
         // stations.toml).
         MoodStationRef("Veneno", "curated"),
-        MoodStationRef("Cafe Mambo Ibiza Radio", "radio-browser", "450a5177-1752-11ea-a620-52543be04c81"),
-        MoodStationRef("Radio Raheem", "radio-browser", "a1c99f81-f8d1-4f6d-b9e3-714763a72b7d"),
-        MoodStationRef("Soho Radio", "radio-browser", "b830f77b-cb54-431d-9bdb-0af9bc6af301"),
+        MoodStationRef("Cafe Mambo Ibiza Radio", "curated"),
+        MoodStationRef("Radio Raheem", "curated"),
+        MoodStationRef("Soho Radio", "curated"),
         MoodStationRef("The Lot Radio", "radio-browser", "434e9a4b-018a-4557-8ca1-8c328bb1e09d"),
     ),
     // "On The Road" — a broad, genre-mixed set rather than one style. Ordered so logo colours
@@ -114,12 +114,12 @@ private val CURATED_MOOD_STATIONS = mapOf(
     // first as requested.
     "driving" to listOf(
         // Independent community station broadcasting from Bethlehem, Palestine.
-        MoodStationRef("Radio alHara", "radio-browser", "d62fa52b-7c1c-492c-9861-cd2c0ec02f00"),
+        MoodStationRef("Radio alHara", "curated"),
         MoodStationRef("Rinse FM", "rinse"),
         // Berlin-based but explicitly globally curated (guest DJs and shows from around the
         // world), for broader geographic range.
         MoodStationRef("Refuge Worldwide", "radio-browser", "edb81cbf-0645-4944-a376-554b8299ff27"),
-        MoodStationRef("Worldwide FM", "radio-browser", "1651c32f-55d8-4429-995d-872ea0dcf520"),
+        MoodStationRef("Worldwide FM", "curated"),
         MoodStationRef("ZonaSalsa Radio", "radio-browser", "0957a107-50fc-435e-a402-ddfa5cdda777"),
         MoodStationRef("Dandelion Radio", "radio-browser", "961fe58c-0601-11e8-ae97-52543be04c81"),
         MoodStationRef("Radio Paradise Main Mix", "curated"),
@@ -130,7 +130,7 @@ private val CURATED_MOOD_STATIONS = mapOf(
     // Ordered so logo colours flow: pale blue -> deep blue -> purple -> dark/orange ->
     // white/grey -> pink -> brown, with SomaFM Drone Zone fixed first as requested.
     "late_night" to listOf(
-        MoodStationRef("SomaFM Drone Zone", "radio-browser", "960eb2e9-0601-11e8-ae97-52543be04c81"),
+        MoodStationRef("SomaFM Drone Zone", "somafm", "dronezone"),
         MoodStationRef("Dinamo.fm Sleep", "curated"),
         // Registry name is "SomaFM - Deep Space One (128 kb/s AAC)"; displayName drops the
         // bitrate suffix.
@@ -142,7 +142,7 @@ private val CURATED_MOOD_STATIONS = mapOf(
         ),
         MoodStationRef("Cryosleep", "curated"),
         MoodStationRef("MyNoise Ocean Waves", "radio-browser", "b69fe610-1522-47b1-a784-e7025d11f884"),
-        MoodStationRef("Nature Radio Rain", "radio-browser", "95277bca-2c9a-4c08-b2e7-0854e5793f8e"),
+        MoodStationRef("Nature Radio Rain", "curated"),
         // Registry name includes a bitrate suffix; displayName drops it for this list.
         MoodStationRef(
             "Ambient Sleeping Pill | 128 kbps",
@@ -172,23 +172,24 @@ private val CURATED_MOOD_STATIONS = mapOf(
         ),
         // Replaced Pure Ibiza Radio, which was talky and a better fit for morning — moved
         // there instead.
-        MoodStationRef("Liquid DnB", "radio-browser", "b8148b29-09d0-4aa1-8bfe-43d236260170"),
-        MoodStationRef("Bassdrive", "radio-browser", "960cc332-0601-11e8-ae97-52543be04c81"),
+        MoodStationRef("Liquid DnB", "curated"),
+        MoodStationRef("Bassdrive", "curated"),
         MoodStationRef("Technolovers - TECHNO", "radio-browser", "2100610c-13c2-4536-879f-6a88ccb07dc8"),
         MoodStationRef("Kool FM", "rinse", "kool"),
-        MoodStationRef("54house.fm", "radio-browser", "a20e7f55-661e-4f4c-b87f-a087c64633f8"),
+        MoodStationRef("54house.fm", "curated"),
         // Independent LA station. Replaced LiSTNR - Festival Bangers (an SCA network
         // aggregator channel, not an independent station) and, before that, PulseEDM Dance
         // Music Radio, whose bundled logo was dead (404).
-        MoodStationRef("ShoutDRIVE", "radio-browser", "b294bf46-7c1d-45ba-b852-71c5b26298ac"),
+        MoodStationRef("ShoutDRIVE", "curated"),
         // No stable id in the "curated" bucket (providerId is always ""), so this one still
         // resolves by name.
         MoodStationRef("Techno.FM", "curated"),
-        MoodStationRef("Radio FG 98.2", "radio-browser", "4a1bbe28-0675-43bb-98dc-fae037b0b026"),
+        // radio-browser reassigned this station's UUID; repinned to its current id.
+        MoodStationRef("Radio FG 98.2", "radio-browser", "db4043ea-e4c1-4c95-9ab3-74f8082d41e0"),
         // Replaced FIP Electro and Point Blank FM — both ran noticeably lower BPM than the
         // rest of this mix. Q-Dance (hardstyle) was tried here too but dropped for being too
         // cheesy for a workout mix; hard techno keeps the energy without the vibe.
-        MoodStationRef("Hard Techno Radio", "radio-browser", "6eef88eb-396c-4393-86aa-1ba04ff91918"),
+        MoodStationRef("Hard Techno Radio", "curated"),
     ),
 )
 
