@@ -438,7 +438,6 @@ private fun MoodStationRow(
                     } else {
                         MaterialTheme.colorScheme.surface
                     },
-                    allowContrastPlate = false,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Radio,
