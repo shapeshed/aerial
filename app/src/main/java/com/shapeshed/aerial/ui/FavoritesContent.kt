@@ -458,7 +458,6 @@ private fun StationListRow(
                         } else {
                             MaterialTheme.colorScheme.surfaceContainer
                         },
-                        allowContrastPlate = false,
                     )
                 },
                 supportingContent = countryLabel.takeIf { it.isNotBlank() }?.let { label ->
@@ -565,7 +564,6 @@ private fun StationTile(
                     .padding(12.dp)
                     .aspectRatio(1f),
                 fallbackBackground = cardColor,
-                allowContrastPlate = false,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Radio,

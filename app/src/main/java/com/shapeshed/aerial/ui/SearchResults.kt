@@ -331,7 +331,6 @@ private fun FavoriteResultItem(
                 logoModel = imageRequest,
                 size = 50.dp,
                 fallbackBackground = MaterialTheme.colorScheme.surface,
-                allowContrastPlate = false,
             ) {
                 Text(
                     text = station.name.avatarInitial(),
@@ -427,7 +426,6 @@ private fun RegistryResultItem(
                 logoModel = logoModelFor(station.logoUrl),
                 size = 50.dp,
                 fallbackBackground = MaterialTheme.colorScheme.surface,
-                allowContrastPlate = false,
             ) {
                 Text(
                     text = station.name.avatarInitial(),
