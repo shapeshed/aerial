@@ -116,7 +116,12 @@ internal class PlaybackSessionCoordinator(
             ?: throw UnsupportedOperationException("No last-played station to resume")
         val savedStation = snapshot.station.id.takeIf { it > 0 }?.let { repository.getById(it) }
             ?: repository.getByStreamUrl(snapshot.station.streamUrl)
-        val queue = queueForResumption(snapshot.queue, repository.getAll().first(), snapshotStore.favoriteSort())
+        val queue = queueForResumption(
+            snapshot.queue,
+            repository.getAll().first(),
+            snapshotStore.favoriteSort(),
+            snapshotStore.favoriteManualOrder(),
+        )
         val resumed = savedStation ?: snapshot.station.copy(id = 0)
         val startIndex = resolveQueueStart(queue, resumed)
         return if (startIndex != null) {

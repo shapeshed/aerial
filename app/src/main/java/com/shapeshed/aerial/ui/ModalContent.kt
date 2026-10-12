@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,6 +66,7 @@ internal fun MainModalHost(
     onClearTag: () -> Unit,
     onDismissContext: () -> Unit,
     onEditStation: (Station) -> Unit,
+    onMoveStation: (Station, Int) -> Unit,
     onRequestDelete: (Station) -> Unit,
     onDismissDelete: () -> Unit,
     onConfirmDelete: (Station) -> Unit,
@@ -113,6 +115,7 @@ internal fun MainModalHost(
             StationContextSheet(
                 station = station,
                 onEdit = { onEditStation(station) },
+                onMove = { delta -> onMoveStation(station, delta) },
                 onDelete = { onRequestDelete(station) },
             )
         }
@@ -211,7 +214,7 @@ internal fun SearchFilterRow(
 }
 
 @Composable
-private fun StationContextSheet(station: Station, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun StationContextSheet(station: Station, onEdit: () -> Unit, onMove: (Int) -> Unit, onDelete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -231,6 +234,22 @@ private fun StationContextSheet(station: Station, onEdit: () -> Unit, onDelete: 
             modifier = Modifier.clickable(onClick = onEdit),
         ) {
             Text(stringResource(R.string.action_edit))
+        }
+        ListItem(
+            leadingContent = {
+                Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = null)
+            },
+            modifier = Modifier.clickable { onMove(-1) },
+        ) {
+            Text(stringResource(R.string.action_move_earlier))
+        }
+        ListItem(
+            leadingContent = {
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null)
+            },
+            modifier = Modifier.clickable { onMove(1) },
+        ) {
+            Text(stringResource(R.string.action_move_later))
         }
         ListItem(
             leadingContent = {

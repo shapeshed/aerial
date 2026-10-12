@@ -589,6 +589,7 @@ fun MainScreen(
                     contextStation = null
                     navigator.navigate(AerialRoute.EditStation(it.id))
                 },
+                onMoveStation = viewModel::moveFavorite,
                 onRequestDelete = {
                     stationToDelete = it
                     contextStation = null
