@@ -97,6 +97,11 @@
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
+            <!-- Lets hardware/Bluetooth/watch media keys (play, pause, next, previous, e.g. from a
+                 Garmin) revive the session when the app is not in the foreground. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
             <!-- Lets Android Auto/Assistant voice search ("play X on Aerial") reach this service. -->
             <intent-filter>
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
