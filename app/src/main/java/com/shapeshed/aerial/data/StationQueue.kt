@@ -9,10 +9,32 @@ import org.json.JSONObject
 val LAST_PLAYED_STATION_KEY = stringPreferencesKey("last_played_station")
 val FAVORITES_SORT_KEY = stringPreferencesKey("favorites_sort")
 
+/** Comma-separated station ids in the order the user arranged them for [FavoritesSort.MANUAL]. */
+val FAVORITES_MANUAL_ORDER_KEY = stringPreferencesKey("favorites_manual_order")
+
+fun encodeManualOrder(ids: List<Long>): String = ids.joinToString(",")
+
+fun decodeManualOrder(encoded: String?): List<Long> =
+    encoded?.split(',')?.mapNotNull { it.trim().toLongOrNull() }.orEmpty()
+
+/**
+ * Moves [id] by [delta] places within [current], returning the new order. Ids missing from
+ * [current] (e.g. favourites added since the order was saved) are appended first so every
+ * visible station can be moved; ids no longer present are dropped by the caller's sort.
+ */
+fun moveInOrder(current: List<Long>, id: Long, delta: Int): List<Long> {
+    val index = current.indexOf(id)
+    if (index < 0) return current
+    val target = (index + delta).coerceIn(0, current.lastIndex)
+    if (target == index) return current
+    return current.toMutableList().apply { add(target, removeAt(index)) }
+}
+
 enum class FavoritesSort {
     AZ,
     LAST_PLAYED,
     MOST_PLAYED,
+    MANUAL,
 }
 
 data class LastPlayedStationSnapshot(val station: Station, val queue: List<Station> = emptyList())
@@ -62,17 +84,26 @@ private fun JSONObject.toStation(): Station = Station(
     countryCode = optString("countryCode"),
 )
 
-fun sortStations(stations: List<Station>, sort: FavoritesSort): List<Station> = when (sort) {
-    FavoritesSort.AZ -> stations.sortedWith(compareBy { stationSortKey(it.name) })
+fun sortStations(stations: List<Station>, sort: FavoritesSort, manualOrder: List<Long> = emptyList()): List<Station> =
+    when (sort) {
+        FavoritesSort.AZ -> stations.sortedWith(compareBy { stationSortKey(it.name) })
 
-    FavoritesSort.LAST_PLAYED -> stations.sortedWith(
-        compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
-    )
+        FavoritesSort.LAST_PLAYED -> stations.sortedWith(
+            compareByDescending<Station> { it.lastPlayedAt }.thenBy { stationSortKey(it.name) },
+        )
 
-    FavoritesSort.MOST_PLAYED -> stations.sortedWith(
-        compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
-    )
-}
+        FavoritesSort.MOST_PLAYED -> stations.sortedWith(
+            compareByDescending<Station> { it.playCount }.thenBy { stationSortKey(it.name) },
+        )
+
+        // Stations the user has not placed yet (new favourites) go after the arranged ones, A-Z.
+        FavoritesSort.MANUAL -> {
+            val ranks = stationOrder(manualOrder)
+            stations.sortedWith(
+                compareBy<Station> { ranks[it.id] ?: Int.MAX_VALUE }.thenBy { stationSortKey(it.name) },
+            )
+        }
+    }
 
 /** Returns true when two station collections contain the same station identities. */
 fun haveSameStationIdentities(left: List<Station>, right: List<Station>): Boolean {

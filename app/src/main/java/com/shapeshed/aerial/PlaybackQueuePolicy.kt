@@ -33,6 +33,43 @@ private val SKIP_COMMANDS = intArrayOf(
     Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
 )
 
+/** `ControllerInfo.getControllerVersion()` of a platform-session (MediaController) caller. */
+private const val LEGACY_CONTROLLER_VERSION = 0
+
+private val TRANSPORT_COMMANDS = intArrayOf(
+    Player.COMMAND_PLAY_PAUSE,
+    Player.COMMAND_PREPARE,
+    Player.COMMAND_STOP,
+    *SKIP_COMMANDS,
+)
+
+/**
+ * Player commands to grant a connecting controller.
+ *
+ * Media3 gives an untrusted controller read-only commands, which silently drops play, pause and
+ * skip. Garmin Connect (and other watch/headset bridges) reach the session as a platform
+ * MediaController, and Aerial cannot see their package, so they are never "trusted". Such legacy
+ * controllers are only able to attach with user-granted notification or media-control access, so
+ * give them transport controls (and nothing that changes the queue). Untrusted Media3 controllers
+ * stay read-only.
+ */
+@OptIn(UnstableApi::class)
+internal fun availablePlayerCommandsFor(isTrusted: Boolean, controllerVersion: Int): Player.Commands = when {
+    isTrusted -> MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+
+    grantsTransportCommands(isTrusted, controllerVersion) ->
+        MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_PLAYER_COMMANDS
+            .buildUpon()
+            .addAll(*TRANSPORT_COMMANDS)
+            .build()
+
+    else -> MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_PLAYER_COMMANDS
+}
+
+/** True for an untrusted platform-session controller, which gets transport commands. */
+internal fun grantsTransportCommands(isTrusted: Boolean, controllerVersion: Int): Boolean =
+    !isTrusted && controllerVersion == LEGACY_CONTROLLER_VERSION
+
 /** Expands an external controller's single browse item into its navigable sibling queue. */
 @OptIn(UnstableApi::class)
 internal suspend fun expandControllerQueue(
