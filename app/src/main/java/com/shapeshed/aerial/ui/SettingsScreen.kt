@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -70,27 +71,35 @@ fun SettingsScreen(viewModel: SettingsViewModel, onDismiss: () -> Unit, modifier
     // Do not render default switch values while DataStore is delivering the persisted
     // snapshot. This prevents a first-entry snap from a default to a saved setting.
     val loadedSettings = settings ?: return
-    val backupMessage = when (val result = loadedSettings.backupResult) {
-        SettingsBackupResult.Exported -> stringResource(R.string.backup_exported)
+    val message = when (val result = loadedSettings.result) {
+        SettingsResult.Exported -> stringResource(R.string.backup_exported)
 
-        is SettingsBackupResult.Imported -> pluralStringResource(
+        is SettingsResult.Imported -> pluralStringResource(
             R.plurals.backup_imported,
             result.stationCount,
             result.stationCount,
         )
 
-        SettingsBackupResult.ExportFailed -> stringResource(R.string.backup_export_failed)
+        SettingsResult.ExportFailed -> stringResource(R.string.backup_export_failed)
 
-        SettingsBackupResult.ImportFailed -> stringResource(R.string.backup_import_failed)
+        SettingsResult.ImportFailed -> stringResource(R.string.backup_import_failed)
+
+        is SettingsResult.StationsUpdated -> pluralStringResource(
+            R.plurals.stations_updated,
+            result.stationCount,
+            result.stationCount,
+        )
+
+        SettingsResult.StationsUpdateFailed -> stringResource(R.string.stations_update_failed)
 
         null -> null
     }
 
-    LaunchedEffect(loadedSettings.backupResult, backupMessage) {
-        val result = loadedSettings.backupResult ?: return@LaunchedEffect
-        val message = backupMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        viewModel.onBackupResultShown(result)
+    LaunchedEffect(loadedSettings.result, message) {
+        val result = loadedSettings.result ?: return@LaunchedEffect
+        val text = message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(text)
+        viewModel.onResultShown(result)
     }
 
     // The dirty/nightly build label is a developer aid. It is hoisted out of
@@ -103,10 +112,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, onDismiss: () -> Unit, modifier
     SettingsContent(
         showStreamBitrate = loadedSettings.showStreamBitrate,
         showHome = loadedSettings.showHome,
+        isUpdatingStations = loadedSettings.isUpdatingStations,
         snackbarHostState = snackbarHostState,
         versionLabel = versionLabel,
         onShowStreamBitrateChange = viewModel::setShowStreamBitrate,
         onShowHomeChange = viewModel::setShowHome,
+        onUpdateStationList = viewModel::updateStationList,
         onExport = { exportLauncher.launch("aerial-backup.zip") },
         onImport = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
         onDismiss = onDismiss,
@@ -119,10 +130,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, onDismiss: () -> Unit, modifier
 internal fun SettingsContent(
     showStreamBitrate: Boolean,
     showHome: Boolean,
+    isUpdatingStations: Boolean,
     snackbarHostState: SnackbarHostState,
     versionLabel: String,
     onShowStreamBitrateChange: (Boolean) -> Unit,
     onShowHomeChange: (Boolean) -> Unit,
+    onUpdateStationList: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
     onDismiss: () -> Unit,
@@ -207,6 +220,27 @@ internal fun SettingsContent(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
                     )
+                }
+                item(contentType = "action") {
+                    ListItem(
+                        modifier = Modifier.clickable(enabled = !isUpdatingStations, onClick = onUpdateStationList),
+                        leadingContent = {
+                            Icon(Icons.Rounded.Refresh, contentDescription = null)
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (isUpdatingStations) {
+                                        R.string.updating_stations
+                                    } else {
+                                        R.string.update_stations_desc
+                                    },
+                                ),
+                            )
+                        },
+                    ) {
+                        Text(stringResource(R.string.update_stations))
+                    }
                 }
                 item(contentType = "action") {
                     ListItem(

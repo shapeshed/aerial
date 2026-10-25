@@ -1,0 +1,54 @@
+name: Refresh station registry
+
+on:
+  schedule:
+    # Every Monday 03:00 UTC. Cadence matches how often the curated registry
+    # changes; the app picks the new asset up via "Update station list".
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/src/main/registry/registry.json"
+      - "scripts/generate-registry-db.py"
+      - "app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Rebuild and publish registry.db.compressed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Generate registry database using F-Droid's build environment
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace" -w /workspace \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
+            python3 scripts/generate-registry-db.py \
+              --input app/src/main/registry/registry.json \
+              --output /workspace/registry.db.compressed \
+              --schema app/schemas/com.shapeshed.aerial.data.RegistryDatabase/1.json
+
+      - name: Create or update the rolling registry release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="registry-latest"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            # Without --latest=false GitHub would mark this data-only release Latest, and
+            # /releases/latest would hand visitors a release with no APK.
+            gh release create "$TAG" \
+              --latest=false \
+              --title "Station registry (rolling)" \
+              --notes "Auto-generated station registry. Updated whenever registry.json changes or on the weekly schedule. Do not delete: the app's \"Update station list\" action downloads here."
+          fi
+          gh release upload "$TAG" registry.db.compressed --clobber

@@ -1,6 +1,8 @@
 package com.shapeshed.aerial.data
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
@@ -64,4 +66,10 @@ abstract class RegistryDao {
 
     @Query("SELECT * FROM registry_stations ORDER BY name LIMIT :limit")
     abstract suspend fun browse(limit: Int): List<RegistryStation>
+
+    @Query("DELETE FROM registry_stations")
+    abstract suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertAll(stations: List<RegistryStation>)
 }
