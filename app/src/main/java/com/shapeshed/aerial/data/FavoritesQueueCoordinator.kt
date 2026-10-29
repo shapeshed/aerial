@@ -13,14 +13,20 @@ internal class FavoritesQueueCoordinator {
         activeQueue: List<Station>,
         favorites: List<Station>,
         sort: FavoritesSort,
+        manualOrder: List<Long> = emptyList(),
     ): List<Station>? {
         if (activeQueue.size < 2) return null
         if (favorites.size != activeQueue.size || !haveSameStationIdentities(activeQueue, favorites)) return null
-        return sortStations(favorites, sort)
+        return sortStations(favorites, sort, manualOrder)
     }
 
-    fun sortForDisplay(stations: List<Station>, sort: FavoritesSort, activeOrder: List<Long>?): List<Station> {
-        val sorted = sortStations(stations.filter(Station::isFavorite), sort)
+    fun sortForDisplay(
+        stations: List<Station>,
+        sort: FavoritesSort,
+        activeOrder: List<Long>?,
+        manualOrder: List<Long> = emptyList(),
+    ): List<Station> {
+        val sorted = sortStations(stations.filter(Station::isFavorite), sort, manualOrder)
         if (activeOrder == null) return sorted
         val ranks = stationOrder(activeOrder)
         return sorted.sortedBy { station -> ranks[station.id] ?: Int.MAX_VALUE }

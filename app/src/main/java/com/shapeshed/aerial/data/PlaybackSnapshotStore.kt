@@ -45,4 +45,7 @@ class PlaybackSnapshotStore @Inject constructor(private val dataStore: DataStore
     suspend fun favoriteSort(): FavoritesSort = dataStore.data.first()[FAVORITES_SORT_KEY]
         ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
         ?: FavoritesSort.AZ
+
+    suspend fun favoriteManualOrder(): List<Long> =
+        decodeManualOrder(dataStore.data.first()[FAVORITES_MANUAL_ORDER_KEY])
 }
