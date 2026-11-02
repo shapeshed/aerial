@@ -16,6 +16,15 @@
   "major": {
     "automerge": false
   },
+  "packageRules": [
+    {
+      "description": "The screenshot plugin and validation API share one version ref. Google publishes the API first, so let only plugin releases move the ref",
+      "matchPackageNames": [
+        "com.android.tools.screenshot:screenshot-validation-api"
+      ],
+      "enabled": false
+    }
+  ],
   "enabledManagers": [
     "gradle",
     "github-actions",
