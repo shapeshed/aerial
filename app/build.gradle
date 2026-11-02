@@ -145,10 +145,13 @@ android {
         // AGP 9.3's documented/default Gradle line is 9.5.x. Keep the release-tested wrapper
         // rather than following lint's generic suggestion to use a newer Gradle release.
         disable 'MissingTranslation', 'AndroidGradlePluginVersion'
-        // Dependency upgrades are Renovate's job, and it opens a PR for each one. This lint
-        // check reports the same fact on every build, so keeping it only trains people to
+        // Dependency upgrades are Renovate's job, and it opens a PR for each one. These lint
+        // checks report the same fact on every build, so keeping them only trains people to
         // ignore the lint output. Renovate is configured for this repository.
-        disable 'NewerVersionAvailable'
+        // GradleDependency is the Google Maven counterpart of NewerVersionAvailable. With
+        // warningsAsErrors it fails every Renovate PR whenever any other upgrade is pending,
+        // so none of them can pass CI and automerge.
+        disable 'NewerVersionAvailable', 'GradleDependency'
         // es/fr/it/pt define a `many` plural category, which is correct CLDR for those
         // languages (compact values such as 1000000). English has no `many` category, so
         // adding one to the default plurals just moves the warning to UnusedQuantity —
