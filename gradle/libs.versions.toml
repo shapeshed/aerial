@@ -10,7 +10,7 @@
 # distinct second segments to avoid that conflict.
 
 [versions]
-agp = "9.4.1"
+agp = "9.5.0"
 kotlin = "2.4.21"
 ksp = "2.3.12"
 hilt = "2.60.1"
