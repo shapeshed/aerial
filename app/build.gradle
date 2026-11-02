@@ -171,6 +171,9 @@ android {
             // Some framework calls (e.g. Uri.parse, used by media3's MediaItem.Builder) would
             // otherwise throw "not mocked" in plain JUnit tests with no Robolectric.
             returnDefaultValues = true
+            // AGP 9.5's Compose Preview task, which lint depends on when screenshot tests are
+            // enabled, packages compiled resources and themes from each unit test variant.
+            includeAndroidResources = true
             all {
                 // PackageLayeringTest reads the main sources to assert the package graph stays
                 // acyclic. Point it at the tree explicitly rather than relying on the working
