@@ -45,7 +45,7 @@ ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
 composeRules = "0.6.8"
 benchmark = "1.5.0"
-uiautomator = "2.4.0"
+uiautomator = "2.4.1"
 
 [libraries]
 # Compose (most artifacts are version-managed by the Compose BOM).
