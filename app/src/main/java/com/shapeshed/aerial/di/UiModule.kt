@@ -13,8 +13,10 @@ import com.shapeshed.aerial.data.NetworkMonitor
 import com.shapeshed.aerial.data.PlaybackSnapshotStore
 import com.shapeshed.aerial.data.RegistryDatabase
 import com.shapeshed.aerial.data.RegistryRepository
+import com.shapeshed.aerial.data.ReleaseStationListUpdater
 import com.shapeshed.aerial.data.RoomTransactor
 import com.shapeshed.aerial.data.StationDatabase
+import com.shapeshed.aerial.data.StationListUpdater
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.Transactor
 import com.shapeshed.aerial.dataStore
@@ -91,6 +93,14 @@ object UiModule {
         dataStore: DataStore<Preferences>,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): SettingsBackupManager = ZipSettingsBackupManager(context, repository, dataStore, ioDispatcher)
+
+    @Provides
+    @Singleton
+    fun provideStationListUpdater(
+        @ApplicationContext context: Context,
+        registryDatabase: RegistryDatabase,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
+    ): StationListUpdater = ReleaseStationListUpdater(registryDatabase, context.cacheDir, ioDispatcher)
 
     @Provides
     @Singleton

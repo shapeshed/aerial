@@ -3,8 +3,10 @@ package com.shapeshed.aerial.ui
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import com.shapeshed.aerial.data.StationListUpdater
 import com.shapeshed.aerial.testing.MemoryDataStore
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -48,12 +50,12 @@ class SettingsViewModelTest {
         viewModel.exportBackup(mock())
         runCurrent()
 
-        assertEquals(SettingsBackupResult.Exported, viewModel.settings.value?.backupResult)
+        assertEquals(SettingsResult.Exported, viewModel.settings.value?.result)
 
-        viewModel.onBackupResultShown(SettingsBackupResult.Exported)
+        viewModel.onResultShown(SettingsResult.Exported)
         runCurrent()
 
-        assertNull(viewModel.settings.value?.backupResult)
+        assertNull(viewModel.settings.value?.result)
     }
 
     @Test
@@ -68,7 +70,7 @@ class SettingsViewModelTest {
         viewModel.importBackup(mock())
         runCurrent()
 
-        assertEquals(SettingsBackupResult.Imported(3), viewModel.settings.value?.backupResult)
+        assertEquals(SettingsResult.Imported(3), viewModel.settings.value?.result)
     }
 
     @Test
@@ -83,7 +85,7 @@ class SettingsViewModelTest {
         viewModel.exportBackup(mock())
         runCurrent()
 
-        assertEquals(SettingsBackupResult.ExportFailed, viewModel.settings.value?.backupResult)
+        assertEquals(SettingsResult.ExportFailed, viewModel.settings.value?.result)
     }
 
     @Test
@@ -96,7 +98,7 @@ class SettingsViewModelTest {
         viewModel.exportBackup(mock())
         runCurrent()
 
-        assertNull(viewModel.settings.value?.backupResult)
+        assertNull(viewModel.settings.value?.result)
     }
 
     @Test
@@ -125,12 +127,87 @@ class SettingsViewModelTest {
         viewModel.importBackup(mock())
         runCurrent()
 
-        assertEquals(SettingsBackupResult.ImportFailed, viewModel.settings.value?.backupResult)
+        assertEquals(SettingsResult.ImportFailed, viewModel.settings.value?.result)
     }
 
-    private fun viewModel(backupManager: SettingsBackupManager): SettingsViewModel =
-        SettingsViewModel(mock<Application>(), MemoryDataStore(), backupManager)
-            .also(viewModels::add)
+    @Test
+    fun stationListUpdateReportsTheImportedCount() = runTest {
+        val viewModel = viewModel(FakeSettingsBackupManager(), FakeStationListUpdater(stationCount = 44_142))
+        backgroundScope.launch { viewModel.settings.collect() }
+        runCurrent()
+
+        viewModel.updateStationList()
+        runCurrent()
+
+        assertEquals(SettingsResult.StationsUpdated(44_142), viewModel.settings.value?.result)
+    }
+
+    @Test
+    fun stationListUpdateWithoutAReplacementKeepsTheBundledList() = runTest {
+        val viewModel = viewModel(FakeSettingsBackupManager(), FakeStationListUpdater(stationCount = null))
+        backgroundScope.launch { viewModel.settings.collect() }
+        runCurrent()
+
+        viewModel.updateStationList()
+        runCurrent()
+
+        assertEquals(SettingsResult.StationsUpdateFailed, viewModel.settings.value?.result)
+    }
+
+    @Test
+    fun backupResultDuringAnUpdateKeepsTheUpdateRunning() = runTest {
+        val updater = BlockingStationListUpdater()
+        val viewModel = viewModel(FakeSettingsBackupManager(), updater)
+        backgroundScope.launch { viewModel.settings.collect() }
+        runCurrent()
+
+        viewModel.updateStationList()
+        runCurrent()
+        assertTrue(viewModel.settings.value!!.isUpdatingStations)
+
+        // A backup result landing mid-download must not clear the in-flight flag.
+        viewModel.exportBackup(mock())
+        runCurrent()
+        assertEquals(SettingsResult.Exported, viewModel.settings.value?.result)
+        assertTrue(viewModel.settings.value!!.isUpdatingStations)
+
+        viewModel.updateStationList()
+        runCurrent()
+        assertEquals(1, updater.starts)
+
+        updater.finish(44_142)
+        runCurrent()
+        assertFalse(viewModel.settings.value!!.isUpdatingStations)
+        assertEquals(SettingsResult.StationsUpdated(44_142), viewModel.settings.value?.result)
+    }
+
+    private fun viewModel(
+        backupManager: SettingsBackupManager,
+        stationListUpdater: StationListUpdater = FakeStationListUpdater(),
+    ): SettingsViewModel = SettingsViewModel(
+        mock<Application>(),
+        MemoryDataStore(),
+        backupManager,
+        stationListUpdater,
+    ).also(viewModels::add)
+
+    private class FakeStationListUpdater(private val stationCount: Int? = 0) : StationListUpdater {
+        override suspend fun update(): Int? = stationCount
+    }
+
+    /** Holds the update open so the busy flag can be observed, and counts how many times one starts. */
+    private class BlockingStationListUpdater : StationListUpdater {
+        private val result = CompletableDeferred<Int?>()
+        var starts = 0
+            private set
+
+        override suspend fun update(): Int? {
+            starts++
+            return result.await()
+        }
+
+        fun finish(stationCount: Int?) = result.complete(stationCount)
+    }
 
     private class FakeSettingsBackupManager(
         private val exportResult: BackupOperationResult<Unit> = BackupOperationResult.Success(Unit),

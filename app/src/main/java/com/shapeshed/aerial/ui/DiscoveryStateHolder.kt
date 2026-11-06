@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
@@ -43,7 +42,7 @@ internal class DiscoveryStateHolder(
 
     // For You is loaded for the device locale's country: a curated selection where one
     // exists, otherwise a random sample of that country's stations with artwork. Keyed by
-    // country (distinctUntilChanged below) so the random pick stays stable for the session.
+    // country so the random pick is stable until the country or the registry changes.
     private val forYouCountryState = MutableStateFlow("GB")
     private val _forYouStations = MutableStateFlow<List<RegistryStation>>(emptyList())
     val forYouStations: StateFlow<List<RegistryStation>> = _forYouStations.asStateFlow()
@@ -114,9 +113,11 @@ internal class DiscoveryStateHolder(
                 }
         }
         scope.launch {
+            // No distinctUntilChanged: a refreshed station list can replace rows without
+            // changing the count, and Room re-queries (and so re-emits) on every committed
+            // write to the table. The count is only used as the invalidation signal here.
             registryRepository.countAsFlow()
                 .filter { it > 0 }
-                .distinctUntilChanged()
                 .collect {
                     _featuredStations.value = registryRepository.featuredStations()
                     _defaultStations.value = registryRepository.defaultStations()
@@ -126,11 +127,12 @@ internal class DiscoveryStateHolder(
                 }
         }
         scope.launch {
+            // Same reason: For You must reload when the registry content changes even if the
+            // chosen country does not.
             combine(
-                registryRepository.countAsFlow().filter { it > 0 }.distinctUntilChanged(),
+                registryRepository.countAsFlow().filter { it > 0 },
                 forYouCountryState,
             ) { _, country -> country }
-                .distinctUntilChanged()
                 .collect { country ->
                     _forYouStations.value = registryRepository.forYouStations(country)
                 }

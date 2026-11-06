@@ -468,12 +468,14 @@ private fun SettingsScreenshotContent() {
     SettingsContent(
         showStreamBitrate = true,
         showHome = true,
+        isUpdatingStations = false,
         snackbarHostState = SnackbarHostState(),
         // A fixed label, not BuildConfig.VERSION_NAME, so the golden is stable
         // across version bumps and only changes when the screen itself does.
         versionLabel = stringResource(R.string.version_format, "0.0.0"),
         onShowStreamBitrateChange = {},
         onShowHomeChange = {},
+        onUpdateStationList = {},
         onExport = {},
         onImport = {},
         onDismiss = {},

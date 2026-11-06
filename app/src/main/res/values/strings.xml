@@ -71,6 +71,14 @@
     <string name="show_stream_bitrate_desc">Display the current stream quality on the player</string>
     <string name="section_display">Display</string>
     <string name="section_data">Data</string>
+    <string name="update_stations">Update station list</string>
+    <string name="update_stations_desc">Download the latest stations</string>
+    <string name="updating_stations">Updating…</string>
+    <plurals name="stations_updated">
+        <item quantity="one">Station list updated (%1$d station)</item>
+        <item quantity="other">Station list updated (%1$d stations)</item>
+    </plurals>
+    <string name="stations_update_failed">Couldn’t update the station list</string>
     <string name="export_backup">Export backup</string>
     <string name="export_backup_desc">Save stations, settings, and local logos</string>
     <string name="import_backup">Import backup</string>

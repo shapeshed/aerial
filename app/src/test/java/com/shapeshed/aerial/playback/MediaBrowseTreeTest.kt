@@ -274,5 +274,9 @@ class MediaBrowseTreeTest {
             stations.filter { it.tags.contains(tag, ignoreCase = true) }
         override suspend fun all(): List<RegistryStation> = stations.sortedBy { it.name }
         override suspend fun browse(limit: Int): List<RegistryStation> = stations.sortedBy { it.name }.take(limit)
+        override suspend fun deleteAll() = stations.clear()
+        override suspend fun insertAll(stations: List<RegistryStation>) {
+            this.stations.addAll(stations)
+        }
     }
 }
