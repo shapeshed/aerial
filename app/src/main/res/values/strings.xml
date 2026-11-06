@@ -139,6 +139,9 @@
     <string name="sort_az">A to Z</string>
     <string name="sort_last_played">Last played</string>
     <string name="sort_most_played">Most played</string>
+    <string name="sort_manual">Manual</string>
+    <string name="action_move_earlier">Move earlier</string>
+    <string name="action_move_later">Move later</string>
     <string name="for_you">For you</string>
     <string name="no_favorites">No favourites yet</string>
     <string name="no_favorites_desc">Add stations you love to easily find them here</string>

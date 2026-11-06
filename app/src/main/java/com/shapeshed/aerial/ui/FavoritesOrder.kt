@@ -41,7 +41,8 @@ internal class FavoritesOrder(private val coordinator: FavoritesQueueCoordinator
         activeQueue: List<Station>,
         favorites: List<Station>,
         sort: FavoritesSort,
-    ): List<Station>? = coordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort)
+        manualOrder: List<Long> = emptyList(),
+    ): List<Station>? = coordinator.reorderIfFavoritesQueue(activeQueue, favorites, sort, manualOrder)
 
     /**
      * The order to remember for [queue], or null when it is not a favourites queue and therefore
@@ -86,8 +87,14 @@ internal class FavoritesOrder(private val coordinator: FavoritesQueueCoordinator
     fun display(
         allStations: StateFlow<List<Station>>,
         sort: StateFlow<FavoritesSort>,
+        manualOrder: StateFlow<List<Long>>,
         scope: CoroutineScope,
-    ): StateFlow<List<Station>> = combine(allStations, sort, _activeOrder) { list, activeSort, order ->
-        coordinator.sortForDisplay(list, activeSort, order)
+    ): StateFlow<List<Station>> = combine(
+        allStations,
+        sort,
+        _activeOrder,
+        manualOrder,
+    ) { list, activeSort, order, manual ->
+        coordinator.sortForDisplay(list, activeSort, order, manual)
     }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }
