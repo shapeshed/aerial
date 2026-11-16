@@ -45,5 +45,7 @@
     }
   ],
   "timezone": "UTC",
-  "dependencyDashboard": true
+  "dependencyDashboard": {
+    "enabled": true
+  }
 }
