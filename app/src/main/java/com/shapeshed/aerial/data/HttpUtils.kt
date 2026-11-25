@@ -1,16 +1,21 @@
 package com.shapeshed.aerial.data
 
 import com.shapeshed.aerial.BuildConfig
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
 internal val AERIAL_USER_AGENT = "Aerial/${BuildConfig.VERSION_NAME} (Android)"
 
 /**
- * GET [url] and return the response body as a string, or null on any error or non-2xx status.
+ * GET [url] and hand the response body to [block], or null on any error or non-2xx status.
  * Caller is responsible for running this on a background thread (e.g. Dispatchers.IO).
  */
-internal fun httpGetText(url: String, extraHeaders: Map<String, String> = emptyMap()): String? {
+internal inline fun <T> httpGetStream(
+    url: String,
+    extraHeaders: Map<String, String> = emptyMap(),
+    block: (InputStream) -> T,
+): T? {
     return try {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000
@@ -19,7 +24,7 @@ internal fun httpGetText(url: String, extraHeaders: Map<String, String> = emptyM
         extraHeaders.forEach { (k, v) -> conn.setRequestProperty(k, v) }
         try {
             if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
+            conn.inputStream.use(block)
         } finally {
             conn.disconnect()
         }
@@ -27,6 +32,10 @@ internal fun httpGetText(url: String, extraHeaders: Map<String, String> = emptyM
         null
     }
 }
+
+/** [httpGetStream] as a string response body. */
+internal fun httpGetText(url: String, extraHeaders: Map<String, String> = emptyMap()): String? =
+    httpGetStream(url, extraHeaders) { it.bufferedReader().readText() }
 
 /** [httpGetText] under its original name, kept for the metadata/JSON callers. */
 internal fun httpGetJson(url: String, extraHeaders: Map<String, String> = emptyMap()): String? =

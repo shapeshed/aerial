@@ -23,6 +23,7 @@ class HttpUtilsTest {
         server.createContext("/ok") { exchange -> respond(exchange, 200, "hello") }
         server.createContext("/missing") { exchange -> respond(exchange, 404, "nope") }
         server.createContext("/boom") { exchange -> respond(exchange, 500, "server error") }
+        server.createContext("/bytes") { exchange -> respond(exchange, 200, byteArrayOf(1, 2, 3, 4)) }
         server.createContext("/echo") { exchange ->
             lastMethod = exchange.requestMethod
             lastUserAgent = exchange.requestHeaders.getFirst("User-Agent")
@@ -81,10 +82,17 @@ class HttpUtilsTest {
         assertEquals("hello", httpGetJson(url("/ok")))
     }
 
+    @Test
+    fun getStreamHandsTheRawBodyToTheBlock() {
+        assertEquals(4, httpGetStream(url("/bytes")) { it.readBytes().size })
+    }
+
     private fun url(path: String) = "http://127.0.0.1:${server.address.port}$path"
 
-    private fun respond(exchange: HttpExchange, status: Int, body: String) {
-        val bytes = body.toByteArray()
+    private fun respond(exchange: HttpExchange, status: Int, body: String) =
+        respond(exchange, status, body.toByteArray())
+
+    private fun respond(exchange: HttpExchange, status: Int, bytes: ByteArray) {
         exchange.sendResponseHeaders(status, bytes.size.toLong())
         exchange.responseBody.use { it.write(bytes) }
     }

@@ -54,10 +54,13 @@ Aerial uses network access for radio playback:
 - When you play a station, Aerial connects to that station's stream URL.
 - When a station has a logo URL, Aerial may download the logo and store it
   locally.
+- When you choose "Update station list" in Settings, Aerial downloads the latest
+  station list from GitHub. Nothing is downloaded unless you ask for it.
 
 The station registry ships inside the app, so browsing and searching for
 stations requires no network connection and contacts no server. The registry
-is built by the app developer before release and bundled into the APK.
+is built by the app developer before release and bundled into the APK, and only
+an update you start yourself replaces it.
 
 Individual radio streams and logo URLs are operated by third parties. They may
 receive technical information such as your IP address, request time, device

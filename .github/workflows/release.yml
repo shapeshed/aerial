@@ -84,6 +84,10 @@ jobs:
           cp "$signed_aab" "app/build/play-assets/aerial-${tag}.aab"
           sha256sum "app/build/release-assets/aerial-${tag}.apk" > "app/build/release-assets/aerial-${tag}.apk.sha256"
           sha256sum "app/build/play-assets/aerial-${tag}.aab" > "app/build/play-assets/aerial-${tag}.aab.sha256"
+          # Bundled asset. The app's "Update station list" action pulls a fresher copy from
+          # the rolling "registry-latest" release, which refresh-registry.yml keeps up to date.
+          cp app/build/generated/aerialRegistry/assets/registry.db.compressed \
+            app/build/release-assets/registry.db.compressed
 
       - name: Generate build provenance
         if: startsWith(github.ref, 'refs/tags/')

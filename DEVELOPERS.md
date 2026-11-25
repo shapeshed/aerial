@@ -145,6 +145,12 @@ build only when intentionally updating the offline registry, then commit the
 uncompressed `registry.json`. Generated compressed database assets and local
 JSON.GZ files are ignored and should not be committed.
 
+Release builds also publish the generated `registry.db.compressed` as a release
+asset. Settings → `Update station list` downloads it from
+`/releases/latest/download/registry.db.compressed` and replaces the bundled rows
+in place, so that button only works once the latest published release carries
+the asset.
+
 ## Release Process
 
 GitHub Actions runs CI on pushes to `main` and on pull requests. CI runs the
