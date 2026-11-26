@@ -82,6 +82,7 @@ private fun favoritesSortLabel(sort: FavoritesSort): String = stringResource(
         FavoritesSort.AZ -> R.string.sort_az
         FavoritesSort.LAST_PLAYED -> R.string.sort_last_played
         FavoritesSort.MOST_PLAYED -> R.string.sort_most_played
+        FavoritesSort.MANUAL -> R.string.sort_manual
     },
 )
 

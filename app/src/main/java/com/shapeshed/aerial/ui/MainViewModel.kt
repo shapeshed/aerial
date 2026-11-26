@@ -24,6 +24,7 @@ import androidx.media3.session.SessionCommand
 import com.shapeshed.aerial.R
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_CANCEL
 import com.shapeshed.aerial.data.ACTION_SLEEP_TIMER_SET
+import com.shapeshed.aerial.data.FAVORITES_MANUAL_ORDER_KEY
 import com.shapeshed.aerial.data.FAVORITES_SORT_KEY
 import com.shapeshed.aerial.data.FavoritesSort
 import com.shapeshed.aerial.data.NetworkMonitor
@@ -38,6 +39,9 @@ import com.shapeshed.aerial.data.SleepTimerStore
 import com.shapeshed.aerial.data.Station
 import com.shapeshed.aerial.data.StationRepository
 import com.shapeshed.aerial.data.buildPlaybackQueuePlan
+import com.shapeshed.aerial.data.decodeManualOrder
+import com.shapeshed.aerial.data.encodeManualOrder
+import com.shapeshed.aerial.data.moveInOrder
 import com.shapeshed.aerial.data.normalizeTrackMetadata
 import com.shapeshed.aerial.data.queueForResumption
 import com.shapeshed.aerial.data.resolveQueueStart
@@ -191,6 +195,7 @@ class MainViewModel @Inject constructor(
             _favoritesSort.value = prefs[FAVORITES_SORT_KEY]
                 ?.let { saved -> FavoritesSort.entries.firstOrNull { it.name == saved } }
                 ?: FavoritesSort.AZ
+            _favoritesManualOrder.value = decodeManualOrder(prefs[FAVORITES_MANUAL_ORDER_KEY])
         }
     }
 
@@ -248,7 +253,30 @@ class MainViewModel @Inject constructor(
     private val _favoritesSort = MutableStateFlow(FavoritesSort.AZ)
     val favoritesSort: StateFlow<FavoritesSort> = _favoritesSort.asStateFlow()
 
+    // Station ids in the order the user arranged them; only consulted for FavoritesSort.MANUAL.
+    private val _favoritesManualOrder = MutableStateFlow<List<Long>>(emptyList())
+    val favoritesManualOrder: StateFlow<List<Long>> = _favoritesManualOrder.asStateFlow()
+
     private val favoritesOrder = FavoritesOrder()
+
+    /**
+     * Moves a favourite one place earlier ([delta] = -1) or later (+1) and switches to the
+     * manual sort so the result is what the list shows. The current visible order seeds the
+     * manual order on first use, so nothing jumps.
+     */
+    fun moveFavorite(station: Station, delta: Int) {
+        val moved = moveInOrder(stations.value.map(Station::id), station.id, delta)
+        _favoritesManualOrder.value = moved
+        _favoritesSort.value = FavoritesSort.MANUAL
+        favoritesOrder.clear()
+        refreshActiveFavoritesQueue(FavoritesSort.MANUAL)
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[FAVORITES_MANUAL_ORDER_KEY] = encodeManualOrder(moved)
+                prefs[FAVORITES_SORT_KEY] = FavoritesSort.MANUAL.name
+            }
+        }
+    }
 
     /** Favourites as the list should show them right now, given the active order override. */
     private fun favoritesSnapshot(): List<Station> = allStationsState.value.filter(Station::isFavorite)
@@ -282,7 +310,8 @@ class MainViewModel @Inject constructor(
         val activeQueue = _playbackUiState.value.queue
         if (activeQueue.size < 2) return
 
-        val reordered = favoritesOrder.reorderIfFavoritesQueue(activeQueue, favorites, sort) ?: return
+        val manualOrder = _favoritesManualOrder.value
+        val reordered = favoritesOrder.reorderIfFavoritesQueue(activeQueue, favorites, sort, manualOrder) ?: return
         if (skipIfUnchanged && reordered.map(Station::id) == activeQueue.map(Station::id)) return
 
         favoritesOrder.adopt(reordered.map(Station::id))
@@ -291,7 +320,12 @@ class MainViewModel @Inject constructor(
         _playbackUiState.value.station?.let { persistLastPlayedStation(it, reordered) }
     }
 
-    val stations: StateFlow<List<Station>> = favoritesOrder.display(allStationsState, _favoritesSort, viewModelScope)
+    val stations: StateFlow<List<Station>> = favoritesOrder.display(
+        allStations = allStationsState,
+        sort = _favoritesSort,
+        manualOrder = _favoritesManualOrder,
+        scope = viewModelScope,
+    )
 
     private val currentStationIdState = MutableStateFlow<Long?>(null)
     private val ephemeralStationState = MutableStateFlow<Station?>(null)
@@ -1007,6 +1041,7 @@ class MainViewModel @Inject constructor(
             snapshotQueue = snapshot?.queue.orEmpty(),
             fallbackStations = repository.getAll().first(),
             sort = _favoritesSort.value,
+            manualOrder = _favoritesManualOrder.value,
         )
         // Backups can contain paths to the old app-private logo directory. Resolve every
         // restored entry through the registry before constructing Media3 items; otherwise the

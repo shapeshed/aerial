@@ -331,6 +331,9 @@ class PlayerService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
         ): ListenableFuture<MediaSession.ConnectionResult> = Futures.immediateFuture(
             MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                .setAvailablePlayerCommands(
+                    availablePlayerCommandsFor(controller.isTrusted, controller.controllerVersion),
+                )
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                         .buildUpon()

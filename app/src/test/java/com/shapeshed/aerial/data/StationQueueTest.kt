@@ -34,6 +34,32 @@ class StationQueueTest {
     }
 
     @Test
+    fun manualSortFollowsSavedOrderAndPutsUnplacedStationsLast() {
+        val a = station(1, "Alpha")
+        val b = station(2, "Bravo")
+        val c = station(3, "Charlie")
+        val d = station(4, "Delta")
+
+        val sorted = sortStations(listOf(a, b, c, d), FavoritesSort.MANUAL, listOf(3L, 1L, 2L))
+
+        assertEquals(listOf(3L, 1L, 2L, 4L), sorted.map { it.id })
+    }
+
+    @Test
+    fun moveInOrderShiftsOneStationAndClampsAtEnds() {
+        assertEquals(listOf(2L, 1L, 3L), moveInOrder(listOf(1L, 2L, 3L), 2L, -1))
+        assertEquals(listOf(1L, 3L, 2L), moveInOrder(listOf(1L, 2L, 3L), 2L, 1))
+        assertEquals(listOf(1L, 2L, 3L), moveInOrder(listOf(1L, 2L, 3L), 1L, -1))
+        assertEquals(listOf(1L, 2L, 3L), moveInOrder(listOf(1L, 2L, 3L), 9L, 1))
+    }
+
+    @Test
+    fun manualOrderRoundTripsThroughPreferencesEncoding() {
+        assertEquals(listOf(5L, 2L, 9L), decodeManualOrder(encodeManualOrder(listOf(5L, 2L, 9L))))
+        assertEquals(emptyList<Long>(), decodeManualOrder(null))
+    }
+
+    @Test
     fun legacySnapshotWithoutQueueStillRestoresStation() {
         val restored = lastPlayedStationSnapshot(station(7, "Legacy").toLastPlayedJson().toString())
 

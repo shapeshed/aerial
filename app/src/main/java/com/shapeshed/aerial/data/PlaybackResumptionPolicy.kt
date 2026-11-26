@@ -5,4 +5,5 @@ internal fun queueForResumption(
     snapshotQueue: List<Station>,
     fallbackStations: List<Station>,
     sort: FavoritesSort,
-): List<Station> = snapshotQueue.takeIf { it.size > 1 } ?: sortStations(fallbackStations, sort)
+    manualOrder: List<Long> = emptyList(),
+): List<Station> = snapshotQueue.takeIf { it.size > 1 } ?: sortStations(fallbackStations, sort, manualOrder)
